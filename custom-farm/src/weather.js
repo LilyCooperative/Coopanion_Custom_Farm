@@ -36,7 +36,7 @@ export function normalizeWeathers(input) {
       decorAmp: clamp(row.decorAmp ?? row.swayAmp, 0, 40, 3),
       squash: clamp(row.squash, 0, 0.6, 0),
       mood: clamp(row.mood ?? { calm: 2, breeze: 1, gale: -6, egg: 4 }[id], -100, 100, 0),
-      speed: clamp(row.speed, 0.2, 4, 1),
+      speed: clamp(row.speed, 0, 20, 1),
     });
   }
   if (!out.some((w) => w.id === 'calm')) out.unshift({ ...DEFAULT_WEATHERS[0] });

@@ -387,6 +387,8 @@ export class FarmCatalog {
       recipes: [],
       settings: {},
       seededDecor: false,
+    seededCabin: false,
+    seededDecorSet: false,
     seededFreeCrops: false,
     seededFood: false,
     seededMood: false,
@@ -472,18 +474,31 @@ export class FarmCatalog {
     this.persist();
   }
 
-  /** 旧存档切到免费素材作物集：补全新作物，删掉没有替代的小麦/卷心菜/葡萄。 */
+  /** 旧存档切到免费素材作物集：补全新作物，删掉没有替代的小麦/卷心菜/葡萄。只迁移一次，之后保留用户改动。 */
   ensureFreeCrops() {
     if (!this.store) return;
+    const removed = new Set(['wheat', 'chinese_cabbage', 'grape']);
+    const filterConsume = () => {
+      let changed = false;
+      for (const action of this.store.consume ?? []) {
+        const before = (action.items ?? []).length;
+        action.items = (action.items ?? []).filter((id) => !removed.has(id) && !removed.has(String(id).replace(/^seed_/, '')));
+        if ((action.items ?? []).length !== before) changed = true;
+      }
+      return changed;
+    };
+    if (this.store.seededFreeCrops) {
+      const before = this.store.crops.length;
+      this.store.crops = this.store.crops.filter((c) => !removed.has(c.key));
+      if (filterConsume() || this.store.crops.length !== before) this.persist();
+      return;
+    }
     const defs = new Map(this.builtinCrops().map((c) => [c.key, c]));
-    const removed = new Set(["wheat", "chinese_cabbage", "grape"]);
     const order = Object.keys(CROPS);
     // 旧档没有 builtin 标记，但 wheat/chinese_cabbage/grape 一定是旧内置作物；删掉。
     const custom = this.store.crops.filter((c) => !c.builtin && !removed.has(c.key));
     this.store.crops = order.map((key) => defs.get(key)).filter(Boolean).concat(custom);
-    for (const action of this.store.consume ?? []) {
-      action.items = (action.items ?? []).filter((id) => !removed.has(id) && !removed.has(String(id).replace(/^seed_/, "")));
-    }
+    filterConsume();
     this.store.seededFreeCrops = true;
     this.persist();
   }
@@ -519,20 +534,25 @@ export class FarmCatalog {
       !(r.inputs ?? []).some((x) => removed.has(x.item)));
     if ((this.store.items?.length ?? 0) !== beforeItems || (this.store.recipes?.length ?? 0) !== beforeRecipes) this.persist();
   }
-  /** 稻草堆下架：删掉目录道具、背包和已摆放的旧实例。 */
-  /** 小木屋是后加的内置装饰；旧存档也补上。 */
+  /** 小木屋是后加的内置装饰；只在迁移时补一次，用户删掉后不再回来。 */
   ensureCabin() {
-    if (!this.store) return;
-    if ((this.store.items ?? []).some((it) => it.id === 'deco_cabin')) return;
-    const def = this.builtinDecorItems().find((it) => it.id === 'deco_cabin');
-    if (!def) return;
-    const item = this.normalizeItem(def, this.store.items.length, this.store.states ?? []);
-    if (item) { this.store.items.push(item); this.persist(); }
+    if (!this.store || this.store.seededCabin) return;
+    const list = this.store.items ?? (this.store.items = []);
+    if (!list.some((it) => it.id === 'deco_cabin')) {
+      const def = this.builtinDecorItems().find((it) => it.id === 'deco_cabin');
+      if (def) {
+        const item = this.normalizeItem(def, list.length, this.store.states ?? []);
+        if (item) list.push(item);
+      }
+    }
+    this.store.seededCabin = true;
+    this.persist();
   }
 
   ensureDecorSet() {
-    if (!this.store) return;
+    if (!this.store || this.store.seededDecorSet) return;
     this.store.items = (this.store.items ?? []).filter((it) => it.id !== 'deco_haystack');
+    this.store.seededDecorSet = true;
     this.persist();
   }
   /** 老存档补一次内置装饰；只补一次，之后用户删了也不会自动回来。 */
@@ -620,6 +640,8 @@ export class FarmCatalog {
       recipes,
       settings: this.normalizeSettings(raw.settings),
       seededDecor: Boolean(raw.seededDecor),
+    seededCabin: Boolean(raw.seededCabin),
+    seededDecorSet: Boolean(raw.seededDecorSet),
     seededFreeCrops: Boolean(raw.seededFreeCrops),
     seededFood: Boolean(raw.seededFood),
     seededMood: Boolean(raw.seededMood),

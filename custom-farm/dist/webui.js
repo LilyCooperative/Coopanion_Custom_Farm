@@ -56,8 +56,8 @@ const TEXT = {
     ecologyTime: '时间与生长',
     ecologyWater: '浇水',
     timePerDay: '一个游戏日 = 真实分钟',
-    maxStepDays: '单次最多推进（游戏日）',
-    tickMs: '刷新间隔（ms）',
+    maxStepDays: '离线最多补几天（安全上限）',
+    tickMs: '刷新间隔（ms，不影响生长）',
     dailyEvent: '每天推「新的一天」事件',
     saveEcology: '保存生态设置',
     addGround: '添加自定义贴图',
@@ -160,8 +160,8 @@ const TEXT = {
     ecologyTime: 'Time & growth',
     ecologyWater: 'Watering',
     timePerDay: 'Real minutes per game day',
-    maxStepDays: 'Max game days per step',
-    tickMs: 'Refresh interval (ms)',
+    maxStepDays: 'Max offline days (safety cap)',
+    tickMs: 'Refresh interval (ms, does not affect growth)',
     dailyEvent: 'Push a "new day" event daily',
     saveEcology: 'Save ecology settings',
     addGround: 'Add custom tile',
@@ -2490,7 +2490,7 @@ function ecologyPanel(ctx) {
       decorAmp: Math.max(0, Math.min(40, Number(w.decorAmp ?? w.swayAmp) || 0)),
       squash: Math.max(0, Math.min(0.6, Number(w.squash) || 0)),
       mood: Math.max(-100, Math.min(100, Number(w.mood) || 0)),
-      speed: Math.max(0.2, Math.min(4, Number(w.speed) || 1)),
+      speed: Math.max(0, Math.min(20, Number(w.speed) || 1)),
     }));
     if (!out.some((w) => w.id === 'calm')) out.unshift({ ...DEFAULT_WEATHERS[0] });
     if (!out.some((w) => w.id !== 'calm')) out.push(...DEFAULT_WEATHERS.slice(1).map((w) => ({ ...w })));
@@ -2519,9 +2519,10 @@ function ecologyPanel(ctx) {
     if (!draft) draft = cloneSettings(snapshot?.settings);
     return draft;
   };
-  const num = (value, onChange, step = '1', min = '0') => {
+  const num = (value, onChange, step = '1', min = '0', max = '') => {
     const input = ui.input({ type: 'number', value: String(value ?? '') });
     input.step = step; input.min = min;
+    if (max !== '') input.max = max;
     input.addEventListener('input', () => { const n = Number(input.value); if (Number.isFinite(n)) onChange(n); }, { signal: ctx.signal });
     return input;
   };
@@ -2596,7 +2597,7 @@ function ecologyPanel(ctx) {
     row1.append(
       ui.field(zh ? '持续（秒）' : 'Duration (s)', num(w.duration, (v) => { w.duration = v; }, '1', '1')),
       ui.field(zh ? '触发概率（权重）' : 'Probability (weight)', num(w.weight, (v) => { w.weight = v; }, '1', '0')),
-      ui.field(zh ? '速度（倍率）' : 'Speed (x)', num(w.speed, (v) => { w.speed = v; }, '0.1', '0.2')),
+      ui.field(zh ? '速度（倍率）' : 'Speed (x)', num(w.speed, (v) => { w.speed = v; }, '0.1', '0', '20')),
       ui.field(zh ? '心情变化/结算' : 'Mood per settlement', num(w.mood, (v) => { w.mood = v; }, '1', '-100')),
     );
     const crop = ui.h('div', 'cf-row');
@@ -2633,13 +2634,15 @@ function ecologyPanel(ctx) {
     const d = getDraft();
     const sheet = ui.sheet({
       title: zh ? '生态自定义' : 'Ecology',
-      desc: zh ? '生长条件与天气。天气按持续时间切换，触发概率按权重计算。' : 'Growth conditions and weather. Weather changes by duration and weighted probability.',
+      desc: zh
+        ? '1 游戏日 = 现实分钟决定生长速度；离线最多补几天是防止关机回来一次跳太多天；刷新间隔只影响状态/事件更新，不影响生长速度。天气按持续时间切换，触发概率按权重计算。'
+        : 'Real minutes per game day sets growth speed; max offline days caps how many game days a long shutdown can catch up; the refresh interval only affects state/event updates, not growth speed. Weather changes by duration and weighted probability.',
     });
     const time = ui.h('div', 'cf-row');
     time.append(
       ui.field(zh ? '1 游戏日 = 现实分钟' : 'Real minutes per game day', num(d.realMinutesPerDay, (v) => { d.realMinutesPerDay = v; }, '0.5', '0.5')),
-      ui.field(zh ? '单次最多补几天' : 'Max offline days', num(d.maxStepDays, (v) => { d.maxStepDays = v; }, '0.1', '0.01')),
-      ui.field(zh ? '刷新间隔（毫秒）' : 'Tick interval (ms)', num(d.tickIntervalMs, (v) => { d.tickIntervalMs = v; }, '100', '1000')),
+      ui.field(zh ? '离线最多补几天（安全上限）' : 'Max offline days (safety cap)', num(d.maxStepDays, (v) => { d.maxStepDays = v; }, '0.1', '0.01')),
+      ui.field(zh ? '刷新间隔（毫秒，不影响生长）' : 'Refresh interval (ms, does not affect growth)', num(d.tickIntervalMs, (v) => { d.tickIntervalMs = v; }, '100', '1000')),
     );
     const daily = ui.checkbox(zh ? '每天推送 farm.day' : 'Emit farm.day', {
       checked: d.dailyEvent,

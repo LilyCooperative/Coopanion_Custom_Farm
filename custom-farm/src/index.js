@@ -7,8 +7,8 @@ import { FARM_TOOL_DECLS, FarmWorld } from './world.js';
 
 const TOOL_SUMMARIES = {
   farm_status: {
-    zh: '看田：每棵作物的位置、等级、进度、水分、是否可收/枯萎，外加背包、地上的掉落物和最近田里的变化（少了哪棵、为什么）。',
-    en: 'Show every plant (position, level, progress, moisture, ripe/wilted) plus the bag, the drops, and recent field changes (which plant is gone and why).',
+    zh: '看田：每棵作物的位置、等级、进度、水分、是否可收/枯萎，外加背包、地上的掉落物、摆放的装饰物位置和最近田里的变化（少了哪棵、为什么）。',
+    en: 'Show every plant (position, level, progress, moisture, ripe/wilted) plus the bag, the drops, placed decorations and recent field changes (which plant is gone and why).',
   },
   farm_stand: {
     zh: '站到某个位置（at 必填），播种/收割/捡东西都要先站过去。',

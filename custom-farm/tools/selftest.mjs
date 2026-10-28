@@ -334,6 +334,9 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
     decoState.weeds.length === 1 && decoState.furniture[1].layer === 'bottom');
   const decoView = overlayView(decoState).furniture;
   check('装饰：overlay 带上下层', decoView[0].layer === 'top' && decoView[1].layer === 'bottom');
+  const decoSummary = summary(decoState, cfg).decorations;
+  check('装饰：farm_status 摘要带位置和图层', decoSummary.length === 2 && decoSummary[0].xPct === 50 &&
+    decoSummary[1].xPct === 50 && decoSummary[0].layer === 'top', JSON.stringify(decoSummary));
   cat.saveState({ name: '测试心情', kind: 'number', min: -10, max: 10, initial: 0, driftPerDay: 1, unit: '点' });
   const mood = cat.states.find((s) => s.name === '测试心情');
   check('目录：新增数值状态', Boolean(mood) && mood.min === -10 && mood.max === 10 && mood.unit === '点');

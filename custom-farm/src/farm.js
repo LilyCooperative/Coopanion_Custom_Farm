@@ -1162,7 +1162,8 @@ export function overlayView(state) {
 
 /** 给工具看的摘要。 */
 export function summary(state, cfg = DEFAULTS) {
-  const total = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+  const inventory = Object.fromEntries(Object.entries(state.inventory ?? {}).filter(([id]) => Boolean(live.items?.[id])));
+  const total = Object.values(inventory).reduce((a, b) => a + b, 0);
   const weedList = (state.weeds ?? []).map((w) => {
     const t = weedTypeOf(w);
     const lv = Number(w.level ?? 0);
@@ -1180,6 +1181,17 @@ export function summary(state, cfg = DEFAULTS) {
     };
   });
   const ripeWeeds = weedList.filter((w) => w.ready);
+  const decorations = (state.furniture ?? [])
+    .filter((f) => f.x !== null && f.x !== undefined)
+    .map((f) => ({
+      uid: f.uid,
+      id: f.id,
+      name: live.names?.[f.id] ?? f.id,
+      x: round2(Number(f.x)),
+      xPct: Math.round(Number(f.x) * 100),
+      layer: live.items?.[f.id]?.layer ?? f.layer ?? 'bottom',
+    }))
+    .sort((a, b) => a.x - b.x);
   return {
     day: state.day,
     clock: clockText(state.minute),
@@ -1190,7 +1202,7 @@ export function summary(state, cfg = DEFAULTS) {
     standingAt: Number.isFinite(state.standingAt) ? Number(state.standingAt) : null,
     realMinutesPerDay: Number(cfg.realMinutesPerDay),
     bagTotal: total,
-    bag: { ...state.inventory },
+    bag: inventory,
     drops: state.drops.length,
     planted: state.plots.length,
     max: cfg.maxPlants,
@@ -1199,6 +1211,7 @@ export function summary(state, cfg = DEFAULTS) {
     weeds: weedList.length,
     weedRipe: ripeWeeds.length,
     weedList: ripeWeeds,
+    decorations,
     states: (Array.isArray(cfg.stateDefs) ? cfg.stateDefs : []).map((d) => {
       const value = state.states?.[d.id] ?? {};
       const flag = d.kind === 'flag';

@@ -1,6 +1,6 @@
 # 公开发布清单
 
-当前版本：`0.35.0`。
+当前版本：`0.36.0`。
 
 ## 包内容
 
@@ -33,7 +33,7 @@
 
 ## 发布
 
-- 自测：`node tools/selftest.mjs`（166 项）
+- 自测：`node tools/selftest.mjs`（167 项）
 - 打包：`cd custom-farm && npm pack`
 - 发布：`npm publish --access public`
 - 市场同步：在 `Pal-AI-Lab/cortico-extensions` 开 `[sync] @lily-cooperative/custom-farm` issue

@@ -83,7 +83,7 @@ export const FARM_TOOL_DECLS = [
   {
     name: 'farm_status',
     tags: ['read', 'snapshot'],
-    description: '查看田地：每棵作物的位置 xPct（屏幕底部百分比）、等级、成熟进度、水分、是否熟了/枯萎了、还能收几次，以及背包里有什么、地上掉了什么、野草有几丛/哪些能收、主人自定义的状态（数值 + 开关）当前是多少。最后一行「最近田里的变化」会列出最近少掉的棵和原因——田空了先看这行，别当成存档被清。想知道情况就查这个，田地不会主动推送生长进度。',
+    description: '查看田地：每棵作物的位置 xPct（屏幕底部百分比）、等级、成熟进度、水分、是否熟了/枯萎了、还能收几次，以及背包里有什么、地上掉了什么、野草有几丛/哪些能收、摆放的装饰物在哪个位置、主人自定义的状态（数值 + 开关）当前是多少。最后一行「最近田里的变化」会列出最近少掉的棵和原因——田空了先看这行，别当成存档被清。想知道情况就查这个，田地不会主动推送生长进度。',
     parameters: { type: 'object', properties: {} },
   },
   {
@@ -625,10 +625,30 @@ export class FarmWorld {
       delete this.#state.inventory?.['seed_' + key];
     }
     delete this.#state.inventory?.seed_wheat;
-    for (const key of ['wheat', 'flour', 'pasta']) delete this.#state.inventory?.[key];
+    for (const key of ['wheat', 'flour']) delete this.#state.inventory?.[key];
     this.#state.furniture = (this.#state.furniture ?? []).filter((f) => f.id !== 'deco_haystack');
     delete this.#state.inventory?.deco_haystack;
-    this.#catalog?.removeRecipesUsing(['chinese_cabbage', 'seed_chinese_cabbage', 'grape', 'seed_grape', 'wheat', 'flour', 'pasta']);
+    this.#catalog?.removeRecipesUsing(['chinese_cabbage', 'seed_chinese_cabbage', 'grape', 'seed_grape', 'wheat', 'flour']);
+  }
+
+  /** 清掉旧版本留在背包/田里的孤儿 id（比如旧家具 deco_16）：当前目录里没有这个道具就删。 */
+  #pruneOrphanItems() {
+    if (!this.#state) return;
+    const known = new Set(Object.keys(live.items ?? {}));
+    if (!known.size) return;
+    let changed = false;
+    for (const id of Object.keys(this.#state.inventory ?? {})) {
+      if (known.has(id)) continue;
+      delete this.#state.inventory[id];
+      changed = true;
+    }
+    const beforeFurniture = (this.#state.furniture ?? []).length;
+    this.#state.furniture = (this.#state.furniture ?? []).filter((f) => known.has(f.id));
+    if (this.#state.furniture.length !== beforeFurniture) changed = true;
+    const beforeDrops = (this.#state.drops ?? []).length;
+    this.#state.drops = (this.#state.drops ?? []).filter((d) => known.has(d.item));
+    if (this.#state.drops.length !== beforeDrops) changed = true;
+    if (changed) this.#host?.log?.info?.('自定义农场：清掉旧存档里已经不存在的道具');
   }
   #ensureStarted() {
     if (!this.#started || !this.#state) throw new Error('自定义农场 World 还没启动；等它启用后再试。');
@@ -680,6 +700,9 @@ export class FarmWorld {
       } else {
         lines.push('野草 ' + s.weeds + ' 丛（都还没长成；种东西时会把脚下的铲掉）。');
       }
+    }
+    if (s.decorations.length) {
+      lines.push('摆放的装饰：' + s.decorations.map((d) => d.name + '（' + d.xPct + '%，' + (d.layer === 'top' ? '上层' : '下层') + '）').join('、') + '。');
     }
     if (s.states.length) {
       lines.push('状态：' + s.states.map((st) => (st.kind === 'flag'
@@ -2490,6 +2513,7 @@ export class FarmWorld {
       }
       this.#state = await this.#loadOrInit();
       this.#pruneRemovedCrops();
+      this.#pruneOrphanItems();
       this.#state.current = null;
       this.#state.standingAt = null;
       // 老存档的 drySince 是按"游戏分钟"存的，换成按"累计游戏日"之后要清一次，免得永远不枯萎

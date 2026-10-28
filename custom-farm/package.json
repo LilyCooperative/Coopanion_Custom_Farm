@@ -1,6 +1,6 @@
 {
   "name": "@lily-cooperative/custom-farm",
-  "version": "0.35.0",
+  "version": "0.36.0",
   "type": "module",
   "private": false,
   "publishConfig": {

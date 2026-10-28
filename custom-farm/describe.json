@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "farm_status",
-      "description": "查看田地：每棵作物的位置 xPct（屏幕底部百分比）、等级、成熟进度、水分、是否熟了/枯萎了、还能收几次，以及背包里有什么、地上掉了什么、野草有几丛/哪些能收、主人自定义的状态（数值 + 开关）当前是多少。最后一行「最近田里的变化」会列出最近少掉的棵和原因——田空了先看这行，别当成存档被清。想知道情况就查这个，田地不会主动推送生长进度。",
+      "description": "查看田地：每棵作物的位置 xPct（屏幕底部百分比）、等级、成熟进度、水分、是否熟了/枯萎了、还能收几次，以及背包里有什么、地上掉了什么、野草有几丛/哪些能收、摆放的装饰物在哪个位置、主人自定义的状态（数值 + 开关）当前是多少。最后一行「最近田里的变化」会列出最近少掉的棵和原因——田空了先看这行，别当成存档被清。想知道情况就查这个，田地不会主动推送生长进度。",
       "parameters": {
         "type": "object",
         "properties": {}
@@ -12,8 +12,8 @@
         "snapshot"
       ],
       "summary": {
-        "zh": "看田：每棵作物的位置、等级、进度、水分、是否可收/枯萎，外加背包、地上的掉落物和最近田里的变化（少了哪棵、为什么）。",
-        "en": "Show every plant (position, level, progress, moisture, ripe/wilted) plus the bag, the drops, and recent field changes (which plant is gone and why)."
+        "zh": "看田：每棵作物的位置、等级、进度、水分、是否可收/枯萎，外加背包、地上的掉落物、摆放的装饰物位置和最近田里的变化（少了哪棵、为什么）。",
+        "en": "Show every plant (position, level, progress, moisture, ripe/wilted) plus the bag, the drops, placed decorations and recent field changes (which plant is gone and why)."
       }
     },
     {
