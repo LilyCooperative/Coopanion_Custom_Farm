@@ -1,0 +1,74 @@
+{
+  "name": "@lily-cooperative/custom-farm",
+  "version": "0.33.5",
+  "type": "module",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "自定义农场（Custom Farm）—— 给 Coopanion 桌宠的种田扩展：18 种作物、浇水/生长/收割/卖钱，确定性 tick（纯代码，不唤模型），并把渲染用的 state.json 写给桌面图层。",
+  "keywords": [
+    "cortico-world",
+    "farm",
+    "种田",
+    "自定义农场"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "lily_cooperative",
+    "email": "lily_cooperative@users.noreply.github.com",
+    "url": "https://github.com/LilyCooperative"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LilyCooperative/Coopanion_Custom_Farm.git",
+    "directory": "custom-farm"
+  },
+  "homepage": "https://github.com/LilyCooperative/Coopanion_Custom_Farm#readme",
+  "bugs": {
+    "url": "https://github.com/LilyCooperative/Coopanion_Custom_Farm/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "dist",
+    "overlay",
+    "overlay-electron",
+    "bag",
+    "assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prepack": "node tools/pack-prepare.mjs",
+    "postpack": "node tools/pack-clean.mjs"
+  },
+  "cortico": {
+    "kind": "world",
+    "api": 6,
+    "displayName": "自定义农场",
+    "tags": [
+      "game",
+      "companion",
+      "internal-state",
+      "experimental"
+    ],
+    "describe": "describe.json",
+    "webUiClient": "dist/webui.js",
+    "webUiStyle": "dist/webui.css"
+  },
+  "dependencies": {
+    "electron": "^45.1.0"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ]
+}

@@ -1,0 +1,181 @@
+/* 「农场自定义」面板：只用 currentColor + color-mix，跟随 WebUI 明暗主题。 */
+.cf-root { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.cf-hr {
+  width: 100%;
+  height: 0;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+}
+.cf-hr2 {
+  width: 100%;
+  height: 0;
+  margin: 2px 0;
+  border: 0;
+  border-top: 1px dashed color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.cf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.cf-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+}
+.cf-tile:hover { border-color: color-mix(in srgb, currentColor 34%, transparent); }
+.cf-tile.sel {
+  border-color: color-mix(in srgb, #f0d27a 80%, transparent);
+  background: color-mix(in srgb, #f0d27a 12%, transparent);
+}
+.cf-tile-name { font-size: 11px; line-height: 1.25; text-align: center; opacity: .82; overflow-wrap: anywhere; }
+.cf-tile-tag {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #f0d27a 85%, transparent);
+  color: #1a1418;
+  font-size: 9px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+.cf-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, #d9534f 70%, transparent);
+  color: #fff;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+.cf-x:hover { background: #d9534f; }
+
+.cf-thumb {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background:
+    repeating-conic-gradient(color-mix(in srgb, currentColor 8%, transparent) 0 25%, transparent 0 50%) 0 0 / 10px 10px;
+  flex: 0 0 auto;
+}
+.cf-thumb img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.cf-thumb.cf-missing { border: 1px dashed color-mix(in srgb, currentColor 28%, transparent); font-size: 11px; opacity: .5; }
+
+.cf-list { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cf-card {
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 10px;
+  padding: 0 12px 10px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  min-width: 0;
+}
+.cf-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+.cf-name { font-size: 14px; flex: 1 1 8em; min-width: 0; overflow-wrap: anywhere; }
+.cf-body { display: flex; flex-direction: column; gap: 10px; padding-top: 2px; }
+
+.cf-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; min-width: 0; }
+.cf-row > label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; opacity: .92; }
+.cf-row input.field { width: 8.5em; }
+
+.cf-sub { font-size: 12px; opacity: .7; margin-top: 2px; }
+.cf-stages { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.cf-stage { display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
+.cf-stage input.field { width: 6.5em; }
+.cf-note { font-size: 11px; opacity: .72; overflow-wrap: anywhere; }
+
+.cf-sprites { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.cf-sprite { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 66px; }
+.cf-sprite .btn { font-size: 10px; padding: 1px 6px; }
+
+.cf-root .actions { margin-top: 4px; }
+
+.cf-status { display: flex; flex-direction: column; gap: 10px; }
+.cf-fxblock { display: flex; flex-direction: column; gap: 6px; }
+.cf-frames { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.cf-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+.cf-frame .cf-x { top: -6px; right: -6px; }
+
+
+/* 背包 / 商店页：和 WPF 背包一样的 4 列图标格 */
+.bg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.bg-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.bg-name { font-size: 12px; font-weight: 600; text-align: center; word-break: break-all; line-height: 1.25; }
+.bg-count { font-family: Consolas, ui-monospace, monospace; font-size: 12px; color: #F0D27A; }
+.bg-meta { font-size: 10px; opacity: .62; text-align: center; line-height: 1.25; }
+.bg-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 2px; }
+
+.bg-craft { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.bg-craftrow { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: color-mix(in srgb, currentColor 4%, transparent); }
+.bg-craftrow.bad { background: color-mix(in srgb, #ff6b6b 16%, transparent); }
+.bg-craftrow.out { border: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.bg-craftname { flex: 1; font-size: 12px; }
+.bg-craftnum { font-family: Consolas, ui-monospace, monospace; font-size: 12px; color: #F0D27A; }
+.bg-craftrow.bad .bg-craftnum { color: #ff9a9a; }
+
+.bp-preview { position: relative; height: 260px; margin: 6px 0 4px; overflow: hidden; border-radius: 12px; border: 1px solid color-mix(in srgb, currentColor 10%, transparent); background: linear-gradient(#141923, #0f1218 62%); }
+.bp-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; background: linear-gradient(#3f6b3f, #244726); border-top: 1px solid #6a9a58; }
+.bp-item { position: absolute; bottom: 56px; transform: translateX(-50%); z-index: 2; }
+.bp-item.bottom { z-index: 1; }
+.bp-item.crop { z-index: 2; }
+.bp-item.top { z-index: 3; }
+.bp-item .cf-thumb { border: 0; background: transparent; }
+.bp-item.sel .cf-thumb { filter: drop-shadow(0 0 6px #ffd166) drop-shadow(0 0 2px #fff2b0); }
+.bp-item.sel::after { content: ''; position: absolute; left: 50%; bottom: -3px; width: 52px; height: 10px; transform: translateX(-50%); border-radius: 50%; background: #ffd16655; }
+.bp-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; opacity: .55; }
+.bp-marker { position: absolute; top: 0; bottom: 0; z-index: 8; border-left: 2px dashed #ffd166; pointer-events: none; }
+.bp-marker-tag { position: absolute; top: 8px; left: 4px; padding: 1px 6px; border-radius: 6px; background: #ffd166; color: #1a1a1a; font-size: 11px; white-space: nowrap; }
+.bp-ghost { position: absolute; bottom: 56px; left: 0; transform: translateX(-50%); opacity: .55; }
+.bp-pick { display: block; padding: 0; border: 0; background: none; cursor: pointer; }
+.bp-pick .cf-thumb { border: 0; background: transparent; }
+.bp-card.sel { outline: 2px solid #ffd166; outline-offset: 1px; }
