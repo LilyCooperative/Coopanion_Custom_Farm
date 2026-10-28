@@ -1,0 +1,35 @@
+{
+  "day": 3,
+  "clock": "06:40",
+  "coins": 128,
+  "weather": "晴",
+  "inventory": { "total": 0, "items": {} },
+  "drops": [],
+  "furniture": [],
+  "weeds": [],
+  "plots": [
+    {
+      "id": 1, "crop": "tomato", "name": "番茄", "prefix": "sprite_seed_tomato",
+      "frame": 5, "level": 5, "levels": 6, "x": 0.22, "water": 1.0,
+      "swing": false, "ready": false, "dead": false, "progress": 100
+    },
+    {
+      "id": 2, "crop": "corn", "name": "玉米", "prefix": "sprite_seed_corn",
+      "frame": 5, "level": 5, "levels": 6, "x": 0.40, "water": 1.0,
+      "swing": false, "ready": false, "dead": false, "progress": 100
+    },
+    {
+      "id": 3, "crop": "potato", "name": "土豆", "prefix": "sprite_seed_potato",
+      "frame": 3, "level": 3, "levels": 4, "x": 0.58, "water": 0.4,
+      "swing": false, "ready": false, "dead": false, "progress": 100
+    },
+    {
+      "id": 4, "crop": "pumpkin", "name": "南瓜", "prefix": "sprite_seed_pumpkin",
+      "frame": 6, "level": 6, "levels": 7, "x": 0.76, "water": 1.0,
+      "swing": false, "ready": false, "dead": false, "progress": 100
+    }
+  ],
+  "fx": [
+    { "id": 1, "kind": "water", "x": 0.40, "plot": 2, "atMinute": 0 }
+  ]
+}

@@ -1,0 +1,25 @@
+# 运行时状态 / 日志 / 快照（每台机器自己生成，不进版本库）
+overlay/runtime/
+*.log
+*.pid
+
+# 手工备份
+_backup/
+
+# Python / Node 缓存
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+.pnpm-store/
+
+# Windows 杂项
+Thumbs.db
+desktop.ini
+
+custom-farm/overlay/
+custom-farm/bag/
+custom-farm/assets/
+
+overlay-electron/node_modules/
+overlay-electron/runtime/

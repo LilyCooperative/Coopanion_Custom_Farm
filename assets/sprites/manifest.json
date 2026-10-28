@@ -1,0 +1,248 @@
+[
+ {
+  "name": "icon_item_corn",
+  "file": "icon_item_corn.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_pumpkin",
+  "file": "icon_item_pumpkin.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_pumpkin_pie",
+  "file": "icon_item_pumpkin_pie.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_chinese_cabbage",
+  "file": "icon_item_seed_chinese_cabbage.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_corn",
+  "file": "icon_item_seed_corn.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_potato",
+  "file": "icon_item_seed_potato.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_pumpkin",
+  "file": "icon_item_seed_pumpkin.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_strawberry",
+  "file": "icon_item_seed_strawberry.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_tomato",
+  "file": "icon_item_seed_tomato.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_seed_wheat",
+  "file": "icon_item_seed_wheat.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_soil",
+  "file": "icon_item_soil.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_tomato",
+  "file": "icon_item_tomato.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_tomato_scrambled_egg",
+  "file": "icon_item_tomato_scrambled_egg.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "icon_item_wheat",
+  "file": "icon_item_wheat.png",
+  "w": 28,
+  "h": 28
+ },
+ {
+  "name": "sprite_resource_wheat_0",
+  "file": "sprite_resource_wheat_0.png",
+  "w": 19,
+  "h": 17
+ },
+ {
+  "name": "sprite_resource_wheat_1",
+  "file": "sprite_resource_wheat_1.png",
+  "w": 25,
+  "h": 24
+ },
+ {
+  "name": "sprite_resource_wheat_2",
+  "file": "sprite_resource_wheat_2.png",
+  "w": 29,
+  "h": 29
+ },
+ {
+  "name": "sprite_resource_wheat_3",
+  "file": "sprite_resource_wheat_3.png",
+  "w": 39,
+  "h": 34
+ },
+ {
+  "name": "sprite_seed_corn_0",
+  "file": "sprite_seed_corn_0.png",
+  "w": 20,
+  "h": 9
+ },
+ {
+  "name": "sprite_seed_corn_1",
+  "file": "sprite_seed_corn_1.png",
+  "w": 14,
+  "h": 14
+ },
+ {
+  "name": "sprite_seed_corn_2",
+  "file": "sprite_seed_corn_2.png",
+  "w": 18,
+  "h": 21
+ },
+ {
+  "name": "sprite_seed_corn_3",
+  "file": "sprite_seed_corn_3.png",
+  "w": 21,
+  "h": 34
+ },
+ {
+  "name": "sprite_seed_corn_4",
+  "file": "sprite_seed_corn_4.png",
+  "w": 23,
+  "h": 48
+ },
+ {
+  "name": "sprite_seed_corn_5",
+  "file": "sprite_seed_corn_5.png",
+  "w": 23,
+  "h": 48
+ },
+ {
+  "name": "sprite_seed_potato_0",
+  "file": "sprite_seed_potato_0.png",
+  "w": 18,
+  "h": 9
+ },
+ {
+  "name": "sprite_seed_potato_1",
+  "file": "sprite_seed_potato_1.png",
+  "w": 11,
+  "h": 15
+ },
+ {
+  "name": "sprite_seed_potato_2",
+  "file": "sprite_seed_potato_2.png",
+  "w": 21,
+  "h": 23
+ },
+ {
+  "name": "sprite_seed_potato_3",
+  "file": "sprite_seed_potato_3.png",
+  "w": 25,
+  "h": 26
+ },
+ {
+  "name": "sprite_seed_pumpkin_0",
+  "file": "sprite_seed_pumpkin_0.png",
+  "w": 18,
+  "h": 9
+ },
+ {
+  "name": "sprite_seed_pumpkin_1",
+  "file": "sprite_seed_pumpkin_1.png",
+  "w": 14,
+  "h": 15
+ },
+ {
+  "name": "sprite_seed_pumpkin_2",
+  "file": "sprite_seed_pumpkin_2.png",
+  "w": 17,
+  "h": 17
+ },
+ {
+  "name": "sprite_seed_pumpkin_3",
+  "file": "sprite_seed_pumpkin_3.png",
+  "w": 20,
+  "h": 21
+ },
+ {
+  "name": "sprite_seed_pumpkin_4",
+  "file": "sprite_seed_pumpkin_4.png",
+  "w": 24,
+  "h": 22
+ },
+ {
+  "name": "sprite_seed_pumpkin_5",
+  "file": "sprite_seed_pumpkin_5.png",
+  "w": 27,
+  "h": 21
+ },
+ {
+  "name": "sprite_seed_pumpkin_6",
+  "file": "sprite_seed_pumpkin_6.png",
+  "w": 31,
+  "h": 23
+ },
+ {
+  "name": "sprite_seed_tomato_0",
+  "file": "sprite_seed_tomato_0.png",
+  "w": 15,
+  "h": 8
+ },
+ {
+  "name": "sprite_seed_tomato_1",
+  "file": "sprite_seed_tomato_1.png",
+  "w": 10,
+  "h": 13
+ },
+ {
+  "name": "sprite_seed_tomato_2",
+  "file": "sprite_seed_tomato_2.png",
+  "w": 15,
+  "h": 24
+ },
+ {
+  "name": "sprite_seed_tomato_3",
+  "file": "sprite_seed_tomato_3.png",
+  "w": 20,
+  "h": 26
+ },
+ {
+  "name": "sprite_seed_tomato_4",
+  "file": "sprite_seed_tomato_4.png",
+  "w": 25,
+  "h": 29
+ },
+ {
+  "name": "sprite_seed_tomato_5",
+  "file": "sprite_seed_tomato_5.png",
+  "w": 25,
+  "h": 29
+ }
+]

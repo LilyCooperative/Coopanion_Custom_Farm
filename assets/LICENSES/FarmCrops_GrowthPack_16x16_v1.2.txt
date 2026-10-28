@@ -1,0 +1,30 @@
+Farm Crops - Growth Stages Pixel Art Pack (16x16)
+
+[18] hand-drawn crops with seed packets, seeds and 6-7 growth stages.
+Free to use in personal and commercial games.
+
+Perfect for farming sims, cooking games and management games.
+
+What's included
+- [18] crops: seed packet, seeds, 6-7 growth stages, harvest icon
+- Regrowing crops (tomato, strawberry, chili...) with an extra
+  "harvested" frame
+- Individual PNGs, full sprite sheet, x[10] previews, README
+- Matches my Fruits & Vegetables Pixel Art Pack (link below)
+
+Details
+- Frame size for crops growth: [16x32]
+- Frame size for packets and crops: [16x16]
+- Format: PNG, transparent background
+- Works with Godot, Unity, GameMaker and any engine that supports PNG
+- All hand-drawn in Aseprite. No generative AI.
+
+License
+- Free for personal and commercial use
+- Credit appreciated, not required
+- You may modify the sprites for your own projects
+- Please don't resell or redistribute the assets as-is
+
+Matching fruit & veg sprites: https://irdk15599.itch.io/cute-vegetables-furits-16x16
+
+by IDRK15599
