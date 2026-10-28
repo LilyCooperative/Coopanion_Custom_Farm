@@ -63,6 +63,7 @@ export const farmDefinition = {
     dataDir: ctx.dataDir,
     botDir: ctx.botDir,
     packageDir: ctx.packageDir,
+    persist: (patch) => ctx.persist(patch),
   }),
   describe: {
     tools: describeTools(FARM_TOOL_DECLS),

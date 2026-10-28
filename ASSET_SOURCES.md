@@ -13,8 +13,7 @@
 | 闪光粒子 `crop_shiny_01..60` | **Grok 重绘** |
 | 烟尘粒子 `smoke_ps_02_0..5` | **Grok 重绘** |
 | 兜底图标 `icon_item_soil` | **Grok 重绘** |
-| 背包标题图标 `ui_menuicon_farm` | **Grok 重绘** |
-| 背包面板 `bag/art/panel.png`、`slot.png` | **Grok 重绘** |
+| 农场标题图标 `ui_menuicon_farm` | **Grok 重绘** |
 | 浇水/水花/滴水 94 张 | **Grok 重绘** |
 
 ## Farm Crops - Growth Stages Pixel Art Pack 16x16

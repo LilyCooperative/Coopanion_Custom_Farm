@@ -47,6 +47,8 @@ export function farmPatch(cfg = DEFAULTS) {
 export const REACH = 0.05;
 
 export const DEFAULTS = {
+  /** 安装目录：overlay / overlay-electron / assets 放在这里；空 = <dataDir>/custom-farm */
+  installPath: '',
   /** 最多同时种几棵（屏幕上不重叠地放得下的上限） */
   maxPlants: 12,
   /** 屏幕逻辑宽度，用来把"像素宽"换算成 x 间距 */

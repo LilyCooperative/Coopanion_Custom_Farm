@@ -32,8 +32,7 @@
 - 闪光粒子：`crop_shiny_01..60.png`
 - 烟尘粒子：`smoke_ps_02_0..5.png`
 - 兜底土图标：`icon_item_soil.png`
-- 背包标题：`ui_menuicon_farm.png`
-- 背包面板：`bag/art/panel.png`、`bag/art/slot.png`
+- 农场标题图标：`ui_menuicon_farm.png`
 - 水特效：`water_pour_1..4.png`、`water_burst_1..6.png`、`water_drip*_*.png`
 
 这些文件由 **Grok Pro 会员**生成；用户确认素材归其所有，可按本项目许可公开分发。

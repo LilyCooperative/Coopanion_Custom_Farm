@@ -1,12 +1,12 @@
 {
   "name": "@lily-cooperative/custom-farm",
-  "version": "0.34.1",
+  "version": "0.35.0",
   "type": "module",
   "private": false,
   "publishConfig": {
     "access": "public"
   },
-  "description": "自定义农场（Custom Farm）—— 给 Coopanion 桌宠的种田扩展：18 种作物只是起点。农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义；种、浇、收、吃、买卖全部本地确定性运行，不唤模型。",
+  "description": "自定义农场（Custom Farm）—— 给 Coopanion 桌宠的种田扩展：18 种作物只是起点。农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义；种、浇、收、吃、买卖都由你决定。",
   "keywords": [
     "cortico-world",
     "coopanion",
@@ -42,7 +42,6 @@
     "dist",
     "overlay",
     "overlay-electron",
-    "bag",
     "assets",
     "icon.png",
     "describe.json",
@@ -60,11 +59,11 @@
     "locales": {
       "zh": {
         "displayName": "自定义农场",
-        "description": "18 种作物只是起点：农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义，想种什么、长什么样、吃什么补什么，全由你决定。种、浇、收、吃、买卖全部本地确定性运行，不唤模型。"
+        "description": "18 种作物只是起点：农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义，想种什么、长什么样、吃什么补什么，全由你决定。"
       },
       "en": {
         "displayName": "Custom Farm",
-        "description": "18 crops are just the beginning: crops, weeds, decorations, weather, states, items, recipes and sprites are all fully customizable in the panel. Plant, water, harvest, eat and trade locally with deterministic ticks — no model calls."
+        "description": "18 crops are just the beginning: crops, weeds, decorations, weather, states, items, recipes and sprites are all fully customizable in the panel. Plant, water, harvest, eat and trade the way you like."
       }
     },
     "tags": [

@@ -245,17 +245,6 @@
       ]
     },
     {
-      "name": "farm_bag",
-      "description": "打开（或唤到前面）背包面板。背包里是收下来的作物，可以看每种有多少；面板本身只读，东西还是靠种/收/捡进出。",
-      "parameters": {
-        "type": "object",
-        "properties": {}
-      },
-      "tags": [
-        "write"
-      ]
-    },
-    {
       "name": "farm_collect",
       "description": "把脚下够得着的掉落物收进背包。必须站过去（先 farm_stand 报位置）。地上没有就报错并告诉你掉落物在哪些百分比。",
       "parameters": {

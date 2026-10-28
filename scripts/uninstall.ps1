@@ -63,5 +63,5 @@ if ($RemoveExtension) {
 }
 
 Write-Host ''
-Write-Host 'Pet 文件夹原样保留；要恢复就再跑 scripts\install.ps1。' -ForegroundColor DarkGray
+Write-Host '项目文件夹和安装目录原样保留；要恢复就再跑 scripts\install.ps1。' -ForegroundColor DarkGray
 Write-Host ''

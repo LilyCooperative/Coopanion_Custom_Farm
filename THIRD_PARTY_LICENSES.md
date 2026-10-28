@@ -47,7 +47,6 @@ These files were generated/redrawn for this project:
 - `smoke_ps_02_0..5`
 - `icon_item_soil`
 - `ui_menuicon_farm`
-- `bag/art/panel.png`, `bag/art/slot.png`
 - `assets/sprites/deco_tree.png`（绿色大树）
 - `assets/sprites/deco_scarecrow.png`（红格子稻草人）
 - `assets/sprites/popo20230114_gd_grass_0..2.png`（地面长条）

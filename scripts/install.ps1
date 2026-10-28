@@ -1,11 +1,11 @@
 ﻿<#
-  一键安装 / 迁移：把 <Pet> 这套东西接到本机的 Coopanion 上。
+  一键安装 / 迁移：把项目目录接到本机的 Coopanion 上。
 
-  用法（在新的电脑上，整个 Pet 文件夹拷过来之后，在 Pet 根目录跑）：
+  用法（在新的电脑上，整个项目文件夹拷过来之后，在项目根目录跑）：
     powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
   可选参数：
-    -PetHome <dir>         Pet 文件夹在哪（默认=本脚本的上一级）
+    -PetHome <dir>         项目根目录（默认=本脚本的上一级）
     -CoopanionData <dir>   Coopanion 的 data 目录（默认 %LOCALAPPDATA%\Programs\Coopanion\data）
     -NoOverlay             不启动桌面图层
 #>
@@ -21,7 +21,7 @@ function Step([string]$msg) { $steps.Add($msg); Write-Host ('  ' + $msg) }
 
 Write-Host ''
 Write-Host '=== 自定义农场 · 安装 ===' -ForegroundColor Cyan
-Write-Host ('Pet 目录      : ' + $PetHome)
+Write-Host ('项目目录      : ' + $PetHome)
 Write-Host ('Coopanion data: ' + $CoopanionData)
 Write-Host ''
 
@@ -30,15 +30,14 @@ $need = @(
     'custom-farm\src\index.js',
     'custom-farm\src\world.js',
     'overlay\overlay.ps1',
-    'bag\bag.ps1',
     'assets\sprites'
 )
 foreach ($n in $need) {
     if (-not (Test-Path -LiteralPath (Join-Path $PetHome $n))) {
-        throw ('Pet 目录不完整，缺少：' + $n + '（整个 Pet 文件夹要一起拷贝）')
+        throw ('项目目录不完整，缺少：' + $n + '（整个项目文件夹要一起拷贝）')
     }
 }
-Step '目录结构完整（扩展 / 图层 / 背包 / 素材）'
+Step '目录结构完整（扩展 / 图层 / 素材）'
 
 # 2) 注册扩展到 Coopanion
 $extDir = Join-Path $CoopanionData 'extensions'
@@ -114,6 +113,6 @@ Write-Host '=== 完成 ===' -ForegroundColor Green
 Write-Host '接下来：'
 Write-Host '  1. 重启 Coopanion（或者它会自己加载新扩展）'
 Write-Host '  2. 在控制台启用「自定义农场」World'
-Write-Host '  3. 对桌宠说「打开背包」（farm_bag 工具），或手动运行 bag\bag.ps1'
+Write-Host '  3. 需要背包时打开 Coopanion WebUI 的「自定义农场 → 背包」页'
 Write-Host ''
 Write-Host ('共 ' + $steps.Count + ' 步，全部完成。') -ForegroundColor DarkGray

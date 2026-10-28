@@ -16,17 +16,17 @@
  * 「新的一天」要 dailyEvent=true 才推，绝不因刷新本身唤醒模型。
  */
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CROPS, ROTATION } from './crops.js';
 import { FarmCatalog } from './catalog.js';
 import { live } from './catalog-state.js';
 import { buildZip, readZip } from './zip.js';
-import { makePaths, resolvePetHome } from './paths.js';
+import { bundleHome, defaultHome, makePaths } from './paths.js';
 import { CROP_PRICES, FURNITURE, FURNITURE_ENABLED, SEED_BY_CROP, SEED_BY_ID, SEEDS, sellPriceOf } from './shop.js';
 import { normalizeWeathers, pickWeather, weatherById, weatherFxOf } from './weather.js';
 import {
@@ -214,12 +214,6 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_bag',
-    tags: ['write'],
-    description: '打开（或唤到前面）背包面板。背包里是收下来的作物，可以看每种有多少；面板本身只读，东西还是靠种/收/捡进出。',
-    parameters: { type: 'object', properties: {} },
-  },
-  {
     name: 'farm_collect',
     tags: ['write'],
     description: '把脚下够得着的掉落物收进背包。必须站过去（先 farm_stand 报位置）。地上没有就报错并告诉你掉落物在哪些百分比。',
@@ -258,7 +252,7 @@ export const FARM_TOOL_DECLS = [
  * 键是 `worlds.farm.*`，必须与 `DEFAULTS` 里的键一一对应（dry-mount 会检查）。
  * 都是 hot：写回 config.json 后，下一次 tick 就按新值跑，不需要重启。
  */
-function farmConfigGroups(language = 'zh') {
+function farmConfigGroups(language = 'zh', defaultHomePath = '') {
   const zh = String(language).toLowerCase().startsWith('zh');
   const t = (a, b) => (zh ? a : b);
   const num = (title, description, minimum, maximum, suffix) => ({
@@ -270,8 +264,30 @@ function farmConfigGroups(language = 'zh') {
     ...(suffix ? { 'x-suffix': suffix } : {}),
   });
   const bool = (title, description) => ({ type: 'boolean', title, description, 'x-hot': true });
+  const dir = (title, description) => ({
+    type: 'string',
+    title,
+    description,
+    'x-hot': true,
+    'x-path': { kind: 'directory', ...(defaultHomePath ? { recommendedDir: defaultHomePath } : {}) },
+  });
 
   return [
+    {
+      id: 'world:farm/install',
+      owner: 'world:farm',
+      schema: {
+        type: 'object',
+        title: t('安装', 'Installation'),
+        description: t('桌面图层、素材和运行文件放在这里。修改路径会自动停图层、搬过去再重启。', 'Desktop layers, sprites and runtime files live here. Changing the path stops the layers, moves the folder and restarts them.'),
+        properties: {
+          'worlds.farm.installPath': dir(
+            t('安装路径', 'Install path'),
+            t('默认 <Coopanion 数据目录>\\custom-farm；改完自动搬过去。', 'Defaults to <Coopanion data>\\custom-farm; the folder is moved automatically when changed.'),
+          ),
+        },
+      },
+    },
     {
       id: 'world:farm/field',
       owner: 'world:farm',
@@ -296,6 +312,8 @@ export class FarmWorld {
   #timer = null;
   #queue = Promise.resolve();
   #paths = null;
+  #homeChanged = false;
+  #previousHome = null;
   #cmdTimer = null;
   #layerChild = null;
   #layerAt = 0;
@@ -312,6 +330,7 @@ export class FarmWorld {
     this.dataDir = opts.dataDir ?? process.cwd();
     this.botDir = opts.botDir ?? process.cwd();
     this.packageDir = opts.packageDir ?? process.cwd();
+    this.persistConfig = typeof opts.persist === 'function' ? opts.persist : null;
     // 是否由这个 World 管桌面图层的启停（单元测试里传 false，避免碰到真实图层）
     this.manageLayers = opts.manageLayers !== false;
     this.language = 'zh';
@@ -390,15 +409,146 @@ export class FarmWorld {
     return Math.round(this.#num('tickIntervalMs', 1000, 3600000));
   }
 
-  /** 自定义目录：custom.json + assets\sprites。找不到 <Pet> 时退回扩展上一级。 */
+  // ------------------------------------------------------------------ 安装目录
+  #installMarker() {
+    return join(this.dataDir, 'farm', 'install-home.txt');
+  }
+
+  #readInstallMarker() {
+    try {
+      const value = readFileSync(this.#installMarker(), 'utf8').trim();
+      return value || null;
+    } catch { return null; }
+  }
+
+  #writeInstallMarker(home) {
+    try {
+      mkdirSync(join(this.dataDir, 'farm'), { recursive: true });
+      writeFileSync(this.#installMarker(), home, 'utf8');
+    } catch { /* 只是个提示文件，写不了不影响 */ }
+  }
+
+  /** 把扩展包自带的 overlay / overlay-electron / assets 同步到 home。 */
+  #copyBundleHome(target) {
+    const source = bundleHome(this.packageDir);
+    if (!source || resolve(source) === resolve(target)) return;
+    for (const name of ['overlay', 'overlay-electron', 'assets']) {
+      const src = join(source, name);
+      const dst = join(target, name);
+      if (!existsSync(src)) continue;
+      try {
+        mkdirSync(dirname(dst), { recursive: true });
+        // 图层代码每次覆盖（升级扩展后能拿到新代码）；素材只补缺失文件，保留用户上传的 cust_*。
+        cpSync(src, dst, {
+          recursive: true,
+          force: name !== 'assets',
+          filter: (path) => {
+            const normalized = path.replace(/\\/g, '/');
+            if (normalized.includes('/overlay/runtime')) return false;
+            if (normalized.includes('/overlay-electron/node_modules')) return false;
+            return !/\.(log|pid)$/i.test(normalized);
+          },
+        });
+      } catch (err) {
+        this.#host?.log?.warn?.('自定义农场：复制安装文件失败', { from: src, to: dst, err: msg(err) });
+      }
+    }
+    // Electron 的 node_modules 很大，不复制；用 junction 指回扩展包里的那一份。
+    const modules = join(source, 'overlay-electron', 'node_modules');
+    const targetModules = join(target, 'overlay-electron', 'node_modules');
+    if (existsSync(modules) && !existsSync(targetModules)) {
+      try {
+        symlinkSync(modules, targetModules, process.platform === 'win32' ? 'junction' : 'dir');
+      } catch { /* 没有 junction 时 launch.js 会从包的 node_modules 找 */ }
+    }
+  }
+
+  /** 旧 home 搬到新 home；只搬三个目录，不搬存档和 custom.json。 */
+  #moveHome(oldHome, target) {
+    if (!oldHome || resolve(oldHome) === resolve(target) || !existsSync(oldHome)) return;
+    const source = bundleHome(this.packageDir);
+    if (resolve(oldHome) === resolve(source)) return; // 扩展包本身不能搬
+    const oldResolved = resolve(oldHome);
+    const targetResolved = resolve(target);
+    if (targetResolved.startsWith(oldResolved + sep) || oldResolved.startsWith(targetResolved + sep)) return;
+    mkdirSync(target, { recursive: true });
+    for (const name of ['overlay', 'overlay-electron', 'assets']) {
+      const src = join(oldHome, name);
+      const dst = join(target, name);
+      if (!existsSync(src) || existsSync(dst)) continue;
+      try {
+        renameSync(src, dst);
+      } catch {
+        try {
+          cpSync(src, dst, { recursive: true });
+          rmSync(src, { recursive: true, force: true });
+        } catch (err) {
+          this.#host?.log?.warn?.('自定义农场：搬运安装目录失败', { from: src, to: dst, err: msg(err) });
+        }
+      }
+    }
+  }
+
+  /** 解析配置里的安装路径：留空用 <dataDir>/custom-farm，并写回配置方便在游戏配置里看到。 */
+  #prepareInstallHome() {
+    const configured = String(this.cfg?.installPath ?? '').trim();
+    // 测试/嵌入式使用时没有 persistConfig：直接用扩展包旁边的 home，不复制、不写配置。
+    if (!configured && !this.persistConfig) {
+      this.#paths = makePaths(bundleHome(this.packageDir));
+      return this.#paths;
+    }
+    const fallback = defaultHome(this.dataDir);
+    const target = resolve(configured || fallback);
+    if (!configured && this.persistConfig) {
+      try { this.persistConfig({ installPath: target }); } catch { /* 配置写不了就先用默认路径 */ }
+    }
+    const marker = this.#readInstallMarker();
+    if (marker && resolve(marker) !== target) {
+      this.#previousHome = resolve(marker);
+      this.#homeChanged = true;
+      this.#moveHome(marker, target);
+    } else if (!marker && !existsSync(target)) {
+      this.#homeChanged = true;
+      const source = bundleHome(this.packageDir);
+      if (source && resolve(source) !== target) this.#previousHome = resolve(source);
+    }
+    this.#copyBundleHome(target);
+    this.#writeInstallMarker(target);
+    this.#paths = makePaths(target);
+    return this.#paths;
+  }
+
+  #homePath() {
+    return this.#paths ?? this.#prepareInstallHome();
+  }
+
+  /** 游戏配置里改了安装路径：停图层 → 搬运 → 重建目录 → 重启图层。 */
+  async #syncInstallHome() {
+    const configured = String(this.cfg?.installPath ?? '').trim();
+    const target = resolve(configured || defaultHome(this.dataDir));
+    if (!this.#paths) { this.#prepareInstallHome(); return; }
+    if (resolve(this.#paths.home) === target) return;
+    await this.#stopLayers('安装路径变更');
+    this.#moveHome(this.#paths.home, target);
+    this.#copyBundleHome(target);
+    this.#writeInstallMarker(target);
+    this.#paths = makePaths(target);
+    if (this.#catalog) {
+      this.#catalog.spritesDir = this.#paths.assetsDir;
+      try { this.#catalog.load(); } catch (err) {
+        this.#host?.log?.warn?.('自定义农场：新安装目录的素材读不出来', { err: msg(err) });
+      }
+    }
+    this.#host?.log?.info?.('自定义农场：安装路径已切换', { home: this.#paths.home });
+    this.#ensureLayers('安装路径变更');
+  }
+
+  /** 自定义目录：custom.json + 安装目录下的 assets\sprites。 */
   #createCatalog() {
-    const petHome = resolvePetHome(this.cfg?.petRoot);
-    const spritesDir = petHome
-      ? join(petHome, 'assets', 'sprites')
-      : join(this.packageDir, '..', 'assets', 'sprites');
+    const home = this.#homePath();
     return new FarmCatalog({
       storePath: join(this.dataDir, 'farm', 'custom.json'),
-      spritesDir,
+      spritesDir: home.assetsDir,
       pointsPerDay: this.#num('pointsPerDay', 1, 100000),
       waterDefaults: {
         dryPerDay: this.#num('dryPerDay', 0, 20),
@@ -417,17 +567,11 @@ export class FarmWorld {
     return join(this.dataDir, 'farm', 'state.json');
   }
 
-  /** 图层状态文件。配置里给了就用配置，否则按扩展位置推（换机器不用改配置）。 */
+  /** 图层状态文件。配置里给了就用配置，否则用安装目录。 */
   overlayFile() {
     const p = this.cfg?.overlayStatePath;
     if (typeof p === 'string' && p.trim()) return p.trim();
-    this.#paths ??= makePaths(resolvePetHome(this.cfg?.petRoot));
-    return this.#paths.overlayState;
-  }
-
-  bagScript() {
-    this.#paths ??= makePaths(resolvePetHome(this.cfg?.petRoot));
-    return this.#paths.bagScript;
+    return this.#homePath().overlayState;
   }
 
   envPromptVars() {
@@ -460,7 +604,6 @@ export class FarmWorld {
       case 'farm_collect': return await this.#collectTool();
     case 'farm_consume': return await this.#consumeTool(args);
     case 'farm_craft': return await this.#craftTool(args);
-      case 'farm_bag': return await this.#bagTool();
       case 'farm_pull': return await this.#pullTool(args);
       case 'farm_sell': return await this.#sellTool(args);
       case 'farm_shop': return this.#shopTool(args);
@@ -825,23 +968,6 @@ export class FarmWorld {
       (r.cleared ? '，清掉了 ' + r.cleared + ' 丛杂草' : '') + '。' };
   }
 
-  async #bagTool() {
-    if (process.platform !== 'win32') {
-      return { text: '背包窗口是 Windows WPF；当前平台请在 Coopanion WebUI 的「背包」页查看。' };
-    }
-    const script = this.bagScript();
-    if (!existsSync(script)) {
-      throw new Error('找不到背包脚本：' + script + '（整个 Pet 文件夹要一起拷贝）');
-    }
-    // 注意：Windows 上不能加 detached——那会用 DETACHED_PROCESS 起进程，
-    // PowerShell 5.1 在那种情况下起不来（表现为窗口一直没出现、日志也没有）。不加 detached 也一样能活过父进程。
-    const child = spawn('powershell.exe',
-      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script],
-      { stdio: 'ignore', windowsHide: true });
-    child.unref();
-    return { text: '背包面板叫出来了（' + script + '）。它只读，里面有多少就是背包里有多少。' };
-  }
-
   #requireHere() {
     const at = this.#state.standingAt;
     if (!Number.isFinite(Number(at))) {
@@ -1203,6 +1329,7 @@ export class FarmWorld {
 
   async #tick() {
     if (!this.#started || !this.#state) return;
+    await this.#syncInstallHome();
     const cfg = this.#cfgAll();
     this.#syncLayerVisibility();
     const now = this.now();
@@ -1364,7 +1491,7 @@ export class FarmWorld {
       }],
       // 状态用 lamp + badges 展示，玩法参数放到下面的 config，走框架自带的「配置」页签。
       invoke: (panel, method, args) => this.invoke(panel, method, args),
-      config: farmConfigGroups(language),
+      config: farmConfigGroups(language, defaultHome(this.dataDir)),
       promptDocs: [{
         key: 'worlds.' + this.id + '.env',
         title: '环境提示词',
@@ -2129,7 +2256,7 @@ export class FarmWorld {
     else this.#ensureLayers('显示农场');
   }
 
-  #stopLayers(reason) {
+  #stopLayers(reason, home = null) {
     if (!this.manageLayers) { return Promise.resolve(); }
     try {
       const pidFile = join(this.dataDir, 'farm', 'electron.pid');
@@ -2154,7 +2281,7 @@ export class FarmWorld {
       let done = false;
       const finish = () => { if (!done) { done = true; resolve(); } };
       try {
-        const paths = this.#paths ?? (this.#paths = makePaths(resolvePetHome(this.cfg?.petRoot)));
+        const paths = home ? makePaths(home) : this.#homePath();
         const script = join(paths.overlayDir, 'restart-layers.ps1');
         if (!existsSync(script)) { finish(); return; }
         const child = spawn('powershell.exe',
@@ -2217,7 +2344,7 @@ export class FarmWorld {
 
   #ensureLayers(reason) {
     if (!this.manageLayers || this.#flag('hideFarm')) { return; }
-    const paths0 = this.#paths ?? (this.#paths = makePaths(resolvePetHome(this.cfg?.petRoot)));
+    const paths0 = this.#homePath();
     if (this.#electronReady(paths0)) {
       if (this.#electronPidAlive()) return;
       if (process.platform === 'win32') {
@@ -2236,7 +2363,7 @@ export class FarmWorld {
     }
     if (process.platform !== 'win32') {
       try {
-        const paths = this.#paths ?? (this.#paths = makePaths(resolvePetHome(this.cfg?.petRoot)));
+        const paths = this.#homePath();
         const launcher = join(paths.electronDir, 'launch.js');
         const localElectron = join(paths.electronDir, 'node_modules', 'electron');
         const packageElectron = join(paths.home, 'node_modules', 'electron');
@@ -2252,7 +2379,7 @@ export class FarmWorld {
       return;
     }
     try {
-      const paths = this.#paths ?? (this.#paths = makePaths(resolvePetHome(this.cfg?.petRoot)));
+      const paths = this.#homePath();
       const script = join(paths.overlayDir, 'restart-layers.ps1');
       if (!existsSync(script)) return;
       const child = spawn('powershell.exe',
@@ -2350,6 +2477,11 @@ export class FarmWorld {
     if (this.#started) return;
     this.#host = host;
     try {
+      this.#prepareInstallHome();
+      if (this.#homeChanged) {
+        if (this.#previousHome) await this.#stopLayers('安装路径迁移', this.#previousHome);
+        await this.#stopLayers('安装路径迁移');
+      }
       this.#catalog = this.#createCatalog();
       try {
         this.#catalog.load();

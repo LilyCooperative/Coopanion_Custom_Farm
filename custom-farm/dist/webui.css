@@ -138,7 +138,7 @@
 .cf-frame .cf-x { top: -6px; right: -6px; }
 
 
-/* 背包 / 商店页：和 WPF 背包一样的 4 列图标格 */
+/* 背包 / 商店页：4 列图标格 */
 .bg-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .bg-card {
   display: flex;

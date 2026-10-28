@@ -90,7 +90,7 @@ const readState = async () => JSON.parse(await readFile(world.stateFile(), 'utf8
 // --- 1. 定义 ---------------------------------------------------------------
 check('definition.id = farm', definition.id === 'farm');
 check('18 种作物', Object.keys(CROPS).length === 18, Object.keys(CROPS).join(','));
-check('describe 有 14 个工具', definition.describe.tools.length === 14, definition.describe.tools.map((t) => t.name).join(','));
+check('describe 有 13 个工具', definition.describe.tools.length === 13, definition.describe.tools.map((t) => t.name).join(','));
 check('describe 有 4 个事件', definition.describe.events.length === 4, definition.describe.events.map((e) => e.type).join(','));
 
 // --- 模板 ZIP 读写 ---------------------------------------------------------
@@ -499,7 +499,7 @@ const s5 = await readState();
 check('背包里有了', Object.values(s5.inventory).reduce((a, b) => a + b, 0) > bagBefore, JSON.stringify(s5.inventory));
 check('地上清空了', s5.drops.length === 0);
 check('捡起来有 collect 特效', s5.fx.some((f) => f.kind === 'collect'));
-// 种子价格来自游戏表；图层商店里也要有种子（背包窗口的商店页直接买）
+// 种子价格来自游戏表；WebUI 商店里也要有种子
 check('种子价格来自游戏', SEED_BY_ID.seed_tomato?.buy === 120 && SEED_BY_ID.seed_potato?.buy === 30 && SEED_BY_ID.seed_corn?.sell === 11);
 check('图层商店包含种子', (await readFile(overlayFile, 'utf8')).includes('seed_tomato'));
 
