@@ -231,13 +231,29 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   cat.resetFx();
   check('目录：恢复默认特效', cat.status.fx.pour.length === 4 && cat.status.fx.burst.length === 6, cat.status.fx.pour.length + '+' + cat.status.fx.burst.length);
 
-  check('目录：默认只有心情内置状态', cat.states.length === 3 && cat.states.some((s) => s.id === 'mood') && cat.rules.length === 2);
-  cat.addExample();
-  const satiety = cat.states.find((s) => s.name === '饱食度');
-  const hungry = cat.states.find((s) => s.name === '饥饿');
-  check('目录：示例 饱食度/饥饿/条件', cat.states.length === 5 && cat.rules.some((r) => r.target === hungry.id) && satiety && hungry,
-    JSON.stringify(cat.rules));
-  check('目录：示例含消耗行为', cat.consume.some((c) => c.trigger === hungry.id && c.effectState === satiety.id && c.auto === true), JSON.stringify(cat.consume));
+  check('目录：默认自带心情/饱食度/饥饿状态',
+    cat.states.length === 5 && cat.states.some((s) => s.id === 'mood') &&
+    cat.states.some((s) => s.id === 'st_satiety' && s.kind === 'number') &&
+    cat.states.some((s) => s.id === 'st_hungry' && s.kind === 'flag') &&
+    cat.rules.length === 3,
+    JSON.stringify(cat.states.map((s) => s.id)) + ' rules=' + cat.rules.length);
+  check('目录：默认饥饿条件 + 自动吃东西',
+    cat.rules.some((r) => r.source === 'st_satiety' && r.target === 'st_hungry' && r.value === 30) &&
+    cat.consume.some((c) => c.trigger === 'st_hungry' && c.effectState === 'st_satiety' && c.auto === true),
+    JSON.stringify(cat.consume));
+  check('目录：默认食物效果（作物 + 米饭/意面都有饱食度和心情）',
+    ['potato', 'tomato', 'watermelon', 'rice', 'pasta'].every((id) => {
+      const it = cat.items.find((x) => x.id === id);
+      return it && it.effects.some((e) => e.state === 'st_satiety' && e.delta > 0) &&
+        it.effects.some((e) => e.state === 'mood' && e.delta > 0);
+    }),
+    JSON.stringify(cat.items.filter((it) => ['potato', 'rice', 'pasta'].includes(it.id)).map((it) => [it.id, it.effects])));
+  const beforeExample = { states: cat.states.length, rules: cat.rules.length, consume: cat.consume.length };
+  const example = cat.addExample();
+  check('目录：补齐示例幂等（不重复加状态/条件/消耗行为）',
+    example.satiety === 'st_satiety' && example.hungry === 'st_hungry' &&
+    cat.states.length === beforeExample.states && cat.rules.length === beforeExample.rules && cat.consume.length === beforeExample.consume,
+    JSON.stringify(example));
 
   const seedTomato = cat.items.find((it) => it.id === 'seed_tomato');
   const cropTomato = cat.items.find((it) => it.id === 'tomato');
@@ -247,19 +263,20 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   check('目录：种子买价 0（商店不卖）', cat.items.find((it) => it.id === 'seed_tomato').buy === 0 &&
     SEED_BY_ID.seed_tomato.buy === 0);
   cat.saveItem({ id: 'seed_tomato', buy: 120, sell: 24 });
-  cat.saveItem({ id: 'tomato', consumable: true, effects: [{ state: satiety.id, delta: 20 }] });
+  cat.saveItem({ id: 'tomato', consumable: true, effects: [{ state: 'st_satiety', delta: 20 }] });
   check('目录：农作物可消耗 + 状态效果', cat.items.find((it) => it.id === 'tomato').consumable === true &&
-    live.items.tomato.effects[0]?.state === satiety.id && live.items.tomato.effects[0].delta === 20);
+    live.items.tomato.effects[0]?.state === 'st_satiety' && live.items.tomato.effects[0].delta === 20);
   const deco = cat.saveItem({ kind: 'decor', name: '测试装饰', buy: 10, sell: 5, icon: 'icon_item_soil', sprite: 'icon_item_soil', layer: 'top' });
   check('目录：新增装饰道具', Boolean(deco) && cat.items.some((it) => it.id === deco.id) && deco.layer === 'top');
-  const foodIds = ['rice_ear', 'rice', 'egg', 'meat', 'egg_fried_rice', 'item_15'];
-  check('目录：食材/菜谱道具和价格', foodIds.every((id) => cat.items.some((it) => it.id === id)) &&
+  const foodIds = ['rice_ear', 'rice', 'egg', 'meat', 'egg_fried_rice', 'item_15', 'pasta'];
+  check('目录：食材/菜谱道具和价格（含意面）', foodIds.every((id) => cat.items.some((it) => it.id === id)) &&
     cat.items.find((it) => it.id === 'item_15')?.buy === 0 &&
     cat.items.find((it) => it.id === 'egg_fried_rice')?.buy === 0 &&
-    !cat.items.some((it) => it.id === 'pasta') && !cat.items.some((it) => it.id === 'flour') &&
+    cat.items.find((it) => it.id === 'pasta')?.buy === 0 &&
+    !cat.items.some((it) => it.id === 'flour') &&
     cat.items.find((it) => it.id === 'egg')?.buy === 6,
-    JSON.stringify(cat.items.filter((it) => foodIds.includes(it.id) || it.id === 'item_15').map((it) => [it.id, it.buy, it.sell])));
-  check('目录：3 张食物合成表', ['recipe_rice', 'recipe_egg_fried_rice', 'recipe_tomato_egg']
+    JSON.stringify(cat.items.filter((it) => foodIds.includes(it.id)).map((it) => [it.id, it.buy, it.sell])));
+  check('目录：4 张食物合成表（含肉酱意面）', ['recipe_rice', 'recipe_egg_fried_rice', 'recipe_tomato_egg', 'recipe_pasta']
     .every((id) => cat.recipes.some((r) => r.id === id)), JSON.stringify(cat.recipes));
   const recipeBase = cat.recipes.length;
   const customRecipe = cat.saveRecipe({ inputs: [{ item: 'tomato', count: 2 }], output: { item: deco.id, count: 1 } });
@@ -320,11 +337,11 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   cat.saveState({ name: '测试心情', kind: 'number', min: -10, max: 10, initial: 0, driftPerDay: 1, unit: '点' });
   const mood = cat.states.find((s) => s.name === '测试心情');
   check('目录：新增数值状态', Boolean(mood) && mood.min === -10 && mood.max === 10 && mood.unit === '点');
-  cat.saveRule({ source: mood.id, op: '>=', value: 5, target: hungry.id });
+  cat.saveRule({ source: mood.id, op: '>=', value: 5, target: 'st_hungry' });
   check('目录：新增条件', cat.rules.some((r) => r.source === mood.id && r.op === '>='));
-  cat.removeState(hungry.id);
-  check('目录：删状态连带删条件', !cat.states.some((s) => s.id === hungry.id) && !cat.rules.some((r) => r.source === hungry.id || r.target === hungry.id));
-  check('目录：删状态连带删消耗行为', !cat.consume.some((c) => c.trigger === hungry.id));
+  cat.removeState('st_hungry');
+  check('目录：删状态连带删条件', !cat.states.some((s) => s.id === 'st_hungry') && !cat.rules.some((r) => r.source === 'st_hungry' || r.target === 'st_hungry'));
+  check('目录：删状态连带删消耗行为', !cat.consume.some((c) => c.trigger === 'st_hungry'));
   cat.removeState(mood.id);
   cat.removeCrop(key);
   check('目录：删除作物', !CROPS[key]);
@@ -360,35 +377,36 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
 // --- 1d. 状态触发消耗（饥饿 → 吃道具 → 饱食度回来） -----------------------
 {
   const defs = [
-    { id: 'satiety', name: '饱食度', kind: 'number', min: 0, max: 100, initial: 100, driftPerDay: -10, unit: '' },
-    { id: 'hungry', name: '饥饿', kind: 'flag', initialActive: false },
+    { id: 'st_satiety', name: '饱食度', kind: 'number', min: 0, max: 100, initial: 100, driftPerDay: -10, unit: '' },
+    { id: 'st_hungry', name: '饥饿', kind: 'flag', initialActive: false },
   ];
-  const rules = [{ id: 'r1', source: 'satiety', op: '<', value: 30, target: 'hungry' }];
+  const rules = [{ id: 'r1', source: 'st_satiety', op: '<', value: 30, target: 'st_hungry' }];
   const acts = [{
-    id: 'c1', trigger: 'hungry', items: ['potato', 'tomato'], count: 1,
-    effectState: 'satiety', effectDelta: 25, cooldownDays: 0.5, auto: true, enabled: true,
+    id: 'c1', trigger: 'st_hungry', items: ['potato', 'tomato'], count: 1,
+    effectState: 'st_satiety', effectDelta: 25, cooldownDays: 0.5, auto: true, enabled: true,
   }];
   const st = newState(clock, { ...cfg, dryPerDay: 0 }, random);
-  st.states = { satiety: { value: 20 }, hungry: { active: true } };
+  st.states = { st_satiety: { value: 20 }, st_hungry: { active: true } };
   st.inventory = { potato: 2 };
   st.elapsedDays = 10;
 
   const r1 = consumeActions(st, defs, rules, acts, 10);
-  check('消耗：吃道具并把饱食度加回来', r1.length === 1 && st.inventory.potato === 1 &&
-    st.states.satiety.value === 45 && st.states.hungry.active === false,
+  // 道具自己的 effects 优先于消耗行为的 effectDelta：土豆默认 +24 饱食度。
+  check('消耗：吃道具并把饱食度加回来（道具效果优先）', r1.length === 1 && st.inventory.potato === 1 &&
+    st.states.st_satiety.value === 44 && st.states.st_hungry.active === false,
     JSON.stringify({ inv: st.inventory, states: st.states }));
   const r2 = consumeActions(st, defs, rules, acts, 10.2);
   check('消耗：冷却内不重复吃', r2.length === 0 && st.inventory.potato === 1);
-  st.states.hungry = { active: true };
+  st.states.st_hungry = { active: true };
   const r3 = consumeActions(st, defs, rules, acts, 10.6);
   check('消耗：冷却过了再吃', r3.length === 1 && !st.inventory.potato);
-  st.states.hungry = { active: true };
+  st.states.st_hungry = { active: true };
   st.elapsedDays = 12;
   const r4 = consumeActions(st, defs, rules, acts, 12);
   check('消耗：没道具时提示', r4.length === 1 && r4[0].missing === true);
 
   const st2 = newState(clock, { ...cfg, dryPerDay: 0 }, random);
-  st2.states = { satiety: { value: 20 }, hungry: { active: true } };
+  st2.states = { st_satiety: { value: 20 }, st_hungry: { active: true } };
   st2.inventory = { potato: 1 };
   st2.elapsedDays = 0;
   const prompt = [{ ...acts[0], id: 'c2', auto: false }];

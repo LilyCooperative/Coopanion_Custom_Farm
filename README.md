@@ -3,6 +3,9 @@
 Coopanion 桌宠的农场插件：桌宠在**任务栏上沿**种地——买种、播种、浇水、除草、收割、卖作物；
 桌面图层负责渲染（草地、作物、野草、掉落物和特效），背包窗口是独立的 WPF 面板（`farm_bag` 可打开）。
 
+**18 种作物只是起点。** 农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义；
+每一种作物、米饭和意面默认同时加饱食度和心情，吃什么补什么也由你决定。
+
 > **平台说明（重要）**
 > - **Windows 10/11**：桌面图层默认使用 **Electron/HTML**（`overlay-electron/`），WPF 只作为 Electron 不可用时的回退；独立背包仍是 WPF。WebUI 可用。
 > - **macOS / Linux**：核心 World、WebUI 和 Electron/HTML overlay 可用，但**没有实机测试**；WPF 独立背包不支持。
@@ -40,7 +43,7 @@ WebUI →「自定义农场」→ **农场自定义** 页签里可以换地面�
 
 | 项目 | 要求 |
 |---|---|
-| 当前扩展版本 | `0.33.6` |
+| 当前扩展版本 | `0.34.0` |
 | Coopanion | `>= 0.2.13`，World API `6` |
 | Node.js | `>= 22` |
 | Electron | `^45.1.0` |
@@ -52,7 +55,7 @@ Coopanion 宿主由应用提供；`package.json` 的运行依赖只有 Electron�
 
 | 路径 | 作用 | 要不要跟机器走 |
 |---|---|---|
-| `custom-farm\` | 农场 World（Node 扩展）：`src\` 逻辑与工具，`dist\`「农场自定义」面板，`tools\selftest.mjs`（165 项自测）、`tools\reset-farm.ps1` | 是 |
+| `custom-farm\` | 农场 World（Node 扩展）：`src\` 逻辑与工具，`dist\`「农场自定义」面板，`tools\selftest.mjs`（166 项自测）、`tools\reset-farm.ps1` | 是 |
 | `overlay\` | WPF 桌面图层的回退实现；默认已切到 `overlay-electron/` | 否 |
 | `overlay\tools\` | 图层回归测试、位置测试、**BOM 修复** | 是 |
 | `overlay\runtime\` | 运行痕迹（state.json / 日志 / pid / 快照），**自动生成，不进版本库** | 否 |
@@ -96,7 +99,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 
 ```powershell
 cd custom-farm
-node tools\selftest.mjs                 # 165 项，不依赖 Coopanion
+node tools\selftest.mjs                 # 166 项，不依赖 Coopanion
 
 cd ..\overlay
 .\restart-layers.ps1 -Check             # 0 = 两层都在 + 野草层在桌宠之上

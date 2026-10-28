@@ -66,7 +66,7 @@
 
 ## 五、工程/发布
 
-- `node tools/selftest.mjs`：165/165。
+- `node tools/selftest.mjs`：166/166。
 - 没有 CI、没有 WPF 图层自动测试、没有 npm pack 校验。
 - 没有正式 release tag / changelog。
 - 建议加：

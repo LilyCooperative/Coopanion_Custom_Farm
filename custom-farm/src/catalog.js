@@ -30,6 +30,47 @@ const ORIGINAL_PRICES = structuredClone(CROP_PRICES);
 
 const RULE_OPS = ['<', '<=', '>', '>=', '==', '!='];
 
+/** 默认心情/饱食度状态 id；用户改过 id 时由 dietStateIds() 解析实际值。 */
+const SATIETY_ID = 'st_satiety';
+const HUNGRY_ID = 'st_hungry';
+const MOOD_ID = 'mood';
+
+/**
+ * 每种可吃道具默认加多少饱食度 / 心情。
+ * 主食（土豆、玉米、南瓜、米饭、意面）饱食度高；水果心情高；辣椒、大蒜这类只当调味。
+ */
+const DEFAULT_FOOD_EFFECTS = {
+  potato: { satiety: 24, mood: 2 },
+  carrot: { satiety: 16, mood: 2 },
+  tomato: { satiety: 14, mood: 4 },
+  strawberry: { satiety: 12, mood: 7 },
+  corn: { satiety: 22, mood: 3 },
+  pumpkin: { satiety: 28, mood: 4 },
+  beetroot: { satiety: 16, mood: 2 },
+  blueberry: { satiety: 10, mood: 7 },
+  bok_choy: { satiety: 14, mood: 2 },
+  cauliflower: { satiety: 16, mood: 2 },
+  cucumber: { satiety: 12, mood: 3 },
+  eggplant: { satiety: 15, mood: 2 },
+  garlic: { satiety: 6, mood: 1 },
+  pineapple: { satiety: 18, mood: 8 },
+  radish: { satiety: 10, mood: 2 },
+  red_chili: { satiety: 5, mood: 3 },
+  red_onion: { satiety: 8, mood: 1 },
+  watermelon: { satiety: 24, mood: 7 },
+  rice_ear: { satiety: 8, mood: 1 },
+  rice: { satiety: 30, mood: 3 },
+  egg: { satiety: 10, mood: 2 },
+  meat: { satiety: 20, mood: 2 },
+  egg_fried_rice: { satiety: 48, mood: 10 },
+  item_15: { satiety: 38, mood: 8 },
+  pasta: { satiety: 42, mood: 9 },
+};
+
+/** 默认状态定义（只在缺少时补，不会覆盖用户改过的同名状态）。 */
+const DEFAULT_SATIETY_STATE = { id: SATIETY_ID, name: '饱食度', kind: 'number', min: 0, max: 100, initial: 100, driftPerDay: -5, unit: '' };
+const DEFAULT_HUNGRY_STATE = { id: HUNGRY_ID, name: '饥饿', kind: 'flag', initialActive: false };
+
 /** 内置杂草：游戏里现成的三种野草/花，每个都有逐阶段贴图。 */
 const BUILTIN_WEEDS = [
   { key: 'weed', name: '野草', stages: 4, days: [0.45, 0.45, 0.45], weight: 55, prefix: 'sprite_resource_weeds', frames: 4, itemName: '', value: 0 },
@@ -116,12 +157,13 @@ export class FarmCatalog {
   /** Grok 画的食物/食材图标。菜品 buy=0（只在合成表里出）。 */
   builtinFoodItems() {
     return [
-      { id: 'rice_ear', name: '稻穗', buy: 8, sell: 2, icon: 'icon_item_rice_ear' },
-      { id: 'rice', name: '大米', buy: 15, sell: 4, icon: 'icon_item_rice' },
-      { id: 'egg', name: '鸡蛋', buy: 6, sell: 2, icon: 'icon_item_egg' },
-      { id: 'meat', name: '鲜肉', buy: 22, sell: 6, icon: 'icon_item_meat' },
-      { id: 'egg_fried_rice', name: '蛋炒饭', buy: 0, sell: 35, icon: 'icon_item_egg_fried_rice' },
-      { id: 'item_15', name: '番茄炒蛋', buy: 0, sell: 30, icon: 'icon_item_tomato_egg' },
+      { id: 'rice_ear', name: '稻穗', buy: 8, sell: 2, icon: 'icon_item_rice_ear', effects: this.defaultItemEffects('rice_ear') },
+      { id: 'rice', name: '大米', buy: 15, sell: 4, icon: 'icon_item_rice', effects: this.defaultItemEffects('rice') },
+      { id: 'egg', name: '鸡蛋', buy: 6, sell: 2, icon: 'icon_item_egg', effects: this.defaultItemEffects('egg') },
+      { id: 'meat', name: '鲜肉', buy: 22, sell: 6, icon: 'icon_item_meat', effects: this.defaultItemEffects('meat') },
+      { id: 'egg_fried_rice', name: '蛋炒饭', buy: 0, sell: 35, icon: 'icon_item_egg_fried_rice', effects: this.defaultItemEffects('egg_fried_rice') },
+      { id: 'item_15', name: '番茄炒蛋', buy: 0, sell: 30, icon: 'icon_item_tomato_egg', effects: this.defaultItemEffects('item_15') },
+      { id: 'pasta', name: '意大利面', buy: 0, sell: 55, icon: 'icon_item_pasta', effects: this.defaultItemEffects('pasta') },
     ];
   }
 
@@ -130,7 +172,112 @@ export class FarmCatalog {
       { id: 'recipe_rice', inputs: [{ item: 'rice_ear', count: 1 }], output: { item: 'rice', count: 1 } },
       { id: 'recipe_egg_fried_rice', inputs: [{ item: 'egg', count: 1 }, { item: 'rice', count: 1 }], output: { item: 'egg_fried_rice', count: 1 } },
       { id: 'recipe_tomato_egg', inputs: [{ item: 'egg', count: 1 }, { item: 'tomato', count: 1 }], output: { item: 'item_15', count: 1 } },
+      { id: 'recipe_pasta', inputs: [{ item: 'meat', count: 1 }, { item: 'tomato', count: 1 }], output: { item: 'pasta', count: 1 } },
     ];
+  }
+
+  /** 用当前自定义状态 id 生成某道具的默认效果；状态还没建好时先写内置 id。 */
+  defaultItemEffects(id) {
+    const spec = DEFAULT_FOOD_EFFECTS[id];
+    if (!spec) return [];
+    const ids = this.dietStateIds();
+    return [
+      { state: ids.satietyId ?? SATIETY_ID, delta: spec.satiety },
+      { state: ids.moodId ?? MOOD_ID, delta: spec.mood },
+    ];
+  }
+
+  /** 找到当前存档里「饱食度 / 饥饿 / 心情」的实际 id；用户改过 id 或换过名字时也能接上。 */
+  dietStateIds() {
+    const states = this.store?.states ?? [];
+    const satiety = states.find((s) => s.kind === 'number' && (s.id === SATIETY_ID || s.name === '饱食度'));
+    const hungry = states.find((s) => s.kind === 'flag' && (s.id === HUNGRY_ID || s.name === '饥饿'));
+    const mood = states.find((s) => s.kind === 'number' && (s.id === MOOD_ID || s.name === '心情'));
+    return { satietyId: satiety?.id ?? null, hungryId: hungry?.id ?? null, moodId: mood?.id ?? null };
+  }
+
+  /** 默认饱食度/饥饿/条件/消耗行为；已有同名状态时只补缺的部分。 */
+  ensureSatiety(force = false) {
+    if (!this.store) return { satiety: null, hungry: null };
+    if (this.store.seededSatiety && !force) {
+      const ids = this.dietStateIds();
+      return { satiety: ids.satietyId, hungry: ids.hungryId };
+    }
+    const states = this.store.states ?? (this.store.states = []);
+    let changed = false;
+    let satiety = states.find((s) => s.kind === 'number' && (s.id === SATIETY_ID || s.name === '饱食度'));
+    if (!satiety) {
+      satiety = this.normalizeState(DEFAULT_SATIETY_STATE, states.length);
+      if (satiety) { states.push(satiety); changed = true; }
+    }
+    let hungry = states.find((s) => s.kind === 'flag' && (s.id === HUNGRY_ID || s.name === '饥饿'));
+    if (!hungry) {
+      hungry = this.normalizeState(DEFAULT_HUNGRY_STATE, states.length);
+      if (hungry) { states.push(hungry); changed = true; }
+    }
+    if (satiety && hungry) {
+      const rules = this.store.rules ?? (this.store.rules = []);
+      if (!rules.some((r) => r.source === satiety.id && r.target === hungry.id)) {
+        const rule = this.normalizeRule({ id: 'r_hungry', source: satiety.id, op: '<', value: 30, target: hungry.id }, rules.length, states);
+        if (rule) { rules.push(rule); changed = true; }
+      }
+      const actions = this.store.consume ?? (this.store.consume = []);
+      if (!actions.some((c) => c.trigger === hungry.id && (c.items ?? []).includes('tomato'))) {
+        const items = ['tomato', 'potato', 'rice', 'pasta', 'egg_fried_rice', 'item_15', 'carrot', 'strawberry', 'corn', 'pumpkin', 'beetroot', 'bok_choy', 'cauliflower', 'cucumber', 'eggplant', 'garlic', 'pineapple', 'radish', 'red_chili', 'red_onion', 'watermelon'];
+        const action = this.normalizeConsume({ id: 'c_hungry', trigger: hungry.id, items, count: 1, effectState: satiety.id, effectDelta: 25, cooldownDays: 0.5, auto: true, enabled: true }, actions.length, states);
+        if (action) { actions.push(action); changed = true; }
+      }
+    }
+    this.store.seededSatiety = true;
+    if (changed) this.persist();
+    return { satiety: satiety?.id ?? null, hungry: hungry?.id ?? null };
+  }
+
+  /** 给每种作物和食物补默认的 +饱食度 / +心情；只填空效果，不覆盖用户自己配的。 */
+  ensureDietEffects(force = false) {
+    if (!this.store) return;
+    if (this.store.seededDietEffects && !force) return;
+    const { satietyId, moodId } = this.dietStateIds();
+    if (!satietyId || !moodId) return;
+    let changed = false;
+    const list = this.store.items ?? (this.store.items = []);
+    const builtinFoods = new Map(this.builtinFoodItems().map((it) => [it.id, it]));
+    for (const [id, spec] of Object.entries(DEFAULT_FOOD_EFFECTS)) {
+      let item = list.find((it) => it.id === id);
+      if (!item) {
+        const def = builtinFoods.get(id);
+        const crop = this.store.crops.find((c) => c.key === id && c.enabled !== false);
+        if (def) {
+          item = this.normalizeItem({ ...def, kind: 'consumable', consumable: true, effects: [] }, list.length, this.store.states);
+        } else if (crop) {
+          item = this.normalizeItem({
+            id, kind: 'crop', crop: id, name: crop.name,
+            icon: crop.itemSprite ?? 'icon_item_soil', buy: 0, sell: crop.value,
+            consumable: true, effects: [],
+          }, list.length, this.store.states);
+        }
+        if (!item) continue; // 作物已被用户删掉：不强行加回来
+        list.push(item);
+        changed = true;
+      }
+      if (!Array.isArray(item.effects) || item.effects.length === 0) {
+        item.effects = [
+          { state: satietyId, delta: spec.satiety },
+          { state: moodId, delta: spec.mood },
+        ];
+        changed = true;
+      }
+    }
+    // 旧存档里被清理掉的意面补回来：道具 + 用现有食材（肉 + 番茄）合成。
+    const pasta = list.find((it) => it.id === 'pasta');
+    if (pasta && !pasta.icon) { pasta.icon = 'icon_item_pasta'; changed = true; }
+    const recipes = this.store.recipes ?? (this.store.recipes = []);
+    if (!recipes.some((r) => r.id === 'recipe_pasta')) {
+      const recipe = this.normalizeRecipe(this.builtinFoodRecipes().find((r) => r.id === 'recipe_pasta'), recipes.length);
+      if (recipe) { recipes.push(recipe); changed = true; }
+    }
+    this.store.seededDietEffects = true;
+    if (changed) this.persist();
   }
 
   /** 老存档补一次食物/配方；只补一次。 */
@@ -140,13 +287,13 @@ export class FarmCatalog {
     for (const def of this.builtinFoodItems()) {
       const idx = list.findIndex((it) => it.id === def.id);
       if (idx < 0) {
-        const item = this.normalizeItem({ ...def, kind: 'consumable', consumable: true, effects: [] }, list.length, this.store.states ?? []);
+        const item = this.normalizeItem({ ...def, kind: 'consumable', consumable: true, effects: def.effects ?? [] }, list.length, this.store.states ?? []);
         if (item) list.push(item);
       } else if (def.id === 'item_15') {
-        // 旧番茄炒蛋道具改成 Grok 图标
+        // 旧番茄炒蛋道具改成 Grok 图标；效果不清空，后面 ensureDietEffects 会补默认值。
         list[idx] = this.normalizeItem({
           ...list[idx], name: def.name, icon: def.icon, buy: def.buy, sell: def.sell,
-          kind: 'consumable', consumable: true, effects: [],
+          kind: 'consumable', consumable: true,
         }, idx, this.store.states ?? []) ?? list[idx];
       }
     }
@@ -224,6 +371,8 @@ export class FarmCatalog {
     seededFreeCrops: false,
     seededFood: false,
     seededMood: false,
+    seededSatiety: false,
+    seededDietEffects: false,
     };
   }
 
@@ -263,10 +412,12 @@ export class FarmCatalog {
     } catch { raw = null; }
     this.store = this.normalizeStore(raw);
     this.ensureFreeCrops();
-    this.ensureFood();
     this.ensureMood();
+    this.ensureSatiety();
+    this.ensureFood();
     this.ensureRiceEar();
     this.ensureRemovedFood();
+    this.ensureDietEffects();
     this.ensureBuiltinDecor();
     this.ensureCabin();
     this.ensureDecorSet();
@@ -292,7 +443,7 @@ export class FarmCatalog {
     addRule({ id: 'r_bored', source: 'mood', op: '<', value: 30, target: 'bored' });
     const actions = this.store.consume ?? (this.store.consume = []);
     if (!actions.some((c) => c.id === 'c_bored_eat')) {
-      const items = ['tomato', 'egg_fried_rice', 'rice', 'egg', 'carrot', 'potato', 'strawberry', 'corn', 'pumpkin', 'beetroot', 'bok_choy', 'cauliflower', 'cucumber', 'eggplant', 'garlic', 'pineapple', 'radish', 'red_chili', 'red_onion', 'watermelon'];
+      const items = ['tomato', 'egg_fried_rice', 'rice', 'pasta', 'egg', 'carrot', 'potato', 'strawberry', 'corn', 'pumpkin', 'beetroot', 'bok_choy', 'cauliflower', 'cucumber', 'eggplant', 'garlic', 'pineapple', 'radish', 'red_chili', 'red_onion', 'watermelon'];
       const action = this.normalizeConsume({ id: 'c_bored_eat', trigger: 'bored', items, count: 1, effectState: 'mood', effectDelta: 8, cooldownDays: 0.15, auto: true, enabled: true }, actions.length, states);
       if (action) actions.push(action);
     }
@@ -316,7 +467,7 @@ export class FarmCatalog {
     this.persist();
   }
 
-  /** 小麦/面粉/意面没有免费图标，整条链下架；旧存档里的道具和配方一起清掉。 */
+  /** 小麦/面粉没有免费图标，整条链下架；意面改用肉 + 番茄的配方保留。 */
   /** 稻穗容易被误删；它是稻米链的入口，始终保留一个默认道具。 */
   ensureRiceEar() {
     if (!this.store) return;
@@ -324,7 +475,7 @@ export class FarmCatalog {
     if (list.some((it) => it.id === 'rice_ear')) return;
     const def = this.builtinFoodItems().find((it) => it.id === 'rice_ear');
     if (!def) return;
-    const item = this.normalizeItem({ ...def, kind: 'consumable', consumable: true, effects: [] }, list.length, this.store.states ?? []);
+    const item = this.normalizeItem({ ...def, kind: 'consumable', consumable: true, effects: def.effects ?? [] }, list.length, this.store.states ?? []);
     if (item) {
       list.push(item);
       if (!(this.store.recipes ?? []).some((r) => r.id === 'recipe_rice')) {
@@ -337,7 +488,7 @@ export class FarmCatalog {
 
   ensureRemovedFood() {
     if (!this.store) return;
-    const removed = new Set(['wheat', 'flour', 'pasta', 'recipe_flour', 'recipe_pasta']);
+    const removed = new Set(['wheat', 'flour', 'recipe_flour']);
     const beforeItems = this.store.items?.length ?? 0;
     const beforeRecipes = this.store.recipes?.length ?? 0;
     this.store.items = (this.store.items ?? []).filter((it) => !removed.has(it.id));
@@ -451,6 +602,8 @@ export class FarmCatalog {
     seededFreeCrops: Boolean(raw.seededFreeCrops),
     seededFood: Boolean(raw.seededFood),
     seededMood: Boolean(raw.seededMood),
+    seededSatiety: Boolean(raw.seededSatiety),
+    seededDietEffects: Boolean(raw.seededDietEffects),
     };
   }
 
@@ -1437,38 +1590,13 @@ export class FarmCatalog {
     this.apply();
   }
 
-  /** 一键加示例：饱食度 0~100、每天 -5；低于 30 → 饥饿生效。 */
+  /** 一键补齐示例：饱食度 0~100、每天 -5；低于 30 → 饥饿；并给所有食物补默认效果。 */
   addExample() {
-    if (this.store.states.some((s) => s.name === '饱食度' || s.name === '饥饿')) {
-      throw new Error('已经有「饱食度」或「饥饿」了。');
-    }
-    let sid = 'st_satiety';
-    while (this.store.states.some((s) => s.id === sid)) sid += '_2';
-    let hid = 'st_hungry';
-    while (this.store.states.some((s) => s.id === hid)) hid += '_2';
-    this.store.states.push(
-      { id: sid, name: '饱食度', kind: 'number', min: 0, max: 100, initial: 100, driftPerDay: -5, unit: '' },
-      { id: hid, name: '饥饿', kind: 'flag', initialActive: false },
-    );
-    let rid = 'r_hungry';
-    while (this.store.rules.some((r) => r.id === rid)) rid += '_2';
-    this.store.rules.push({ id: rid, source: sid, op: '<', value: 30, target: hid });
-    let cid = 'c_hungry';
-    while (this.store.consume.some((c) => c.id === cid)) cid += '_2';
-    this.store.consume.push({
-      id: cid,
-      trigger: hid,
-      items: ['tomato', 'potato', 'carrot', 'corn', 'pumpkin', 'strawberry'],
-      count: 1,
-      effectState: sid,
-      effectDelta: 25,
-      cooldownDays: 0.5,
-      auto: true,
-      enabled: true,
-    });
+    const ids = this.ensureSatiety(true);
+    this.ensureDietEffects(true);
     this.persist();
     this.apply();
-    return { satiety: sid, hungry: hid };
+    return { satiety: ids.satiety, hungry: ids.hungry };
   }
 
   groundTile() {

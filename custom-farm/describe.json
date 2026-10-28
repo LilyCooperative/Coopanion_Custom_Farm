@@ -48,7 +48,7 @@
     },
     {
       "name": "farm_plant",
-      "description": "在脚下种一棵。必须先用 pet_move_to 走过去并 farm_stand 报好位置。种一棵要消耗 1 包对应种子（背包里的 seed_tomato 这种）；没有种子先 farm_shop 看价、farm_buy 买。crop 可以填作物名（番茄/南瓜/玉米/土豆/草莓/卷心菜/小麦），不填就按轮作自动选；x 不填就种在脚下，也可以自己指定 0~1，但必须在当前农田范围内（农田始终以屏幕中心为中线，宽度可调）。默认允许轻微重叠，太挤会被拒绝并告诉你已经种在哪些百分比。",
+      "description": "在脚下种一棵。必须先用 pet_move_to 走过去并 farm_stand 报好位置。种一棵要消耗 1 包对应种子（背包里的 seed_tomato 这种）；没有种子就自己补 1~2 包（farm_shop 看价、farm_buy 买），不用问主人。crop 可以填作物名（番茄/南瓜/玉米/土豆/草莓/小白菜等），不填就按轮作自动选；x 不填就种在脚下，也可以自己指定 0~1，但必须在当前农田范围内（农田始终以屏幕中心为中线，宽度可调）。默认允许轻微重叠，太挤会被拒绝并告诉你已经种在哪些百分比。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -69,8 +69,8 @@
         "write"
       ],
       "summary": {
-        "zh": "在脚下种一棵：要消耗 1 包对应种子（种子在背包里，没有就先去商店买），位置可自己挑，两棵不能重叠。",
-        "en": "Plant one at your feet; consumes one seed pack from the bag (buy seeds at the shop first), position optional, no overlap."
+        "zh": "在脚下种一棵：要消耗 1 包对应种子（种子在背包里，没有就自己补 1~2 包），位置可自己挑，两棵不能重叠。",
+        "en": "Plant one at your feet; consumes one seed pack from the bag (restock 1–2 packs yourself if empty), position optional, no overlap."
       }
     },
     {
@@ -182,7 +182,7 @@
     },
     {
       "name": "farm_buy",
-      "description": "买设了购买价的道具（种子/消耗品/装饰）：id 是道具 id（seed_tomato），count 一次买几个；也可以 items:[{id,count}] 一次买多种。买来先进背包；装饰要再用 farm_place 摆。买之前先问主人。",
+      "description": "买设了购买价的道具（种子/消耗品/装饰）：id 是道具 id（seed_tomato），count 一次买几个；也可以 items:[{id,count}] 一次买多种。买来先进背包；装饰要再用 farm_place 摆。种子不够可以自己补 1~2 包，不用问；买装饰/大件先问主人。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -329,14 +329,6 @@
       "trigger": "debounce"
     },
     {
-      "type": "farm.wilt",
-      "description": {
-        "zh": "有作物因为太久没浇水枯死了；正文写明是哪几棵、位置，并提示拔掉重种。",
-        "en": "Some plants died from drought; the text names them and their position."
-      },
-      "trigger": "debounce"
-    },
-    {
       "type": "farm.dry",
       "description": {
         "zh": "有作物土太干了；正文列出哪几棵、在屏幕底部百分之几，提示走过去浇水。",
@@ -349,14 +341,6 @@
       "description": {
         "zh": "翻到新的一天；正文带上天气、可收数量、地上的掉落物、土干的数量和背包件数。",
         "en": "A new day started: weather, ripe count, drops on the ground, dry plants and bag size."
-      },
-      "trigger": "debounce"
-    },
-    {
-      "type": "farm.buy",
-      "description": {
-        "zh": "种子快用完（≤1 包）时的一天一次补货询问；正文给出建议补的种子、买价、总价，要求桌宠先问主人再买、别一次花光。",
-        "en": "A restock question at most once every two game days when one seed pack or fewer is left; the text lists suggested seeds, prices and total, and asks the pet to check with the owner before buying."
       },
       "trigger": "debounce"
     },

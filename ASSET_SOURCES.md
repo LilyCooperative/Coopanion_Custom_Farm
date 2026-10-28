@@ -9,7 +9,7 @@
 | 大树 / 稻草人 / 小木屋 / 扩展图标 | **Grok 重绘** |
 | 野草 / 野草变种 / 伊甸花 | **Free Pixel Grass & Bushes Pack**（vigi game） |
 | 枯萎作物 5 张 | **Grok 重绘** |
-| 食材/菜品图标 6 张 | **Grok 绘制** |
+| 食材/菜品图标 7 张 | **Grok 绘制 / 项目内补画** |
 | 闪光粒子 `crop_shiny_01..60` | **Grok 重绘** |
 | 烟尘粒子 `smoke_ps_02_0..5` | **Grok 重绘** |
 | 兜底图标 `icon_item_soil` | **Grok 重绘** |

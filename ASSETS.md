@@ -26,9 +26,9 @@
 - 大树：`deco_tree.png`
 - 稻草人：`deco_scarecrow.png`
 - 小木屋：`deco_cabin.png`
-- 扩展图标：`assets/icon.png`
+- 扩展图标：`assets/icon.png`（`custom-farm/icon.png` 是安装包里用的同一张）
 - 枯萎图：`sprite_crop_wither_*.png`
-- 食材/菜品图标：`icon_item_rice_ear/rice/egg/meat/egg_fried_rice/tomato_egg.png`
+- 食材/菜品图标：`icon_item_rice_ear/rice/egg/meat/egg_fried_rice/tomato_egg.png`（Grok 绘制）；`icon_item_pasta.png` 为项目内按同一调色板补画的像素图
 - 闪光粒子：`crop_shiny_01..60.png`
 - 烟尘粒子：`smoke_ps_02_0..5.png`
 - 兜底土图标：`icon_item_soil.png`
