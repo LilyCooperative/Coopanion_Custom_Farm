@@ -53,14 +53,15 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 ```
 
-## 安装路径
+## 游戏配置
 
-在 Coopanion 的 **游戏配置 → 安装** 里可以直接看到和修改安装路径：
+- **安装路径**：默认 `<Coopanion 数据目录>\custom-farm`；修改后自动停图层、搬目录、重启
+- **显示器**：「自动」用主屏，或从下拉里选择任意一块屏幕；Electron 图层会在约 1 秒内移动过去
+- **备份存档**：把 `state.json` 和 `custom.json` 复制到 `data\farm\backups\backup-时间\`
+- **重置一切**：先自动备份，再清空存档和全部自定义设置，World 自动重启；安装路径和上传的 PNG 不会被删
+- 备份和重置按钮在「游戏配置」页底部，也可以在「存档与重置」页签操作
 
-- 默认：`<Coopanion 数据目录>\custom-farm`
-- 修改后自动停止桌面图层，把 `overlay` / `overlay-electron` / `assets` 搬到新目录，然后重新启动
-- 存档和自定义配置仍在 `data\home\companion\data\farm\`，不会跟着搬
-- 安装目录里的 `overlay\runtime\` 是运行痕迹，可以清；`assets\sprites\cust_*.png` 是上传的贴图
+存档和自定义配置固定在 `data\home\companion\data\farm\`，不会跟着安装路径搬走。
 
 ## 默认内容
 

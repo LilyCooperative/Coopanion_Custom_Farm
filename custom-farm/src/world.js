@@ -18,7 +18,7 @@
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,6 +73,17 @@ import {
 } from './farm.js';
 
 const ENV_PROMPT = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url));
+/** Electron 图层写出的显示器列表；配置页的「显示器」下拉用它。 */
+let screenChoices = [];
+
+export function screenOptions(language = 'zh') {
+  const zh = String(language).toLowerCase().startsWith('zh');
+  const out = [{ value: '', label: zh ? '自动（主屏）' : 'Auto (primary)' }];
+  for (const [i, d] of screenChoices.entries()) {
+    out.push({ value: String(d.id), label: String(d.label || (zh ? '显示器 ' : 'Display ') + (i + 1)) + (d.primary ? (zh ? '（主屏）' : ' (primary)') : '') });
+  }
+  return out;
+}
 const msg = (err) => (err instanceof Error ? err.message : String(err));
 
 const pct = (x) => (x === null || x === undefined ? '?' : Math.round(Number(x) * 100));
@@ -297,6 +308,13 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
         description: t('影响之后的操作；startCoins 主要影响新开局。', 'Affects subsequent actions; startCoins mainly affects a fresh game.'),
         properties: {
           'worlds.farm.startCoins': int(t('新开局初始金币', 'Starting coins'), t('默认 120，只影响新开档。', 'Default 120; only affects a new save.'), 0, 100000),
+          'worlds.farm.screen': {
+            type: 'string',
+            title: t('显示器', 'Display'),
+            description: t('图层放在哪块屏幕；「自动」跟随主屏。', 'Which display hosts the overlay; Auto uses the primary display.'),
+            'x-options': 'farm-screens',
+            'x-hot': true,
+          },
           'worlds.farm.overlayEnabled': bool(t('写桌面图层的 state.json', 'Write the overlay state.json'), t('默认开。关掉后桌面农场停止更新。', 'On by default. Off stops the desktop farm from updating.')),
           'worlds.farm.hideFarm': bool(t('隐藏农场', 'Hide farm'), t('勾选后停止桌面图层；农场仍在后台生长，取消勾选恢复。', 'Stop the desktop overlay; the farm keeps growing. Uncheck to show it again.')),
         },
@@ -331,6 +349,7 @@ export class FarmWorld {
     this.botDir = opts.botDir ?? process.cwd();
     this.packageDir = opts.packageDir ?? process.cwd();
     this.persistConfig = typeof opts.persist === 'function' ? opts.persist : null;
+    this.restartWorld = typeof opts.restart === 'function' ? opts.restart : null;
     // 是否由这个 World 管桌面图层的启停（单元测试里传 false，避免碰到真实图层）
     this.manageLayers = opts.manageLayers !== false;
     this.language = 'zh';
@@ -372,6 +391,7 @@ export class FarmWorld {
     const water = this.#catalog?.status?.water ?? null;
     return {
       ...DEFAULTS,
+      screen: String(this.cfg?.screen ?? ''),
       maxPlants: this.#num('maxPlants', 1, 24),
       screenWidth,
       zoom: this.#num('zoom', 1, 8),
@@ -541,6 +561,67 @@ export class FarmWorld {
     }
     this.#host?.log?.info?.('自定义农场：安装路径已切换', { home: this.#paths.home });
     this.#ensureLayers('安装路径变更');
+  }
+
+  /** 备份存档：把 state.json 和 custom.json 复制到 data/farm/backups/backup-时间/。 */
+  async #backupNow() {
+    const d = new Date();
+    const p2 = (n) => String(n).padStart(2, '0');
+    const stamp = d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
+    const dir = join(this.dataDir, 'farm', 'backups', 'backup-' + stamp);
+    await mkdir(dir, { recursive: true });
+    const files = [];
+    for (const [name, src] of [
+      ['state.json', this.stateFile()],
+      ['custom.json', join(this.dataDir, 'farm', 'custom.json')],
+    ]) {
+      try {
+        if (!existsSync(src)) continue;
+        await copyFile(src, join(dir, name));
+        files.push(name);
+      } catch (err) {
+        this.#host?.log?.warn?.('自定义农场：备份文件失败', { file: src, err: msg(err) });
+      }
+    }
+    this.#host?.log?.info?.('自定义农场：已备份存档', { dir, files });
+    return {
+      ok: true,
+      path: dir,
+      files,
+      text: files.length ? '已备份到 ' + dir : '没有可备份的存档文件；已创建空备份目录 ' + dir,
+    };
+  }
+
+  /** 重置一切：先备份，再删 state.json / custom.json，最后重启 World 重新生成默认目录。 */
+  async #resetAll() {
+    const backup = await this.#backupNow().catch(() => null);
+    // 先断开内存里的 state，World 重启/停止时就不会把旧状态写回去。
+    this.#state = null;
+    for (const file of [this.stateFile(), join(this.dataDir, 'farm', 'custom.json')]) {
+      try { await unlink(file); } catch { /* 文件本来就不存在 */ }
+    }
+    this.#host?.log?.warn?.('自定义农场：已重置全部存档与设置', { backup: backup?.path ?? null });
+    if (this.restartWorld) this.setTimeoutImpl(() => { void this.restartWorld(); }, 300);
+    return {
+      ok: true,
+      backup: backup?.path ?? null,
+      text: '已重置存档和自定义设置' + (backup?.path ? '；备份在 ' + backup.path : '') + '。World 正在重启。',
+    };
+  }
+
+  /** 读取 Electron 图层写出的显示器列表，供游戏配置的「显示器」下拉使用。 */
+  #refreshScreens() {
+    try {
+      const file = join(dirname(this.overlayFile()), 'screens.json');
+      const list = JSON.parse(readFileSync(file, 'utf8'));
+      if (Array.isArray(list) && list.length) {
+        screenChoices = list.map((d) => ({
+          id: String(d.id ?? ''),
+          label: String(d.label ?? ''),
+          primary: Boolean(d.primary),
+        })).filter((d) => d.id);
+      }
+    } catch { /* 图层还没起来，保留上次的列表 */ }
   }
 
   /** 自定义目录：custom.json + 安装目录下的 assets\sprites。 */
@@ -1282,7 +1363,9 @@ export class FarmWorld {
         this.#state.dropScale = cfg.dropScale;
         this.#state.groundHeight = cfg.groundHeight;
         this.#state.stripHeight = cfg.stripHeight;
+        this.#state.screen = cfg.screen;
       }
+      this.#refreshScreens();
       await writeJsonAtomic(this.overlayFile(), overlayView(this.#state));
     } catch (err) {
       this.#host?.log?.debug?.('自定义农场：图层状态没写出去', { file: this.overlayFile(), err: msg(err) });
@@ -1482,6 +1565,11 @@ export class FarmWorld {
         { label: '天数', value: started ? '第 ' + s.day + ' 天' : '—', tone: 'plain' },
       ],
       panels: [{
+        id: 'manage',
+        title: '存档与重置',
+        description: '备份存档，或把存档和全部自定义设置重置为默认。',
+        getMethods: ['state'],
+      }, {
         id: 'bag',
         title: '背包',
         description: '背包、农场预览、摆放道具与手动合成；装饰在这里输入坐标放置。',
@@ -1528,6 +1616,12 @@ export class FarmWorld {
   async invoke(panel, method, args = []) {
     return this.#serial(async () => {
       const cfg = this.#cfgAll();
+      if (panel === 'manage') {
+        if (method === 'backup') return this.#backupNow();
+        if (method === 'reset') return this.#resetAll();
+        if (method === 'state') return { ok: true };
+        throw new Error('不认识的存档操作：' + method);
+      }
       if (panel === 'status') return this.#statusInvoke(method, args, cfg);
       if (panel === 'bag') return this.#bagInvoke(method, args);
       if (panel === 'shop') return this.#shopInvoke(method, args);

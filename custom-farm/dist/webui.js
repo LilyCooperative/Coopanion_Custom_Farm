@@ -22,12 +22,97 @@ function renameFarmConfigTab() {
 if (typeof document !== 'undefined') {
   const start = () => {
     renameFarmConfigTab();
-    new MutationObserver(renameFarmConfigTab).observe(document.body, { childList: true, subtree: true, characterData: true });
-    window.addEventListener('hashchange', renameFarmConfigTab);
-    setInterval(renameFarmConfigTab, 1000);
+    injectFarmConfigActions();
+    new MutationObserver(() => { renameFarmConfigTab(); injectFarmConfigActions(); }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('hashchange', () => { renameFarmConfigTab(); injectFarmConfigActions(); });
+    setInterval(() => { renameFarmConfigTab(); injectFarmConfigActions(); }, 1000);
   };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
+}
+
+/** 调 World 的 manage 面板：备份 / 重置。 */
+async function farmManageCall(method) {
+  const res = await fetch('/api/webui/providers/' + encodeURIComponent('world:farm') + '/panels/manage/' + method, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ args: [] }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+/** 往宿主的「游戏配置」页里塞「存档与重置」按钮。 */
+function injectFarmConfigActions() {
+  try {
+    const hash = String(location.hash || '');
+    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    const view = document.querySelector('.configview');
+    if (!view || view.querySelector('[data-farm-manage]')) return;
+
+    const section = document.createElement('div');
+    section.className = 'tsection';
+    section.dataset.farmManage = '1';
+    section.textContent = '存档与重置';
+
+    const desc = document.createElement('div');
+    desc.className = 'tsecdesc';
+    desc.textContent = '备份会复制 state.json 和 custom.json 到 data/farm/backups；重置会先备份，再清空存档和全部自定义设置，World 随后重启。';
+
+    const row = document.createElement('div');
+    row.className = 'trow';
+    const label = document.createElement('span');
+    label.className = 'tlabel';
+    label.textContent = '操作';
+    const field = document.createElement('div');
+    field.className = 'tfield';
+    field.style.display = 'flex';
+    field.style.gap = '8px';
+    field.style.flexWrap = 'wrap';
+    const status = document.createElement('span');
+    status.className = 'tdesc';
+    status.setAttribute('role', 'status');
+
+    const button = (text, primary) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn sm' + (primary ? ' primary' : '');
+      b.textContent = text;
+      return b;
+    };
+    const backup = button('备份存档', true);
+    const reset = button('重置一切', false);
+
+    backup.addEventListener('click', async () => {
+      backup.disabled = true;
+      status.textContent = '正在备份…';
+      try {
+        const r = await farmManageCall('backup');
+        status.textContent = r.text || '已备份';
+      } catch (err) {
+        status.textContent = '备份失败：' + ((err && err.message) || err);
+      } finally { backup.disabled = false; }
+    });
+
+    reset.addEventListener('click', async () => {
+      if (!window.confirm('确定重置一切？会清空存档和全部自定义设置（会先自动备份）。')) return;
+      reset.disabled = true;
+      status.textContent = '正在重置…';
+      try {
+        const r = await farmManageCall('reset');
+        status.textContent = r.text || '已重置，World 正在重启…';
+        setTimeout(() => { try { location.reload(); } catch { /* ignore */ } }, 3000);
+      } catch (err) {
+        status.textContent = '重置失败：' + ((err && err.message) || err);
+        reset.disabled = false;
+      }
+    });
+
+    field.append(backup, reset, status);
+    row.append(label, field);
+    view.append(section, desc, row);
+  } catch { /* 不是宿主的配置页就算了 */ }
 }
 
 const TEXT = {
@@ -2700,8 +2785,52 @@ function ecologyPanel(ctx) {
   reload();
 }
 
+function managePanel(ctx) {
+  const { ui } = ctx;
+  const root = ui.h('div', 'cf-root');
+  ctx.root.appendChild(root);
+  const sheet = ui.sheet({
+    title: '存档与重置',
+    desc: '备份会复制 state.json 和 custom.json 到 data/farm/backups；重置会先备份，再清空存档和全部自定义设置，World 随后重启。',
+  });
+  const bar = ui.rowbar();
+  const status = ui.h('p', 'cf-note', '');
+  const backup = ui.button('备份存档', {
+    variant: 'primary',
+    onClick: async () => {
+      backup.disabled = true;
+      status.textContent = '正在备份…';
+      try {
+        const r = await ctx.invoke('backup');
+        status.textContent = r.text || '已备份';
+      } catch (err) {
+        status.textContent = '备份失败：' + ((err && err.message) || err);
+      } finally { backup.disabled = false; }
+    },
+  });
+  const reset = ui.button('重置一切', {
+    onClick: async () => {
+      if (!window.confirm('确定重置一切？会清空存档和全部自定义设置（会先自动备份）。')) return;
+      reset.disabled = true;
+      status.textContent = '正在重置…';
+      try {
+        const r = await ctx.invoke('reset');
+        status.textContent = r.text || '已重置，World 正在重启…';
+        setTimeout(() => { try { location.reload(); } catch { /* ignore */ } }, 3000);
+      } catch (err) {
+        status.textContent = '重置失败：' + ((err && err.message) || err);
+        reset.disabled = false;
+      }
+    },
+  });
+  bar.append(backup, reset);
+  sheet.body.append(bar, status);
+  root.appendChild(sheet.el);
+}
+
 export default {
   panels: {
+    manage: { mount: managePanel },
     bag: { mount: bagPanel },
     shop: { mount: shopPanel },
     customize: { mount: panel },

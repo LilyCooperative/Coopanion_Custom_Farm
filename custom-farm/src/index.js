@@ -3,7 +3,7 @@
  */
 import { CROPS, ROTATION } from './crops.js';
 import { DEFAULTS, overlayView, summary } from './farm.js';
-import { FARM_TOOL_DECLS, FarmWorld } from './world.js';
+import { FARM_TOOL_DECLS, FarmWorld, screenOptions } from './world.js';
 
 const TOOL_SUMMARIES = {
   farm_status: {
@@ -64,7 +64,9 @@ export const farmDefinition = {
     botDir: ctx.botDir,
     packageDir: ctx.packageDir,
     persist: (patch) => ctx.persist(patch),
+    restart: () => ctx.restart(),
   }),
+  configOptions: (kind, language) => (kind === 'farm-screens' ? screenOptions(language) : []),
   describe: {
     tools: describeTools(FARM_TOOL_DECLS),
     events: [

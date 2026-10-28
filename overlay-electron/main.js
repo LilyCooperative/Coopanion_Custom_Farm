@@ -9,6 +9,7 @@ function arg(name, fallback = '') {
 }
 
 const statePath = path.resolve(arg('state-path', path.join(__dirname, '..', 'overlay', 'runtime', 'state.json')));
+const screensPath = path.join(path.dirname(statePath), 'screens.json');
 const assetsDir = path.resolve(arg('assets-dir', path.join(__dirname, '..', 'assets', 'sprites')));
 const logPath = arg('log', '');
 const pidPath = arg('pid', '');
@@ -46,10 +47,34 @@ function checkLease() {
 }
 
 
+function listScreens() {
+  const primary = screen.getPrimaryDisplay();
+  return screen.getAllDisplays().map((d, i) => ({
+    id: String(d.id),
+    label: d.label || ('Display ' + (i + 1)),
+    primary: d.id === primary.id,
+    width: Math.round(d.bounds.width),
+    height: Math.round(d.bounds.height),
+  }));
+}
+
+function writeScreens() {
+  try {
+    fs.mkdirSync(path.dirname(screensPath), { recursive: true });
+    fs.writeFileSync(screensPath, JSON.stringify(listScreens(), null, 2), 'utf8');
+  } catch (e) { log('screens.json failed: ' + e.message); }
+}
+
+function displayFor(st) {
+  const all = screen.getAllDisplays();
+  const id = String(st?.screen ?? '');
+  return all.find((d) => String(d.id) === id) || screen.getPrimaryDisplay();
+}
+
 function bounds() {
   const st = readState() || {};
   const h = Math.min(800, Math.max(120, Number(st.stripHeight) || 320));
-  const wa = screen.getPrimaryDisplay().workArea;
+  const wa = displayFor(st).workArea;
   return { x: Math.round(wa.x), y: Math.round(wa.y + wa.height - h), width: Math.round(wa.width), height: h };
 }
 
@@ -103,21 +128,22 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => { if (win) win.showInactive(); });
   app.whenReady().then(() => {
     writePid();
+    writeScreens();
     createWindow();
-    screen.on('display-metrics-changed', () => {
+    const fit = () => {
       if (!win) return;
       const b = bounds();
-      win.setBounds(b);
-      win.webContents.send('resize');
-    });
+      const cur = win.getBounds();
+      if (cur.x !== b.x || cur.y !== b.y || cur.width !== b.width || cur.height !== b.height) {
+        win.setBounds(b);
+        win.webContents.send('resize');
+      }
+    };
+    for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
+      screen.on(event, fit);
+    }
     setInterval(checkLease, 5000);
-    setInterval(() => {
-      if (!win) return;
-      const st = readState() || {};
-      const h = Math.min(800, Math.max(120, Number(st.stripHeight) || 320));
-      const b = bounds();
-      if (win.getBounds().height !== h) { win.setBounds(b); win.webContents.send('resize'); }
-    }, 1000);
+    setInterval(fit, 1000);
   });
 }
 

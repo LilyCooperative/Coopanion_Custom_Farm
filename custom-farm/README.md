@@ -71,7 +71,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
 Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 ```
 
-## 安装路径
+## 游戏配置
+
+### 安装路径
 
 在 Coopanion 的 **游戏配置 → 安装** 里可以直接看到和修改安装路径：
 
@@ -79,6 +81,23 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 - 修改后会停止桌面图层，把 `overlay` / `overlay-electron` / `assets` 搬到新目录，然后重新启动
 - 存档和自定义配置仍在 `data\home\companion\data\farm\`，不会被搬走
 - 安装目录里的 `overlay\runtime\` 是运行痕迹，可以清；`assets\sprites\cust_*.png` 是你上传的贴图
+
+### 显示器
+
+**游戏配置 → 显示器** 可以选择图层放在哪块屏幕：
+
+- 「自动」使用主屏
+- 下拉里会列出当前所有显示器，改完约 1 秒内移动到目标屏幕
+- 这个设置作用于 Electron 图层；WPF 回退仍跟随桌宠所在屏幕
+
+### 备份与重置
+
+**游戏配置** 页底部有「存档与重置」：
+
+- **备份存档**：把 `state.json` 和 `custom.json` 复制到 `data\farm\backups\backup-时间\`
+- **重置一切**：先自动备份，再清空 `state.json` 和 `custom.json`，World 自动重启并生成默认目录；安装路径和已上传的 PNG 文件不会被删除
+
+也可以从「存档与重置」页签操作同样的按钮。
 
 ## 桌面图层
 
@@ -151,6 +170,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 - Coopanion `>= 0.2.13`，World API `6`
 - Node.js `>= 22`（Coopanion 自带）
 - Electron `^45.1.0`（桌面图层依赖）
+- Windows 10/11 已实机测试；macOS / Linux 未实机测试
 
 ## 许可
 

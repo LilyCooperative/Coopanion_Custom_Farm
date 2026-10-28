@@ -49,6 +49,8 @@ export const REACH = 0.05;
 export const DEFAULTS = {
   /** 安装目录：overlay / overlay-electron / assets 放在这里；空 = <dataDir>/custom-farm */
   installPath: '',
+  /** 选中的显示器 id；空 = 自动（主屏）。 */
+  screen: '',
   /** 最多同时种几棵（屏幕上不重叠地放得下的上限） */
   maxPlants: 12,
   /** 屏幕逻辑宽度，用来把"像素宽"换算成 x 间距 */
@@ -1074,6 +1076,7 @@ export function overlayView(state) {
     weatherFx: state.weatherFx ?? weatherFxOf(normalizeWeathers(DEFAULT_WEATHERS)[0]),
     current: state.current ?? null,
     currentAt: Number.isFinite(state.standingAt) ? Number(state.standingAt) : null,
+    screen: state.screen ?? '',
     farm: { min: fb.min, max: fb.max, cells: fb.cells, cropScale: fb.cropScale, cropZoom: Number(state.cropScale) || 1 },
     ground: { tile: groundTile },
     waterFx: live.status ? {
