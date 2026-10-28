@@ -71,6 +71,9 @@ const DEFAULT_FOOD_EFFECTS = {
 const DEFAULT_SATIETY_STATE = { id: SATIETY_ID, name: '饱食度', kind: 'number', min: 0, max: 100, initial: 100, driftPerDay: -5, unit: '' };
 const DEFAULT_HUNGRY_STATE = { id: HUNGRY_ID, name: '饥饿', kind: 'flag', initialActive: false };
 
+/** 饥饿/无聊时优先吃的道具顺序：作物在前，主食在后补满。 */
+const DEFAULT_EDIBLE_ITEMS = ['tomato', 'potato', 'rice', 'pasta', 'egg_fried_rice', 'item_15', 'carrot', 'strawberry', 'corn', 'pumpkin', 'beetroot', 'bok_choy', 'cauliflower', 'cucumber', 'eggplant', 'garlic', 'pineapple', 'radish', 'red_chili', 'red_onion', 'watermelon'];
+
 /** 内置杂草：游戏里现成的三种野草/花，每个都有逐阶段贴图。 */
 const BUILTIN_WEEDS = [
   { key: 'weed', name: '野草', stages: 4, days: [0.45, 0.45, 0.45], weight: 55, prefix: 'sprite_resource_weeds', frames: 4, itemName: '', value: 0 },
@@ -223,14 +226,30 @@ export class FarmCatalog {
       }
       const actions = this.store.consume ?? (this.store.consume = []);
       if (!actions.some((c) => c.trigger === hungry.id && (c.items ?? []).includes('tomato'))) {
-        const items = ['tomato', 'potato', 'rice', 'pasta', 'egg_fried_rice', 'item_15', 'carrot', 'strawberry', 'corn', 'pumpkin', 'beetroot', 'bok_choy', 'cauliflower', 'cucumber', 'eggplant', 'garlic', 'pineapple', 'radish', 'red_chili', 'red_onion', 'watermelon'];
-        const action = this.normalizeConsume({ id: 'c_hungry', trigger: hungry.id, items, count: 1, effectState: satiety.id, effectDelta: 25, cooldownDays: 0.5, auto: true, enabled: true }, actions.length, states);
+        const action = this.normalizeConsume({ id: 'c_hungry', trigger: hungry.id, items: DEFAULT_EDIBLE_ITEMS, count: 1, effectState: satiety.id, effectDelta: 25, cooldownDays: 0.5, auto: true, enabled: true }, actions.length, states);
         if (action) { actions.push(action); changed = true; }
       }
     }
     this.store.seededSatiety = true;
     if (changed) this.persist();
     return { satiety: satiety?.id ?? null, hungry: hungry?.id ?? null };
+  }
+
+  /** 旧档的饥饿消耗行为只列了几种作物；补上米饭/意面等新食物一次。 */
+  ensureEdibleItems() {
+    if (!this.store || this.store.seededEdibleItems) return;
+    const { hungryId } = this.dietStateIds();
+    let changed = false;
+    if (hungryId) {
+      for (const action of this.store.consume ?? []) {
+        if (action.trigger !== hungryId || !Array.isArray(action.items)) continue;
+        if (action.items.includes('pasta')) continue;
+        action.items = [...new Set([...action.items, ...DEFAULT_EDIBLE_ITEMS])].slice(0, 24);
+        changed = true;
+      }
+    }
+    this.store.seededEdibleItems = true;
+    if (changed) this.persist();
   }
 
   /** 给每种作物和食物补默认的 +饱食度 / +心情；只填空效果，不覆盖用户自己配的。 */
@@ -373,6 +392,7 @@ export class FarmCatalog {
     seededMood: false,
     seededSatiety: false,
     seededDietEffects: false,
+    seededEdibleItems: false,
     };
   }
 
@@ -418,6 +438,7 @@ export class FarmCatalog {
     this.ensureRiceEar();
     this.ensureRemovedFood();
     this.ensureDietEffects();
+    this.ensureEdibleItems();
     this.ensureBuiltinDecor();
     this.ensureCabin();
     this.ensureDecorSet();
@@ -604,6 +625,7 @@ export class FarmCatalog {
     seededMood: Boolean(raw.seededMood),
     seededSatiety: Boolean(raw.seededSatiety),
     seededDietEffects: Boolean(raw.seededDietEffects),
+    seededEdibleItems: Boolean(raw.seededEdibleItems),
     };
   }
 
