@@ -1499,13 +1499,8 @@ export class FarmWorld {
         realMinutesPerDay: cfg.realMinutesPerDay,
       });
     }
-    const entered = new Set([...(result.stateChanges ?? []), ...weatherMoodChanges]
-      .filter((c) => c.to === true)
-      .map((c) => c.id));
-    if (entered.size) {
-      try { await this.#runStateActions(entered); } catch (err) {
-        this.#host?.log?.warn?.('自定义农场：状态消耗行为失败', { err: msg(err) });
-      }
+    try { await this.#runStateActions(); } catch (err) {
+      this.#host?.log?.warn?.('自定义农场：状态消耗行为失败', { err: msg(err) });
     }
     try { await this.#pushMoodChanges([...(result.stateChanges ?? []), ...weatherMoodChanges]); } catch (err) {
       this.#host?.log?.warn?.('自定义农场：心情提醒没送出去', { err: msg(err) });
@@ -1646,7 +1641,7 @@ export class FarmWorld {
       promptDocs: [{
         key: 'worlds.' + this.id + '.env',
         title: '环境提示词',
-        description: '发给桌宠的环境提示词：吃饭/状态、节奏、工具用法。它是静态文字，不会跟作物/价格设置自动同步；具体数据以 farm_status / farm_shop 为准。',
+        description: '发给桌宠的环境提示词：消耗/状态、节奏、工具用法。它是静态文字，不会跟作物/价格设置自动同步；具体数据以 farm_status / farm_shop 为准。',
         path: ENV_PROMPT,
         role: 'envPrompt',
       }],
@@ -2250,7 +2245,6 @@ export class FarmWorld {
       consume: (catalog.consume ?? []).map((c) => ({
         ...c,
         triggerName: nameOf(c.trigger),
-        effectName: c.effectState ? nameOf(c.effectState) : null,
         itemNames: c.items.map((id) => live.names?.[id] ?? id),
       })),
       items,
@@ -2286,29 +2280,23 @@ export class FarmWorld {
   async #runStateActions(onlyTriggers = null) {
     const catalog = this.#catalog;
     if (!catalog || !(catalog.consume?.length)) return;
-    const results = consumeActions(this.#state, catalog.states, catalog.rules, catalog.consume, this.#state.elapsedDays, onlyTriggers);
+    const results = consumeActions(this.#state, catalog.states, catalog.rules, catalog.consume, this.#state.elapsedDays, onlyTriggers, this.random);
     for (const r of results) {
       const meta = { trigger: r.action.trigger, action: r.action.id, item: r.item ?? null, count: r.count ?? 0 };
       if (r.missing) {
+        if (r.action.auto) continue;
         const names = r.action.items.map((id) => live.names?.[id] ?? id).join('、');
-        await this.#pushStateEvent('「' + r.triggerName + '」生效了，但背包里没有能消耗的道具（' + names + '）。去收菜或 farm_shop 买点。', meta);
+        await this.#pushStateEvent('「' + r.triggerName + '」生效了：背包里暂时没有池子里的可消耗道具（' + names +
+          '）。可以先看 farm_craft 合成表，材料够就做一个池子里的消耗品，再 farm_consume；材料也不够再提醒主人。', meta);
         continue;
       }
       if (r.promptOnly) {
-        const eff = r.action.effectState
-          ? '，吃掉会' + (live.names?.[r.action.effectState] ?? r.action.effectState) + ' ' + (Number(r.action.effectDelta) >= 0 ? '+' : '') + Number(r.action.effectDelta)
-          : '';
-        await this.#pushStateEvent('「' + r.triggerName + '」生效了：吃点东西吧。背包里有' + r.itemName +
-          '；farm_consume {item:"' + r.item + '"} 可以吃掉 1 个' + eff + '。', meta);
+        const names = r.choices?.length ? r.choices.map((c) => c.name).join('、') : r.itemName;
+        await this.#pushStateEvent('「' + r.triggerName + '」生效了：背包里有' + names +
+          '。自己挑一个能消耗的，用 farm_consume {item:"..."} 消耗；如果池子里没有或想换，可以先看 farm_craft，材料够就做一个池子里的消耗品再消耗。日常合成不用问主人，具体怎么说按环境提示词。', meta);
         continue;
       }
-      let text = '「' + r.triggerName + '」生效：吃掉了' + r.itemName + '×' + r.count;
-      if (r.effects?.length) {
-        text += '，' + r.effects.map((e) => e.name + ' ' + (e.delta >= 0 ? '+' : '') + e.delta +
-          '（现在 ' + e.value + '/' + e.max + '）').join('、');
-      }
-      text += '。';
-      await this.#pushStateEvent(text, meta);
+      // auto（随机消耗）：只改数值/背包，不推事件、不唤醒桌宠。
     }
   }
 
@@ -2819,6 +2807,7 @@ export class FarmWorld {
             realMinutesPerDay: cfg.realMinutesPerDay,
           });
         }
+        await this.#runStateActions();
         await this.#save();
       } catch (err) {
         host?.log?.error?.('自定义农场：启动初始化失败（已忽略，继续用空田跑）', { err: msg(err) });

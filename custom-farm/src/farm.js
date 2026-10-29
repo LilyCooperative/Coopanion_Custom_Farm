@@ -712,12 +712,10 @@ export function tickStates(state, defs = [], rules = [], gameDays = 0) {
 }
 
 /**
- * 消耗行为：触发状态生效（开关 active / 数值 > 0）且冷却到了，就从 items 里按顺序拿 count 个，
- * 再把 effectDelta 加到 effectState（通常用来把饱食度吃回来）。
- * auto=false 时只返回一条“该吃了”的提示，不动背包。
- * 返回本次发生的事，World 负责推事件和保存。
+ * 消耗行为：触发状态生效（开关 active / 数值 > 0）且冷却到了，就从池子里随机拿 count 个；
+ * auto=false 时只提示池子里现在有哪些，不动背包。
  */
-export function consumeActions(state, defs = [], rules = [], actions = [], elapsedDays = state.elapsedDays, onlyTriggers = null) {
+export function consumeActions(state, defs = [], rules = [], actions = [], elapsedDays = state.elapsedDays, onlyTriggers = null, random = Math.random) {
   const out = [];
   const list = Array.isArray(actions) ? actions : [];
   if (!list.length) return out;
@@ -740,7 +738,7 @@ export function consumeActions(state, defs = [], rules = [], actions = [], elaps
     if (Number.isFinite(last) && now - last < Number(action.cooldownDays ?? 0.5)) continue;
 
     const items = (Array.isArray(action.items) ? action.items : []).filter((id) => (
-      Number(state.inventory[id] ?? 0) > 0 && live.items?.[id]?.consumable !== false
+      Number(state.inventory[id] ?? 0) > 0 && Boolean(live.items?.[id]) && live.items[id].consumable !== false
     ));
     if (!items.length) {
       state.stateActions[action.id] = { lastAt: now };
@@ -749,7 +747,7 @@ export function consumeActions(state, defs = [], rules = [], actions = [], elaps
       continue;
     }
 
-    const item = items[0];
+    const item = items[Math.min(items.length - 1, Math.floor(random() * items.length))];
     const want = Math.max(1, Math.min(99, Math.round(Number(action.count ?? 1))));
     if (action.auto === false) {
       state.stateActions[action.id] = { lastAt: now };
@@ -757,6 +755,7 @@ export function consumeActions(state, defs = [], rules = [], actions = [], elaps
       out.push({
         action, triggerName: trigger.name, promptOnly: true, item,
         itemName: live.names?.[item] ?? item, count: want,
+        choices: items.map((id) => ({ id, name: live.names?.[id] ?? id })),
       });
       continue;
     }
@@ -767,9 +766,7 @@ export function consumeActions(state, defs = [], rules = [], actions = [], elaps
     if (state.inventory[item] <= 0) delete state.inventory[item];
     // 道具自己的效果优先；没配才退回消耗行为上的 effectState/effectDelta
     const itemDef = live.items?.[item];
-    const effectSpec = Array.isArray(itemDef?.effects) && itemDef.effects.length
-      ? itemDef.effects
-      : (action.effectState ? [{ state: action.effectState, delta: action.effectDelta }] : []);
+    const effectSpec = Array.isArray(itemDef?.effects) && itemDef.effects.length ? itemDef.effects : [];
     const effects = [];
     for (const spec of effectSpec) {
       const ed = byId.get(spec.state);

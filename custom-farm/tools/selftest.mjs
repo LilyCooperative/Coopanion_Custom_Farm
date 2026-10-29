@@ -237,9 +237,9 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
     cat.states.some((s) => s.id === 'st_hungry' && s.kind === 'flag') &&
     cat.rules.length === 3,
     JSON.stringify(cat.states.map((s) => s.id)) + ' rules=' + cat.rules.length);
-  check('目录：默认饥饿条件 + 自动吃东西',
+  check('目录：默认饥饿条件 + 自动消耗',
     cat.rules.some((r) => r.source === 'st_satiety' && r.target === 'st_hungry' && r.value === 30) &&
-    cat.consume.some((c) => c.trigger === 'st_hungry' && c.effectState === 'st_satiety' && c.auto === true),
+    cat.consume.some((c) => c.trigger === 'st_hungry' && c.auto === true && c.items.length > 0),
     JSON.stringify(cat.consume));
   check('目录：默认食物效果（作物 + 米饭/意面都有饱食度和心情）',
     ['potato', 'tomato', 'watermelon', 'rice', 'pasta'].every((id) => {

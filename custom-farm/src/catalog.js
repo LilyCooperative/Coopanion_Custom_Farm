@@ -226,13 +226,44 @@ export class FarmCatalog {
       }
       const actions = this.store.consume ?? (this.store.consume = []);
       if (!actions.some((c) => c.trigger === hungry.id && (c.items ?? []).includes('tomato'))) {
-        const action = this.normalizeConsume({ id: 'c_hungry', trigger: hungry.id, items: DEFAULT_EDIBLE_ITEMS, count: 1, effectState: satiety.id, effectDelta: 25, cooldownDays: 0.5, auto: true, enabled: true }, actions.length, states);
+        const action = this.normalizeConsume({ id: 'c_hungry', trigger: hungry.id, items: this.consumableItemIds(), count: 1, cooldownDays: 0.5, auto: true, enabled: true }, actions.length, states);
         if (action) { actions.push(action); changed = true; }
       }
     }
     this.store.seededSatiety = true;
     if (changed) this.persist();
     return { satiety: satiety?.id ?? null, hungry: hungry?.id ?? null };
+  }
+
+  /** 默认可消耗池：当前所有标记为可消耗的道具（作物、米饭、意面、自定义食物等）。 */
+  consumableItemIds() {
+    const items = (this.store?.items ?? []).filter((it) => it.consumable).map((it) => it.id);
+    // 初始化顺序里 items 可能还没补齐；先用作物 key 兜底，稍后的 ensureConsumablePool 会换成全部可消耗道具。
+    if (items.length) return items;
+    return (this.store?.crops ?? []).filter((c) => c.enabled !== false).map((c) => c.key);
+  }
+
+  /** 默认的饥饿/无聊消耗池改成“所有可消耗道具”；只迁移一次，用户之后可自己改池子。 */
+  ensureConsumablePool() {
+    if (!this.store || this.store.seededConsumablePool) return;
+    const ids = new Set(['c_hungry', 'c_1', 'c_bored_eat']);
+    const pool = this.consumableItemIds();
+    let changed = false;
+    for (const action of this.store.consume ?? []) {
+      if (!ids.has(action.id)) continue;
+      action.items = [...pool];
+      delete action.anyItem;
+      changed = true;
+    }
+    this.store.seededConsumablePool = true;
+    if (changed) this.persist();
+  }
+
+  /** 状态页不再定义 effectState/effectDelta；把旧 custom.json 洗一遍，避免看起来还在状态页配置。 */
+  ensureConsumeClean() {
+    if (!this.store || this.store.seededConsumeClean) return;
+    this.store.seededConsumeClean = true;
+    this.persist();
   }
 
   /** 旧档的饥饿消耗行为只列了几种作物；补上米饭/意面等新食物一次。 */
@@ -395,6 +426,9 @@ export class FarmCatalog {
     seededSatiety: false,
     seededDietEffects: false,
     seededEdibleItems: false,
+    seededCropPool: false,
+    seededConsumablePool: false,
+    seededConsumeClean: false,
     };
   }
 
@@ -441,6 +475,8 @@ export class FarmCatalog {
     this.ensureRemovedFood();
     this.ensureDietEffects();
     this.ensureEdibleItems();
+    this.ensureConsumablePool();
+    this.ensureConsumeClean();
     this.ensureBuiltinDecor();
     this.ensureCabin();
     this.ensureDecorSet();
@@ -467,7 +503,7 @@ export class FarmCatalog {
     const actions = this.store.consume ?? (this.store.consume = []);
     if (!actions.some((c) => c.id === 'c_bored_eat')) {
       const items = ['tomato', 'egg_fried_rice', 'rice', 'pasta', 'egg', 'carrot', 'potato', 'strawberry', 'corn', 'pumpkin', 'beetroot', 'bok_choy', 'cauliflower', 'cucumber', 'eggplant', 'garlic', 'pineapple', 'radish', 'red_chili', 'red_onion', 'watermelon'];
-      const action = this.normalizeConsume({ id: 'c_bored_eat', trigger: 'bored', items, count: 1, effectState: 'mood', effectDelta: 8, cooldownDays: 0.15, auto: true, enabled: true }, actions.length, states);
+      const action = this.normalizeConsume({ id: 'c_bored_eat', trigger: 'bored', items: this.consumableItemIds(), count: 1, cooldownDays: 0.15, auto: true, enabled: true }, actions.length, states);
       if (action) actions.push(action);
     }
     this.store.seededMood = true;
@@ -648,6 +684,9 @@ export class FarmCatalog {
     seededSatiety: Boolean(raw.seededSatiety),
     seededDietEffects: Boolean(raw.seededDietEffects),
     seededEdibleItems: Boolean(raw.seededEdibleItems),
+    seededCropPool: Boolean(raw.seededCropPool),
+    seededConsumablePool: Boolean(raw.seededConsumablePool),
+    seededConsumeClean: Boolean(raw.seededConsumeClean),
     };
   }
 
@@ -741,17 +780,12 @@ export class FarmCatalog {
       .map((id) => String(id ?? '').trim())
       .filter(Boolean))].slice(0, 24);
     if (!items.length) return null;
-    const effectDef = src.effectState
-      ? states.find((s) => s.id === String(src.effectState) && s.kind === 'number')
-      : null;
     const id = (String(src.id ?? '').replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 32)) || ('c_' + (index + 1));
     return {
       id,
       trigger,
       items,
       count: int(src.count, 1, 99, 1),
-      effectState: effectDef?.id ?? null,
-      effectDelta: r2(clamp(src.effectDelta, -1000, 1000, 0)),
       cooldownDays: r2(clamp(src.cooldownDays, 0.05, 30, 0.5)),
       auto: src.auto !== false,
       enabled: src.enabled !== false,

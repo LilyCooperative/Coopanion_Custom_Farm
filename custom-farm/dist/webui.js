@@ -1274,25 +1274,32 @@ const ST = {
     err: '操作失败',
     builtin: '示例',
     consumeTitle: '消耗行为',
-    consumeDesc: '触发状态生效（开关生效 / 数值 > 0）且冷却到了，就自动吃掉（或提醒桌宠吃掉）选中的道具；吃掉后可以改另一个数值状态，比如把饱食度加回来。',
+    consumeDesc: '触发状态生效（开关生效 / 数值 > 0）且冷却到了，就从消耗品池里处理：随机消耗自动挑一个并应用道具效果，不通知桌宠；桌宠主动消耗会发消息让桌宠自己挑。状态变化量由「道具自定义」里的效果决定。',
+    stateActionNote: '开关状态本身只切换 active。要随机自动消耗，请在下面「消耗行为」里加一条；要让桌宠自己挑或做其他动作/说话，请选「桌宠主动消耗」并改环境提示词。',
     addConsume: '添加消耗行为',
     trigger: '触发状态',
-    consumeItems: '可消耗道具',
+    consumeMode: '消耗方式',
+    randomConsume: '随机消耗（自动改数值，不通知桌宠）',
+    petConsume: '桌宠主动消耗（发消息让它自己挑）',
+    randomConsumeHint: '自动从池子随机挑一个，应用道具效果；不发 farm.state。',
+    petConsumeHint: '不自动扣背包，发 farm.state 让桌宠自己选；具体说什么由环境提示词决定。',
+    consumeItems: '消耗品池（随机/主动都从这里挑）',
+    poolHint: '默认是所有可消耗道具（作物、米饭、意面、自定义食物等）；可以只勾选想让这个状态消耗的。',
     count: '一次消耗',
-    effect: '吃掉后改变',
+    effect: '消耗后改变',
     effectDelta: '变化量',
     cooldown: '冷却（游戏日）',
     auto: '自动消耗（关掉＝只提醒桌宠）',
     saveConsume: '保存消耗行为',
     noConsume: '还没有消耗行为。',
     noEffect: '不改状态',
-    needItems: '至少勾选一种道具。',
+    needItems: '至少勾选一种消耗品。',
     needStates: '先添加一个状态。',
-    needFood: '背包里还没有可吃的道具，先种点东西。',
-    consumeThen: '生效 → 吃',
+    needFood: '背包里还没有可消耗的道具，先种点东西。',
+    consumeThen: '生效 → 消耗',
     promptOnly: '只提醒',
     autoTag: '自动',
-    noneFood: '（没选道具）',
+    noneFood: '（没选消耗品）',
   },
   en: {
     states: 'States',
@@ -1341,25 +1348,32 @@ const ST = {
     err: 'Failed',
     builtin: 'example',
     consumeTitle: 'Consume actions',
-    consumeDesc: 'When the trigger state is active (flag on / number > 0) and the cooldown has passed, eat (or ask the pet to eat) one of the chosen items; eating can change another number state, e.g. add satiety back.',
+    consumeDesc: 'When the trigger state is active (flag on / number > 0) and the cooldown has passed, use the pool: Random auto-picks one item and applies its effects without notifying the pet; Pet-choice sends an event so the pet picks one. State deltas come from the item effects on the Items page.',
+    stateActionNote: 'A flag state only toggles active. To auto-consume randomly, add a consume action below; to let the pet choose or do anything else, use Pet-choice and edit the environment prompt.',
     addConsume: 'Add consume action',
     trigger: 'Trigger state',
-    consumeItems: 'Items to consume',
+    consumeMode: 'Consume mode',
+    randomConsume: 'Random (auto changes values, no pet event)',
+    petConsume: 'Pet chooses (sends an event)',
+    randomConsumeHint: 'Auto-picks one item from the pool and applies item effects; no farm.state event.',
+    petConsumeHint: 'Does not auto-consume; sends farm.state so the pet picks; what it says is defined by the environment prompt.',
+    consumeItems: 'Consumable pool (used by both modes)',
+    poolHint: 'Defaults to every consumable item (crops, rice, pasta, custom food, etc.); check only the items this state may consume.',
     count: 'Amount',
-    effect: 'Change after eating',
+    effect: 'Change after consuming',
     effectDelta: 'Delta',
     cooldown: 'Cooldown (game days)',
     auto: 'Auto consume (off = just remind the pet)',
     saveConsume: 'Save consume action',
     noConsume: 'No consume actions yet.',
     noEffect: 'No state change',
-    needItems: 'Pick at least one item.',
+    needItems: 'Pick at least one consumable.',
     needStates: 'Add a state first.',
-    needFood: 'Nothing edible in the bag yet — grow something.',
-    consumeThen: 'active → eat',
+    needFood: 'Nothing consumable in the bag yet — grow something.',
+    consumeThen: 'active → consume',
     promptOnly: 'remind only',
     autoTag: 'auto',
-    noneFood: '(no items)',
+    noneFood: '(no consumables)',
   },
 };
 
@@ -1523,14 +1537,11 @@ function statusPanel(ctx) {
   }
 
   function consumeCard(c) {
-    const numeric = snap.states.filter((s) => s.kind === 'number');
     const draft = {
       id: c.id,
       trigger: c.trigger,
       items: [...c.items],
       count: c.count,
-      effectState: c.effectState ?? '',
-      effectDelta: c.effectDelta,
       cooldownDays: c.cooldownDays,
       auto: c.auto,
       enabled: c.enabled,
@@ -1538,18 +1549,29 @@ function statusPanel(ctx) {
     const details = ui.h('details', 'cf-card');
     const head = ui.h('summary', 'cf-head');
     const itemNames = c.itemNames.length ? c.itemNames.join('、') : T.noneFood;
-    const eff = c.effectName ? c.effectName + ' ' + (c.effectDelta >= 0 ? '+' : '') + c.effectDelta : T.noEffect;
     head.append(
-      ui.h('strong', 'cf-name', T.when + ' ' + c.triggerName + ' ' + T.consumeThen + ' ' + itemNames + ' ×' + c.count + ' → ' + eff),
-      ui.pill(c.auto ? T.autoTag : T.promptOnly, c.auto ? 'plain' : 'off'),
+      ui.h('strong', 'cf-name', T.when + ' ' + c.triggerName + ' ' + T.consumeThen + ' ' + itemNames + ' ×' + c.count),
+      ui.pill(c.auto ? T.randomConsume : T.petConsume, c.auto ? 'plain' : 'off'),
     );
     const body = ui.h('div', 'cf-body');
+
+    const mode = ui.select({
+      value: draft.auto ? 'random' : 'pet',
+      options: [
+        { value: 'random', label: T.randomConsume },
+        { value: 'pet', label: T.petConsume },
+      ],
+    });
+    const modeHint = ui.h('p', 'cf-note', draft.auto ? T.randomConsumeHint : T.petConsumeHint);
+    mode.addEventListener('change', () => {
+      draft.auto = mode.value === 'random';
+      modeHint.textContent = draft.auto ? T.randomConsumeHint : T.petConsumeHint;
+    }, { signal: ctx.signal });
 
     const row = ui.h('div', 'cf-row');
     row.append(
       ui.field(T.trigger, select(snap.states.map((s) => ({ value: s.id, label: s.name })), draft.trigger, (v) => { draft.trigger = v; })),
-      ui.field(T.effect, select([{ value: '', label: T.noEffect }, ...numeric.map((s) => ({ value: s.id, label: s.name }))], draft.effectState ?? '', (v) => { draft.effectState = v; })),
-      ui.field(T.effectDelta, num(draft.effectDelta, (v) => { draft.effectDelta = v; }, '0.1')),
+      ui.field(T.consumeMode, mode),
       ui.field(T.count, num(draft.count, (v) => { draft.count = v; }, '1')),
       ui.field(T.cooldown, num(draft.cooldownDays, (v) => { draft.cooldownDays = v; }, '0.05')),
     );
@@ -1568,10 +1590,7 @@ function statusPanel(ctx) {
       itemsRow.append(cb.el);
     }
     if (!snap.items.length) itemsRow.append(ui.h('span', 'cf-note', T.needFood));
-
-    const autoRow = ui.h('div', 'cf-row');
-    const auto = ui.checkbox(T.auto, { checked: Boolean(draft.auto), onChange: (v) => { draft.auto = v; } });
-    autoRow.append(auto.el);
+    const poolHint = ui.h('p', 'cf-note', T.poolHint);
 
     const actions = ui.actions();
     actions.append(
@@ -1592,7 +1611,7 @@ function statusPanel(ctx) {
       }),
     );
 
-    body.append(row, itemsRow, autoRow, actions);
+    body.append(row, itemsRow, poolHint, modeHint, actions);
     details.append(head, body);
     return details;
   }
@@ -1603,6 +1622,7 @@ function statusPanel(ctx) {
     root.replaceChildren();
 
     const statesSheet = ui.sheet({ title: T.states, desc: T.statesDesc });
+    statesSheet.body.prepend(ui.h('p', 'cf-note', T.stateActionNote));
     const list = ui.h('div', 'cf-list');
     if (!snap.states.length) list.append(ui.placeholder(T.noStates));
     for (const d of snap.states) list.append(stateCard(d));
@@ -1655,13 +1675,11 @@ function statusPanel(ctx) {
         if (!snap.states.length) { ui.toast(T.needStates, 'bad'); return; }
         if (!snap.items.length) { ui.toast(T.needFood, 'bad'); return; }
         const trigger = snap.states.find((s) => s.kind === 'flag') ?? snap.states[0];
-        const effect = snap.states.find((s) => s.kind === 'number');
+        const pool = snap.items.filter((it) => it.consumable).map((it) => it.id);
         void call('saveConsume', [{
           trigger: trigger.id,
-          items: [snap.items[0].id],
+          items: pool.length ? pool : [snap.items[0].id],
           count: 1,
-          effectState: effect ? effect.id : null,
-          effectDelta: effect ? 5 : 0,
           cooldownDays: 0.5,
           auto: true,
         }], T.saved);
