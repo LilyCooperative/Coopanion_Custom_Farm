@@ -37,7 +37,7 @@ if (typeof document !== 'undefined') {
 
 /** 调 World 的 manage 面板：备份 / 重置 / 自检。 */
 async function farmManageCall(method, args = []) {
-  const res = await fetch('/api/webui/providers/' + encodeURIComponent('world:farm') + '/panels/manage/' + method, {
+  const res = await fetch('/api/webui/providers/' + encodeURIComponent('world:farm') + '/panels/customize/' + method, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ args }),
@@ -219,7 +219,7 @@ function injectFarmConfigActions() {
 
     field.append(backup, reset, status);
     row.append(label, field);
-    view.append(section, desc, row);
+    view.prepend(section, desc, row);
   } catch { /* 不是宿主的配置页就算了 */ }
 }
 
@@ -2912,64 +2912,8 @@ function ecologyPanel(ctx) {
   reload();
 }
 
-function managePanel(ctx) {
-  const { ui } = ctx;
-  const root = ui.h('div', 'cf-root');
-  ctx.root.appendChild(root);
-  const sheet = ui.sheet({
-    title: '存档与重置',
-    desc: '备份会复制 state.json 和 custom.json 到 data/farm/backups；重置会先备份，再清空存档和全部自定义设置，World 随后重启。',
-  });
-  const bar = ui.rowbar();
-  const status = ui.h('p', 'cf-note', '');
-  const check = ui.button('环境自检', {
-    onClick: async () => {
-      check.disabled = true;
-      status.textContent = '正在检查…';
-      try {
-        const r = await ctx.invoke('check');
-        status.textContent = r.message || r.text || '';
-      } catch (err) {
-        status.textContent = '自检失败：' + ((err && err.message) || err);
-      } finally { check.disabled = false; }
-    },
-  });
-  const backup = ui.button('备份存档', {
-    variant: 'primary',
-    onClick: async () => {
-      backup.disabled = true;
-      status.textContent = '正在备份…';
-      try {
-        const r = await ctx.invoke('backup');
-        status.textContent = r.text || '已备份';
-      } catch (err) {
-        status.textContent = '备份失败：' + ((err && err.message) || err);
-      } finally { backup.disabled = false; }
-    },
-  });
-  const reset = ui.button('重置一切', {
-    onClick: async () => {
-      if (!window.confirm('确定重置一切？会清空存档和全部自定义设置（会先自动备份）。')) return;
-      reset.disabled = true;
-      status.textContent = '正在重置…';
-      try {
-        const r = await ctx.invoke('reset');
-        status.textContent = r.text || '已重置，World 正在重启…';
-        setTimeout(() => { try { location.reload(); } catch { /* ignore */ } }, 3000);
-      } catch (err) {
-        status.textContent = '重置失败：' + ((err && err.message) || err);
-        reset.disabled = false;
-      }
-    },
-  });
-  bar.append(check, backup, reset);
-  sheet.body.append(bar, status);
-  root.appendChild(sheet.el);
-}
-
 export default {
   panels: {
-    manage: { mount: managePanel },
     bag: { mount: bagPanel },
     shop: { mount: shopPanel },
     customize: { mount: panel },
@@ -2978,3 +2922,4 @@ export default {
     items: { mount: itemsPanel },
   },
 };
+

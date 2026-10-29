@@ -334,6 +334,24 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
         },
       },
     },
+    {
+      id: 'world:farm/performance',
+      owner: 'world:farm',
+      schema: {
+        type: 'object',
+        title: t('性能', 'Performance'),
+        description: t('桌面图层的后台/遮挡节流。默认不节流，收获和动画更跟手；如果 CPU/GPU 占用高，可改成自动或节流。', 'Background/occlusion throttling for the desktop layers. Off by default for responsive harvest animations; switch to Auto or Throttle if CPU/GPU usage is high.'),
+        properties: {
+          'worlds.farm.throttle': {
+            type: 'string',
+            title: t('节流', 'Throttling'),
+            description: t('不节流：禁用后台/遮挡节流（推荐）。自动：交给 Chromium。节流：允许后台和遮挡时降帧。', 'Off disables background/occlusion throttling (recommended). Auto lets Chromium decide. On allows lower frame rates when backgrounded or occluded.'),
+            'x-options': 'farm-throttle',
+            'x-hot': true,
+          },
+        },
+      },
+    },
   ];
 }
 
@@ -410,6 +428,7 @@ export class FarmWorld {
       screen: String(this.cfg?.screen ?? ''),
       overlayEngine: ['auto', 'electron', 'wpf'].includes(String(this.cfg?.overlayEngine ?? 'auto')) ? String(this.cfg?.overlayEngine ?? 'auto') : 'auto',
       electronPath: String(this.cfg?.electronPath ?? ''),
+      throttle: ['off', 'auto', 'on'].includes(String(this.cfg?.throttle ?? 'off')) ? String(this.cfg?.throttle ?? 'off') : 'off',
       maxPlants: this.#num('maxPlants', 1, 24),
       screenWidth,
       zoom: this.#num('zoom', 1, 8),
@@ -1591,11 +1610,6 @@ export class FarmWorld {
         { label: '天数', value: started ? '第 ' + s.day + ' 天' : '—', tone: 'plain' },
       ],
       panels: [{
-        id: 'manage',
-        title: '存档与重置',
-        description: '备份存档，或把存档和全部自定义设置重置为默认。',
-        getMethods: ['state'],
-      }, {
         id: 'bag',
         title: '背包',
         description: '背包、农场预览、摆放道具与手动合成；装饰在这里输入坐标放置。',
@@ -1642,33 +1656,7 @@ export class FarmWorld {
   async invoke(panel, method, args = []) {
     return this.#serial(async () => {
       const cfg = this.#cfgAll();
-      if (panel === 'manage') {
-        if (method === 'backup') return this.#backupNow();
-        if (method === 'reset') return this.#resetAll();
-        if (method === 'check') return this.#envCheck();
-        if (method === 'setElectronPath') {
-          const file = String(args?.[0] ?? '').trim();
-          if (file && !existsSync(file)) throw new Error('找不到这个 Electron 文件：' + file);
-          this.persistConfig?.({ electronPath: file });
-          try { this.cfg.electronPath = file; } catch { /* cfg 可能是只读代理 */ }
-          await this.#stopLayers('Electron 路径变更');
-          this.#ensureLayers('Electron 路径变更');
-          this.#layerEngineKey = this.#engine() + '|' + file;
-          return this.#envCheck();
-        }
-        if (method === 'setEngine') {
-          const mode = String(args?.[0] ?? 'auto');
-          if (!['auto', 'electron', 'wpf'].includes(mode)) throw new Error('不认识的图层引擎：' + mode);
-          this.persistConfig?.({ overlayEngine: mode });
-          try { this.cfg.overlayEngine = mode; } catch { /* cfg 可能是只读代理 */ }
-          await this.#stopLayers('图层引擎变更');
-          this.#ensureLayers('图层引擎变更');
-          this.#layerEngineKey = this.#engine() + '|' + String(this.cfg?.electronPath ?? '');
-          return this.#envCheck();
-        }
-        if (method === 'state') return { ok: true };
-        throw new Error('不认识的存档操作：' + method);
-      }
+      if (panel === 'manage') return this.#manageAction(method, args);
       if (panel === 'status') return this.#statusInvoke(method, args, cfg);
       if (panel === 'bag') return this.#bagInvoke(method, args);
       if (panel === 'shop') return this.#shopInvoke(method, args);
@@ -1729,8 +1717,39 @@ export class FarmWorld {
     };
   }
 
+  async #manageAction(method, args = []) {
+    if (method === 'backup') return this.#backupNow();
+    if (method === 'reset') return this.#resetAll();
+    if (method === 'check') return this.#envCheck();
+    if (method === 'setElectronPath') {
+      const file = String(args?.[0] ?? '').trim();
+      if (file && !existsSync(file)) throw new Error('找不到这个 Electron 文件：' + file);
+      this.persistConfig?.({ electronPath: file });
+      try { this.cfg.electronPath = file; } catch { /* cfg 可能是只读代理 */ }
+      await this.#stopLayers('Electron 路径变更');
+      this.#ensureLayers('Electron 路径变更');
+      this.#layerEngineKey = this.#engine() + '|' + file + '|' + String(this.cfg?.throttle ?? 'off');
+      return this.#envCheck();
+    }
+    if (method === 'setEngine') {
+      const mode = String(args?.[0] ?? 'auto');
+      if (!['auto', 'electron', 'wpf'].includes(mode)) throw new Error('不认识的图层引擎：' + mode);
+      this.persistConfig?.({ overlayEngine: mode });
+      try { this.cfg.overlayEngine = mode; } catch { /* cfg 可能是只读代理 */ }
+      await this.#stopLayers('图层引擎变更');
+      this.#ensureLayers('图层引擎变更');
+      this.#layerEngineKey = this.#engine() + '|' + String(this.cfg?.electronPath ?? '') + '|' + String(this.cfg?.throttle ?? 'off');
+      return this.#envCheck();
+    }
+    if (method === 'state') return { ok: true };
+    throw new Error('不认识的存档操作：' + method);
+  }
+
   /** 「农场自定义」页的数据面。统一返回最新 snapshot，面板不用再读一次。 */
   async #customInvoke(method, args, cfg) {
+    if (['backup', 'reset', 'check', 'setEngine', 'setElectronPath'].includes(method)) {
+      return this.#manageAction(method, args);
+    }
     if (method === 'sprite') {
       const name = String(args?.[0] ?? '');
       return { $binary: this.#catalogOrThrow().spriteBase64(name) };
@@ -2413,7 +2432,7 @@ export class FarmWorld {
   }
 
   async #syncLayerEngine() {
-    const key = this.#engine() + '|' + String(this.cfg?.electronPath ?? '');
+    const key = this.#engine() + '|' + String(this.cfg?.electronPath ?? '') + '|' + String(this.cfg?.throttle ?? 'off');
     if (!this.#layerEngineKey) { this.#layerEngineKey = key; return; }
     if (key === this.#layerEngineKey) return;
     this.#layerEngineKey = key;
@@ -2529,7 +2548,7 @@ export class FarmWorld {
     try {
       const launcher = join(paths.electronDir, 'launch.js');
       const pidFile = join(this.dataDir, 'farm', 'electron.pid');
-      const child = spawn(process.execPath, [launcher, '--electron', exe, '--state-path', paths.overlayState, '--assets-dir', paths.assetsDir, '--pid', pidFile, '--log', join(dirname(this.overlayFile()), 'electron.log')], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
+      const child = spawn(process.execPath, [launcher, '--electron', exe, '--throttle', String(this.cfg?.throttle ?? 'off'), '--state-path', paths.overlayState, '--assets-dir', paths.assetsDir, '--pid', pidFile, '--log', join(dirname(this.overlayFile()), 'electron.log')], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
       child.unref();
       this.#layerChild = child;
       this.#layerAt = Date.now();
@@ -2568,7 +2587,7 @@ export class FarmWorld {
         const child = spawn('powershell.exe',
           ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script,
             '-StatePath', paths.overlayState, '-HomeDir', paths.home, '-AssetsDir', paths.assetsDir,
-            '-PidPath', pidFile, '-LogPath', logFile, '-Layer', layer],
+            '-PidPath', pidFile, '-LogPath', logFile, '-Layer', layer, '-Throttle', String(this.cfg?.throttle ?? 'off')],
           { stdio: 'ignore', windowsHide: true });
         child.unref();
         try { writeFileSync(pidFile, String(child.pid)); } catch { }
@@ -2807,8 +2826,11 @@ export class FarmWorld {
       this.#started = true;
       this.#schedule();
       this.#cmdTimer = setInterval(() => { void this.#drainCommands(); }, 1000);
+      if (this.persistConfig && this.cfg?.throttle === undefined) {
+        try { this.persistConfig({ throttle: 'off' }); this.cfg.throttle = 'off'; } catch { /* 默认仍是 off */ }
+      }
       this.#hidden = this.#flag('hideFarm');
-      this.#layerEngineKey = this.#engine() + '|' + String(this.cfg?.electronPath ?? '');
+      this.#layerEngineKey = this.#engine() + '|' + String(this.cfg?.electronPath ?? '') + '|' + String(this.cfg?.throttle ?? 'off');
       if (!this.#hidden) { try { this.#ensureLayers(); } catch { /* 忽略 */ } }
       this.#envCheckPending = Boolean(this.#host?.pushEvent);
       // 不做周期巡检：巡检会触发"杀掉再起"，和正在启动的进程互相打断（这就是之前反复缺层的原因）

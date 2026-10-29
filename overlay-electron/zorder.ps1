@@ -11,6 +11,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 $bgPtr = [IntPtr]([Int64]$Bg)
 $topPtr = [IntPtr]([Int64]$Top)
 $script:owner = [IntPtr]::Zero
+$script:bgPet = [IntPtr]::Zero
 
 Add-Type -TypeDefinition @'
 using System;
@@ -25,6 +26,8 @@ public static class FarmZ {
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll", EntryPoint="SetWindowLongPtrW", SetLastError=true)] public static extern IntPtr SetWindowLongPtr(IntPtr h, int n, IntPtr v);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    public const uint GW_HWNDPREV = 3;
     public const int GWLP_HWNDPARENT = -8;
     public const uint SWP_NOSIZE = 0x1;
     public const uint SWP_NOMOVE = 0x2;
@@ -54,10 +57,13 @@ while ([FarmZ]::IsWindow($bgPtr) -and [FarmZ]::IsWindow($topPtr)) {
             [void][FarmZ]::SetWindowLongPtr($topPtr, [FarmZ]::GWLP_HWNDPARENT, $pet)
             $script:owner = $pet
         }
-        [void][FarmZ]::SetWindowPos($bgPtr, $pet, 0, 0, 0, 0,
-            ([FarmZ]::SWP_NOMOVE -bor [FarmZ]::SWP_NOSIZE -bor [FarmZ]::SWP_NOACTIVATE))
+        if ($script:bgPet -ne $pet -or [FarmZ]::GetWindow($bgPtr, [FarmZ]::GW_HWNDPREV) -ne $pet) {
+            [void][FarmZ]::SetWindowPos($bgPtr, $pet, 0, 0, 0, 0,
+                ([FarmZ]::SWP_NOMOVE -bor [FarmZ]::SWP_NOSIZE -bor [FarmZ]::SWP_NOACTIVATE))
+            $script:bgPet = $pet
+        }
     }
-    Start-Sleep -Milliseconds 500
+    Start-Sleep -Milliseconds 1000
 }
 
 

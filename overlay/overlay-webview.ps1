@@ -9,7 +9,8 @@ param(
     [string]$LogPath = '',
     [int]$StripHeight = 320,
     [int]$LeaseSeconds = 20,
-    [ValidateSet('bg', 'top')][string]$Layer = 'bg'
+    [ValidateSet('bg', 'top')][string]$Layer = 'bg',
+    [ValidateSet('off', 'auto', 'on')][string]$Throttle = 'off'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,6 +65,8 @@ public static class FarmWebViewWin32 {
     [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
     [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hWnd, EnumProc cb, IntPtr lParam);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
+    public const uint GW_HWNDPREV = 3;
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr lParam);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hWnd, System.Text.StringBuilder s, int n);
@@ -111,6 +114,7 @@ public static class FarmWebViewWin32 {
 '@
 
 $script:owner = [IntPtr]::Zero
+$script:bgPet = [IntPtr]::Zero
 function Update-PetZOrder {
     try {
         $h = (New-Object System.Windows.Interop.WindowInteropHelper($win)).Handle
@@ -123,8 +127,11 @@ function Update-PetZOrder {
                 $script:owner = $pet
             }
         } else {
-            [void][FarmWebViewWin32]::SetWindowPos($h, $pet, 0, 0, 0, 0,
-                ([FarmWebViewWin32]::SWP_NOMOVE -bor [FarmWebViewWin32]::SWP_NOSIZE -bor [FarmWebViewWin32]::SWP_NOACTIVATE))
+            if ($script:bgPet -ne $pet -or [FarmWebViewWin32]::GetWindow($h, [FarmWebViewWin32]::GW_HWNDPREV) -ne $pet) {
+                [void][FarmWebViewWin32]::SetWindowPos($h, $pet, 0, 0, 0, 0,
+                    ([FarmWebViewWin32]::SWP_NOMOVE -bor [FarmWebViewWin32]::SWP_NOSIZE -bor [FarmWebViewWin32]::SWP_NOACTIVATE))
+                $script:bgPet = $pet
+            }
         }
     } catch { }
 }
@@ -152,6 +159,9 @@ $props = New-Object Microsoft.Web.WebView2.Wpf.CoreWebView2CreationProperties
 $ud = Join-Path (Split-Path -Parent $StatePath) ('webview2-' + $Layer)
 New-Item -ItemType Directory -Path $ud -Force | Out-Null
 $props.UserDataFolder = $ud
+if ($Throttle -eq 'off') {
+    $props.AdditionalBrowserArguments = '--disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-features=CalculateNativeWinOcclusion'
+}
 $wv.CreationProperties = $props
 $win.Content = $wv
 

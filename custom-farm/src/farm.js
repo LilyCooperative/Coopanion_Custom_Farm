@@ -55,6 +55,8 @@ export const DEFAULTS = {
   overlayEngine: 'auto',
   /** 备用 electron.exe / electron 可执行文件路径；空 = 自动找。 */
   electronPath: '',
+  /** 图层节流：off = 不节流（默认）；auto = 交给 Chromium；on = 允许后台/遮挡节流。 */
+  throttle: 'off',
   /** 最多同时种几棵（屏幕上不重叠地放得下的上限） */
   maxPlants: 12,
   /** 屏幕逻辑宽度，用来把"像素宽"换算成 x 间距 */

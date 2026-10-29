@@ -14,6 +14,8 @@ const screensPath = path.join(path.dirname(statePath), 'screens.json');
 const assetsDir = path.resolve(arg('assets-dir', path.join(__dirname, '..', 'assets', 'sprites')));
 const logPath = arg('log', '');
 const pidPath = arg('pid', '');
+const rawThrottle = String(arg('throttle', 'off'));
+const THROTTLE = ['off', 'auto', 'on'].includes(rawThrottle) ? rawThrottle : 'off';
 const logStream = logPath ? fs.createWriteStream(logPath, { flags: 'a' }) : null;
 function log(s) {
   const line = new Date().toISOString() + ' [electron] ' + s + '\n';
@@ -127,11 +129,12 @@ function createWindow(layer) {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      backgroundThrottling: false,
+      backgroundThrottling: THROTTLE !== 'off',
     },
   });
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setIgnoreMouseEvents(true, { forward: true });
+  if (THROTTLE === 'off') win.webContents.setBackgroundThrottling(false);
   try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch { }
   win.loadFile(path.join(__dirname, 'renderer.html'), { query: { state: statePath, assets: assetsDir, layer } });
   win.once('ready-to-show', () => {
@@ -162,6 +165,11 @@ function fit() {
 }
 
 app.commandLine.appendSwitch('enable-transparent-visuals');
+if (THROTTLE === 'off') {
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+  app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();

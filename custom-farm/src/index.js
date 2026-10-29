@@ -76,6 +76,14 @@ export const farmDefinition = {
         { value: 'wpf', label: zh ? 'WPF/WebView2（不需要 Electron）' : 'WPF/WebView2 (no Electron)' },
       ];
     }
+    if (kind === 'farm-throttle') {
+      const zh = String(language).toLowerCase().startsWith('zh');
+      return [
+        { value: 'off', label: zh ? '不节流（默认，推荐）' : 'Off (default, recommended)' },
+        { value: 'auto', label: zh ? '自动（交给 Chromium）' : 'Auto (Chromium decides)' },
+        { value: 'on', label: zh ? '节流（后台/遮挡时降帧）' : 'On (throttle when backgrounded/occluded)' },
+      ];
+    }
     return [];
   },
   describe: {

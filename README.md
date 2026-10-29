@@ -56,12 +56,13 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 ## 游戏配置
 
 - **环境自检**：页面顶部检查 Electron/WPF（WebView2）运行时；显示「缺少 Electron 运行时」或「WPF/WebView2 可用」；第一次启用如果缺运行时，会推一次事件让桌宠转告主人
+- **性能**：图层节流可选「不节流（默认）/ 自动 / 节流」；改完自动重启图层，默认不节流以保证收获动画跟手
 - **图层引擎**：自动（有备用 Electron 就用，否则 WPF/WebView2）/ 备用 Electron / WPF（WebView2）；不会为了安装扩展下载 Electron；WPF 回退也加载同一套 `renderer.html/renderer.js`，视觉与 Electron 一致
 - **安装路径**：默认 `<Coopanion 数据目录>\custom-farm`；修改后自动停图层、搬目录、重启
 - **显示器**：「自动」用主屏，或从下拉里选择任意一块屏幕；Electron 图层会在约 1 秒内移动过去，WPF/WebView2 回退也使用主屏
 - **备份存档**：把 `state.json` 和 `custom.json` 复制到 `data\farm\backups\backup-时间\`
 - **重置一切**：先自动备份，再清空存档和全部自定义设置，World 自动重启；安装路径和上传的 PNG 不会被删
-- 备份和重置按钮在「游戏配置」页底部，也可以在「存档与重置」页签操作
+- 备份和重置按钮在「游戏配置」页最上面，不再单独占页签
 - **图层窗口**：拆成 `bg` / `top` 两个透明窗口；`bg` 在桌宠下面，`top` 是桌宠的 owned window，野草/装饰/作物/特效按 `layer` 设置分到两个窗口
 - **层级守护**：每 500ms 重新确认桌宠窗口；桌宠重新置顶、显示/隐藏、被点击或窗口重建后，自动重新挂 owner / 把 `bg` 放回桌宠下面，防止图层整体翻转
 
