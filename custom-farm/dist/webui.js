@@ -20,27 +20,135 @@ function renameFarmConfigTab() {
   } catch { /* 不是浏览器环境就算了 */ }
 }
 if (typeof document !== 'undefined') {
-  const start = () => {
+  const refreshFarmConfigUi = () => {
     renameFarmConfigTab();
+    injectFarmEnvCheck();
     injectFarmConfigActions();
-    new MutationObserver(() => { renameFarmConfigTab(); injectFarmConfigActions(); }).observe(document.body, { childList: true, subtree: true, characterData: true });
-    window.addEventListener('hashchange', () => { renameFarmConfigTab(); injectFarmConfigActions(); });
-    setInterval(() => { renameFarmConfigTab(); injectFarmConfigActions(); }, 1000);
+  };
+  const start = () => {
+    refreshFarmConfigUi();
+    new MutationObserver(refreshFarmConfigUi).observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('hashchange', refreshFarmConfigUi);
+    setInterval(refreshFarmConfigUi, 1000);
   };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
 }
 
-/** 调 World 的 manage 面板：备份 / 重置。 */
-async function farmManageCall(method) {
+/** 调 World 的 manage 面板：备份 / 重置 / 自检。 */
+async function farmManageCall(method, args = []) {
   const res = await fetch('/api/webui/providers/' + encodeURIComponent('world:farm') + '/panels/manage/' + method, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ args: [] }),
+    body: JSON.stringify({ args }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
   return data;
+}
+
+/** 游戏配置顶部的环境自检 + Electron/WPF 切选单。 */
+function injectFarmEnvCheck() {
+  try {
+    const hash = String(location.hash || '');
+    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    const view = document.querySelector('.configview');
+    if (!view || view.querySelector('[data-farm-env]')) return;
+
+    const section = document.createElement('div');
+    section.className = 'tsection';
+    section.dataset.farmEnv = '1';
+    section.textContent = '环境自检';
+
+    const desc = document.createElement('div');
+    desc.className = 'tsecdesc';
+    desc.textContent = '检查图层运行时是否齐全。Coopanion 不提供独立的 electron.exe；没有备用 Electron 时会用 WPF 图层，不会为了安装扩展再下载 Electron。';
+
+    const row = document.createElement('div');
+    row.className = 'trow';
+    const label = document.createElement('span');
+    label.className = 'tlabel';
+    label.textContent = '图层引擎';
+    const field = document.createElement('div');
+    field.className = 'tfield';
+    field.style.display = 'flex';
+    field.style.gap = '8px';
+    field.style.flexWrap = 'wrap';
+
+    const select = document.createElement('select');
+    select.className = 'field';
+    for (const [value, text] of [['auto', '自动（有备用 Electron 就用，否则 WPF/WebView2）'], ['electron', '备用 Electron（需要 electron.exe）'], ['wpf', 'WPF/WebView2（不需要 Electron）']]) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = text;
+      select.appendChild(opt);
+    }
+    const checkBtn = document.createElement('button');
+    checkBtn.type = 'button';
+    checkBtn.className = 'btn sm primary';
+    checkBtn.textContent = '环境自检';
+    const electronSelect = document.createElement('select');
+    electronSelect.className = 'field';
+    const electronAuto = document.createElement('option');
+    electronAuto.value = '';
+    electronAuto.textContent = 'Electron：自动查找';
+    electronSelect.appendChild(electronAuto);
+    const status = document.createElement('div');
+    status.className = 'tdesc';
+    status.style.whiteSpace = 'pre-line';
+    status.style.marginTop = '6px';
+
+    const render = (data) => {
+      if (!data) return;
+      if (data.engine) select.value = data.engine;
+      const current = data.electron && data.electron.path ? data.electron.path : '';
+      electronSelect.replaceChildren(electronAuto);
+      electronAuto.textContent = 'Electron：自动查找';
+      for (const row of data.electronCandidates || []) {
+        const opt = document.createElement('option');
+        opt.value = row.path;
+        opt.textContent = 'Electron：' + row.label + (row.ok ? '' : '（缺失）');
+        opt.disabled = !row.ok;
+        electronSelect.appendChild(opt);
+      }
+      if (current) electronSelect.value = current;
+      if (!current && !(data.electronCandidates || []).some((r) => r.ok)) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Electron：未找到';
+        opt.disabled = true;
+        electronSelect.appendChild(opt);
+      }
+      status.textContent = data.message || data.text || '';
+      status.style.color = data.ok ? '' : 'var(--extension-alert, #c0392b)';
+    };
+    const check = async () => {
+      checkBtn.disabled = true;
+      try { render(await farmManageCall('check')); } catch (err) { status.textContent = '自检失败：' + ((err && err.message) || err); } finally { checkBtn.disabled = false; }
+    };
+    checkBtn.addEventListener('click', check);
+    select.addEventListener('change', async () => {
+      status.textContent = '正在切换图层引擎…';
+      try {
+        render(await farmManageCall('setEngine', [select.value]));
+      } catch (err) {
+        status.textContent = '切换失败：' + ((err && err.message) || err);
+      }
+    });
+    electronSelect.addEventListener('change', async () => {
+      status.textContent = '正在切换 Electron…';
+      try {
+        render(await farmManageCall('setElectronPath', [electronSelect.value]));
+      } catch (err) {
+        status.textContent = '切换失败：' + ((err && err.message) || err);
+      }
+    });
+
+    field.append(select, electronSelect, checkBtn);
+    row.append(label, field);
+    view.prepend(section, desc, row, status);
+    void check();
+  } catch { /* 不是宿主的配置页就算了 */ }
 }
 
 /** 往宿主的「游戏配置」页里塞「存档与重置」按钮。 */
@@ -169,6 +277,9 @@ const TEXT = {
     weedLayer: '图层',
     weedLayerTop: '上（和作物/桌宠同前台层）',
     weedLayerBottom: '下（背景层，作物后方）',
+    cropLayer: '图层',
+    cropLayerTop: '上（和桌宠同前台层）',
+    cropLayerBottom: '下（背景层，桌宠后方）',
     addWeed: '添加杂草',
     name: '名字',
     stages: '阶段数',
@@ -273,6 +384,9 @@ const TEXT = {
     weedLayer: 'Layer',
     weedLayerTop: 'Top (foreground with crops/pet)',
     weedLayerBottom: 'Bottom (background, behind crops)',
+    cropLayer: 'Layer',
+    cropLayerTop: 'Top (foreground with pet)',
+    cropLayerBottom: 'Bottom (background, behind pet)',
     addWeed: 'Add weed',
     name: 'Name',
     stages: 'Stages',
@@ -568,6 +682,7 @@ function panel(ctx) {
       preview: [...c.preview],
       previewSeed: c.previewSeed,
       previewItem: c.previewItem,
+      layer: c.layer === 'top' ? 'top' : 'bottom',
     };
     const details = ui.h('details', 'cf-card');
     if (!c.builtin) details.open = false;
@@ -578,9 +693,19 @@ function panel(ctx) {
       ui.pill(c.builtin ? T.builtin : T.custom, c.builtin ? 'plain' : 'on'),
       ui.chip(c.stages + ' 阶段', 'plain'),
       ui.chip(T.daysTotal(c.totalDays), 'plain'),
+      ui.chip(c.layer === 'top' ? T.cropLayerTop : T.cropLayerBottom, c.layer === 'top' ? 'on' : 'plain'),
     );
     const body = ui.h('div', 'cf-body');
     details.append(summary, body);
+
+    const layerSel = ui.select({
+      value: draft.layer,
+      options: [
+        { value: 'top', label: T.cropLayerTop },
+        { value: 'bottom', label: T.cropLayerBottom },
+      ],
+    });
+    layerSel.addEventListener('change', () => { draft.layer = layerSel.value; }, { signal: ctx.signal });
 
     const row1 = ui.h('div', 'cf-row');
     row1.append(
@@ -591,6 +716,7 @@ function panel(ctx) {
         resizeSprites(draft);
         paintStages();
       })),
+      ui.field(T.cropLayer, layerSel),
     );
 
     const stagesBox = ui.h('div', 'cf-stages');
@@ -651,6 +777,7 @@ function panel(ctx) {
           sprites: draft.sprites,
           seedSprite: draft.seedSprite,
           itemSprite: draft.itemSprite,
+          layer: draft.layer,
         }], { toast: T.saved });
         off.dispose();
       })(),
@@ -2795,6 +2922,18 @@ function managePanel(ctx) {
   });
   const bar = ui.rowbar();
   const status = ui.h('p', 'cf-note', '');
+  const check = ui.button('环境自检', {
+    onClick: async () => {
+      check.disabled = true;
+      status.textContent = '正在检查…';
+      try {
+        const r = await ctx.invoke('check');
+        status.textContent = r.message || r.text || '';
+      } catch (err) {
+        status.textContent = '自检失败：' + ((err && err.message) || err);
+      } finally { check.disabled = false; }
+    },
+  });
   const backup = ui.button('备份存档', {
     variant: 'primary',
     onClick: async () => {
@@ -2823,7 +2962,7 @@ function managePanel(ctx) {
       }
     },
   });
-  bar.append(backup, reset);
+  bar.append(check, backup, reset);
   sheet.body.append(bar, status);
   root.appendChild(sheet.el);
 }

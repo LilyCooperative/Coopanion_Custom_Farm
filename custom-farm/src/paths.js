@@ -39,7 +39,8 @@ export function makePaths(home) {
   return {
     home,
     overlayDir: join(home, 'overlay'),
-    overlayScript: join(home, 'overlay', 'overlay.ps1'),
+    overlayScript: join(home, 'overlay', 'overlay-webview.ps1'),
+    webviewDir: join(home, 'overlay', 'webview2'),
     overlayState: join(home, 'overlay', 'runtime', 'state.json'),
     electronDir: join(home, 'overlay-electron'),
     assetsDir: join(home, 'assets', 'sprites'),

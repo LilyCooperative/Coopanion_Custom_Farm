@@ -1,5 +1,9 @@
 # 桌面图层（overlay）· 使用说明
 
+> 运行时 WPF 回退已改为 WebView2 宿主 `overlay-webview.ps1`，加载与 Electron 相同的
+> `overlay-electron/renderer.html` / `renderer.js`；本文档描述的是保留的旧 WPF 自绘
+> 实现（`overlay.ps1`），正常启动不再使用它。
+>
 > v4：作物种在任务栏上沿的全宽透明条带上；统一缩放、掉落物、摇晃、浇水/枯萎特效、
 > 收割的作物**不发光**。图层只渲染，状态全从 `state.json` 读。
 

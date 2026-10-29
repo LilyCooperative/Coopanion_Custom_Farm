@@ -1,6 +1,6 @@
 {
   "name": "@lily-cooperative/custom-farm",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "type": "module",
   "private": false,
   "publishConfig": {
@@ -77,12 +77,7 @@
     "webUiClient": "dist/webui.js",
     "webUiStyle": "dist/webui.css"
   },
-  "dependencies": {
-    "electron": "^45.1.0"
-  },
   "os": [
-    "win32",
-    "darwin",
-    "linux"
+    "win32"
   ]
 }

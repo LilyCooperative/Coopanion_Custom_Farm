@@ -1,7 +1,13 @@
-const fs = require('node:fs');
-const path = require('node:path');
+let fs = null;
+let path = null;
+try {
+  fs = require('node:fs');
+  path = require('node:path');
+} catch { /* WebView2 里没有 Node，状态由宿主注入 */ }
 
 const q = new URLSearchParams(location.search);
+const LAYER = q.get('layer') || 'all';
+const hostMode = Boolean(window.__farmHost);
 const statePath = q.get('state') || '';
 const assetsDir = q.get('assets') || '';
 const canvas = document.getElementById('scene');
@@ -20,7 +26,10 @@ const dropAnims = new Map();
 
 function assetUrl(name) {
   if (!name) return '';
-  const p = path.join(assetsDir, name.replace(/\.png$/i, '') + '.png');
+  const file = name.replace(/\.png$/i, '') + '.png';
+  if (window.__farmAssetsBase) return window.__farmAssetsBase + encodeURIComponent(file);
+  if (!path) return '';
+  const p = path.join(assetsDir, file);
   return encodeURI('file:///' + p.replace(/\\/g, '/').replace(/^\/+/, ''));
 }
 
@@ -35,7 +44,16 @@ function image(name) {
 
 function ready(img) { return img && img.complete && img.naturalWidth > 0; }
 
+function applyState(next) {
+  try {
+    state = typeof next === 'string' ? JSON.parse(next) : next;
+    processFx();
+  } catch { /* 忽略坏帧 */ }
+}
+window.__farmApplyState = applyState;
+
 function loadState() {
+  if (hostMode) return;
   try {
     const st = fs.statSync(statePath);
     if (st.mtimeMs === lastMtime) return;
@@ -154,10 +172,12 @@ function draw(now) {
   if (!state) return;
   const g = groundY();
   const cs = Number(state.farm?.cropScale) || 1;
+  const isTop = LAYER === 'top';
+  const showTop = LAYER === 'top' || LAYER === 'all';
 
   const groundName = state.ground?.tile;
   const gt = image(groundName);
-  if (ready(gt)) {
+  if (!isTop && ready(gt)) {
     const tw = gt.naturalWidth * Z * cs;
     const th = gt.naturalHeight * Z * cs;
     for (let x = 0; x < W; x += tw) ctx.drawImage(gt, x, g, tw, th);
@@ -187,20 +207,26 @@ function draw(now) {
   };
 
   const furniture = Array.isArray(state.furniture) ? state.furniture : [];
-  for (const f of furniture) if (f.layer !== 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
+  if (!isTop) for (const f of furniture) if (f.layer !== 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
 
   const weeds = Array.isArray(state.weeds) ? state.weeds : [];
-  for (const w of weeds) if (w.layer !== 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
+  if (!isTop) for (const w of weeds) if (w.layer !== 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
 
-  for (const p of state.plots || []) {
+  if (!isTop) for (const p of state.plots || []) {
+    if (LAYER !== 'all' && p.layer === 'top') continue;
     const ci = cropInfo(p);
     if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');
   }
 
-  for (const f of furniture) if (f.layer === 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
-  for (const w of weeds) if (w.layer === 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
+  if (showTop) for (const f of furniture) if (f.layer === 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
+  if (showTop) for (const w of weeds) if (w.layer === 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
+  if (isTop) for (const p of state.plots || []) {
+    if (p.layer !== 'top') continue;
+    const ci = cropInfo(p);
+    if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');
+  }
 
-  for (const p of state.plots || []) {
+  if (!isTop) for (const p of state.plots || []) {
     if (p.dead || Number(p.water) < 0.9) continue;
     const ci = cropInfo(p);
     if (!ci.h) continue;
@@ -216,6 +242,7 @@ function draw(now) {
     ctx.globalAlpha = 1;
   }
 
+  if (!isTop) {
   const drops = Array.isArray(state.drops) ? state.drops : [];
   const dropIds = new Set();
   for (const d of drops) {
@@ -278,6 +305,7 @@ function draw(now) {
     ctx.globalAlpha = 1 - 0.15 * t;
     ctx.drawImage(img, x - size / 2, y, size, size);
     ctx.globalAlpha = 1;
+  }
   }
 }
 

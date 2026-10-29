@@ -848,6 +848,7 @@ export class FarmCatalog {
       sprites,
       seedSprite: cleanSprite(src.seedSprite) ?? (builtin ? 'icon_item_seed_' + key : null),
       itemSprite: cleanSprite(src.itemSprite) ?? (builtin ? 'icon_item_' + key : null),
+      layer: src.layer === 'top' ? 'top' : 'bottom',
       enabled: src.enabled !== false,
     };
   }
@@ -1076,6 +1077,7 @@ export class FarmCatalog {
       prefix,
       frames,
       spriteW,
+      layer: c.layer === 'top' ? 'top' : 'bottom',
       lifespan: original?.lifespan ?? 1,
       repeatLevel: original?.repeatLevel ?? 0,
       minCount: original?.minCount ?? 1,
@@ -1208,6 +1210,7 @@ export class FarmCatalog {
         value: c.value,
         seedPrice: c.seedPrice,
         enabled: c.enabled,
+        layer: c.layer === 'top' ? 'top' : 'bottom',
         sprites: [...(c.sprites ?? [])],
         seedSprite: c.seedSprite,
         itemSprite: c.itemSprite,

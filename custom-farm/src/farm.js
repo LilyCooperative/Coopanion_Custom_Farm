@@ -51,6 +51,10 @@ export const DEFAULTS = {
   installPath: '',
   /** 选中的显示器 id；空 = 自动（主屏）。 */
   screen: '',
+  /** 图层引擎：auto = 有备用 Electron 就用，否则 Windows 用 WPF；wpf = 只用 WPF；electron = 只用 Electron。 */
+  overlayEngine: 'auto',
+  /** 备用 electron.exe / electron 可执行文件路径；空 = 自动找。 */
+  electronPath: '',
   /** 最多同时种几棵（屏幕上不重叠地放得下的上限） */
   maxPlants: 12,
   /** 屏幕逻辑宽度，用来把"像素宽"换算成 x 间距 */
@@ -1155,6 +1159,7 @@ export function overlayView(state) {
         x: Number(p.x),
         water: round2(clamp01(p.moisture)),
         swing: Boolean(cropOf(p.crop)?.swing),
+        layer: crop.layer === 'top' ? 'top' : 'bottom',
         ready: isRipe(p),
         dead: Boolean(p.dead),
         progress: Math.round((p.growth / crop.total) * 100),

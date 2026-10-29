@@ -55,11 +55,15 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 
 ## 游戏配置
 
+- **环境自检**：页面顶部检查 Electron/WPF（WebView2）运行时；显示「缺少 Electron 运行时」或「WPF/WebView2 可用」；第一次启用如果缺运行时，会推一次事件让桌宠转告主人
+- **图层引擎**：自动（有备用 Electron 就用，否则 WPF/WebView2）/ 备用 Electron / WPF（WebView2）；不会为了安装扩展下载 Electron；WPF 回退也加载同一套 `renderer.html/renderer.js`，视觉与 Electron 一致
 - **安装路径**：默认 `<Coopanion 数据目录>\custom-farm`；修改后自动停图层、搬目录、重启
-- **显示器**：「自动」用主屏，或从下拉里选择任意一块屏幕；Electron 图层会在约 1 秒内移动过去
+- **显示器**：「自动」用主屏，或从下拉里选择任意一块屏幕；Electron 图层会在约 1 秒内移动过去，WPF/WebView2 回退也使用主屏
 - **备份存档**：把 `state.json` 和 `custom.json` 复制到 `data\farm\backups\backup-时间\`
 - **重置一切**：先自动备份，再清空存档和全部自定义设置，World 自动重启；安装路径和上传的 PNG 不会被删
 - 备份和重置按钮在「游戏配置」页底部，也可以在「存档与重置」页签操作
+- **图层窗口**：拆成 `bg` / `top` 两个透明窗口；`bg` 在桌宠下面，`top` 是桌宠的 owned window，野草/装饰/作物/特效按 `layer` 设置分到两个窗口
+- **层级守护**：每 500ms 重新确认桌宠窗口；桌宠重新置顶、显示/隐藏、被点击或窗口重建后，自动重新挂 owner / 把 `bg` 放回桌宠下面，防止图层整体翻转
 
 存档和自定义配置固定在 `data\home\companion\data\farm\`，不会跟着安装路径搬走。
 
@@ -77,7 +81,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 | 路径 | 作用 |
 |---|---|
 | `custom-farm/` | 扩展本体：`src/` 逻辑、`dist/` WebUI、`tools/` 自测和打包脚本、`icon.png`、`describe.json` |
-| `overlay/` | WPF 桌面图层回退 |
+| `overlay/` | WPF 回退（WebView2 加载同一套渲染器） |
 | `overlay-electron/` | Electron 桌面图层 |
 | `assets/sprites/` | 内置作物/杂草/地面/装饰/图标 PNG |
 | `scripts/` | 本地安装/停用脚本 |
@@ -94,8 +98,11 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 
 - Coopanion `>= 0.2.13`，World API `6`
 - Node.js `>= 22`（Coopanion 自带）
-- Electron `^45.1.0`（桌面图层依赖）
-- Windows 10/11 默认 Electron 图层，Electron 不可用时回退 WPF；macOS / Linux 可用核心 World、WebUI 和 Electron 图层
+- Electron 不是 npm 依赖；有备用 Electron 就用，Windows 没有时用 WPF/WebView2（同一套渲染器）
+- WPF 回退需要 Windows 10/11 的 WebView2 Runtime（系统一般自带）
+- 仅 Windows 10/11；macOS / Linux 暂不支持，等后续测试
+
+变更记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## 许可
 

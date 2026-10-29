@@ -1,6 +1,6 @@
 # 公开发布清单
 
-当前版本：`0.37.0`。
+当前版本：`0.38.0`。
 
 ## 包内容
 
@@ -8,13 +8,15 @@
 - `files`：`src`、`dist`、`overlay`、`overlay-electron`、`assets`、`icon.png`、`describe.json`、`README.md`、`LICENSE`
 - `cortico.kind = world`，`cortico.api = 6`，`cortico.icon = icon.png`
 - `cortico.locales.zh / en` 提供市场页显示名和简介
+- 没有 npm `dependencies`：安装时不会再下载 Electron
 - `prepack` / `postpack` 只临时复制图层和素材，不把运行痕迹打进包
 
 ## 平台
 
-- 核心 World、WebUI 跨平台
-- Windows 默认 Electron/HTML 桌面图层，Electron 不可用时回退 WPF
-- macOS / Linux 使用 Electron 图层
+- 仅 Windows 10/11（`os: ["win32"]`）；macOS / Linux 暂不支持，等后续测试
+- 核心 World、WebUI 可在 Node 里跨平台跑，但正式安装只放行 Windows
+- Windows 默认「自动」：有备用 Electron 就用，否则用 WPF/WebView2；WPF 回退加载同一套 renderer，视觉与 Electron 一致
+- WPF 回退需要 Windows 10/11 的 WebView2 Runtime（系统一般自带）
 - 独立 WPF 背包已移除，背包/商店在 WebUI 里
 
 ## 安装

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, screen } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 
 const argv = process.argv;
 function arg(name, fallback = '') {
@@ -13,7 +14,6 @@ const screensPath = path.join(path.dirname(statePath), 'screens.json');
 const assetsDir = path.resolve(arg('assets-dir', path.join(__dirname, '..', 'assets', 'sprites')));
 const logPath = arg('log', '');
 const pidPath = arg('pid', '');
-const capturePath = arg('capture', '');
 const logStream = logPath ? fs.createWriteStream(logPath, { flags: 'a' }) : null;
 function log(s) {
   const line = new Date().toISOString() + ' [electron] ' + s + '\n';
@@ -33,9 +33,12 @@ function clearPid() {
   try { if (fs.readFileSync(pidPath, 'utf8').trim() === String(process.pid)) fs.unlinkSync(pidPath); } catch { }
 }
 
-let win = null;
-let leaseMtime = 0;
+let bgWin = null;
+let topWin = null;
+let zorder = null;
+let quitting = false;
 let leaseAt = Date.now();
+let leaseMtime = 0;
 
 /** 主程序停止/卸载后 state.json 不再更新，overlay 自动退出，避免留下桌面残影。 */
 function checkLease() {
@@ -45,7 +48,6 @@ function checkLease() {
   } catch { /* 文件不存在按超时处理 */ }
   if (Date.now() - leaseAt > 20000) { log('state lease expired; exiting'); quit(); }
 }
-
 
 function listScreens() {
   const primary = screen.getPrimaryDisplay();
@@ -78,9 +80,37 @@ function bounds() {
   return { x: Math.round(wa.x), y: Math.round(wa.y + wa.height - h), width: Math.round(wa.width), height: h };
 }
 
-function createWindow() {
+function hwndOf(win) {
+  try {
+    const buf = win.getNativeWindowHandle();
+    return buf.readBigUInt64LE(0).toString();
+  } catch { return ''; }
+}
+
+function startZOrder() {
+  if (quitting || !bgWin || !topWin) return;
+  if (zorder && !zorder.killed) return;
+  const bg = hwndOf(bgWin);
+  const top = hwndOf(topWin);
+  if (!bg || !top) return;
+  try {
+    zorder = spawn('powershell.exe',
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(__dirname, 'zorder.ps1'), '-Bg', bg, '-Top', top],
+      { stdio: 'ignore', windowsHide: true });
+    zorder.on('exit', () => {
+      log('zorder helper exited');
+      zorder = null;
+      if (!quitting) setTimeout(startZOrder, 1500);
+    });
+    zorder.on('error', (e) => { log('zorder helper error: ' + e.message); zorder = null; });
+  } catch (e) {
+    log('zorder helper spawn failed: ' + e.message);
+  }
+}
+
+function createWindow(layer) {
   const b = bounds();
-  win = new BrowserWindow({
+  const win = new BrowserWindow({
     ...b,
     transparent: true,
     frame: false,
@@ -103,21 +133,32 @@ function createWindow() {
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setIgnoreMouseEvents(true, { forward: true });
   try { win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true }); } catch { }
-  win.loadFile(path.join(__dirname, 'renderer.html'), {
-    query: { state: statePath, assets: assetsDir },
-  });
-  if (capturePath) setTimeout(async () => { try { const image = await win.webContents.capturePage(); fs.writeFileSync(capturePath, image.toPNG()); log('capture ' + capturePath); } catch (e) { log('capture failed ' + e.message); } }, 3000);
+  win.loadFile(path.join(__dirname, 'renderer.html'), { query: { state: statePath, assets: assetsDir, layer } });
   win.once('ready-to-show', () => {
-    win.show();
+    win.showInactive();
     setTimeout(() => {
-      if (!win) return;
-      win.setAlwaysOnTop(true, 'screen-saver');
-      win.moveTop();
-      log('window shown / topmost');
-    }, 500);
+      if (!win.isDestroyed()) {
+        win.setAlwaysOnTop(true, 'screen-saver');
+        log(layer + ' window shown');
+      }
+    }, 300);
   });
-  win.on('closed', () => { win = null; });
-  log('window ' + b.width + 'x' + b.height + ' at ' + b.x + ',' + b.y);
+  win.on('closed', () => { if (!quitting) quit(); });
+  log(layer + ' window ' + b.width + 'x' + b.height + ' at ' + b.x + ',' + b.y);
+  return win;
+}
+
+function fit() {
+  if (!bgWin || !topWin) return;
+  const b = bounds();
+  for (const win of [bgWin, topWin]) {
+    if (win.isDestroyed()) continue;
+    const cur = win.getBounds();
+    if (cur.x !== b.x || cur.y !== b.y || cur.width !== b.width || cur.height !== b.height) {
+      win.setBounds(b);
+      win.webContents.send('resize');
+    }
+  }
 }
 
 app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -125,29 +166,32 @@ app.commandLine.appendSwitch('enable-transparent-visuals');
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => { if (win) win.showInactive(); });
+  app.on('second-instance', () => { if (topWin && !topWin.isDestroyed()) topWin.showInactive(); });
   app.whenReady().then(() => {
     writePid();
     writeScreens();
-    createWindow();
-    const fit = () => {
-      if (!win) return;
-      const b = bounds();
-      const cur = win.getBounds();
-      if (cur.x !== b.x || cur.y !== b.y || cur.width !== b.width || cur.height !== b.height) {
-        win.setBounds(b);
-        win.webContents.send('resize');
-      }
-    };
-    for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
-      screen.on(event, fit);
-    }
+    bgWin = createWindow('bg');
+    topWin = createWindow('top');
+    setTimeout(startZOrder, 800);
+    for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, fit);
     setInterval(checkLease, 5000);
     setInterval(fit, 1000);
   });
 }
 
-function quit() { clearPid(); if (logStream) logStream.end(); app.quit(); }
+function quit() {
+  quitting = true;
+  clearPid();
+  try { if (zorder && !zorder.killed) zorder.kill(); } catch { }
+  zorder = null;
+  for (const win of [bgWin, topWin]) {
+    try { if (win && !win.isDestroyed()) win.destroy(); } catch { }
+  }
+  bgWin = null;
+  topWin = null;
+  if (logStream) logStream.end();
+  app.quit();
+}
 process.on('SIGTERM', quit);
 process.on('SIGINT', quit);
 app.on('before-quit', clearPid);

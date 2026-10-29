@@ -21,7 +21,7 @@
 | 面板 | 能改什么 |
 |---|---|
 | **农场自定义 → 农场** | 地面贴图、地表高度、农田大小、导入自己的 PNG |
-| **农场自定义 → 农作物** | 增删作物、阶段数、每阶段天数、产物卖价、种子买价、各阶段/种子/产物贴图 |
+| **农场自定义 → 农作物** | 增删作物、阶段数、每阶段天数、产物卖价、种子买价、各阶段/种子/产物贴图、上下图层 |
 | **农场自定义 → 杂草** | 增删杂草、阶段与天数、出现权重、上下图层、收获物名字/价值/贴图 |
 | **农场自定义 → 浇水特效 / 枯萎** | 浇水帧序列、水花帧序列、帧间隔、枯萎贴图 |
 | **生态自定义** | 一个游戏日多长、离线最多补几天、刷新间隔、每天是否推事件、浇水蒸发/补水/枯萎天数、天气 |
@@ -61,6 +61,8 @@
 
 扩展包自带 `overlay` / `overlay-electron` / `assets`，第一次启动会把它们复制到安装目录，不需要另外准备项目文件夹。
 
+**扩展不再把 Electron 作为 npm 依赖下载。** 安装时只装扩展本身；有没有 Electron 运行时都不会影响安装。桌面图层按下面的「环境自检 / 图层引擎」选择。
+
 ### 本地开发
 
 ```powershell
@@ -72,6 +74,28 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 ```
 
 ## 游戏配置
+
+### 环境自检 / 图层引擎
+
+**游戏配置页顶部**有「环境自检」按钮，会检查：
+
+- 当前平台和 Node 版本
+- 是否能找到 `electron.exe`
+- 安装目录里的 `overlay-webview.ps1`、WebView2 库和 WebView2 运行时是否可用
+
+自检会明确显示「缺少 Electron 运行时」还是「WPF/WebView2 图层可用」。下面的「图层引擎」切选单可以选：
+
+- **自动**：有备用 Electron 就用，没有就用 WPF/WebView2（推荐，不会下载 Electron）
+- **备用 Electron**：只使用检测到的 Electron，需要 `electron.exe`
+- **WPF（WebView2）**：完全不使用 Electron，但加载和 Electron 相同的 `renderer.html/renderer.js`
+
+WPF 回退现在是 WebView2 宿主，不再用另一套 WPF 自绘；因此缩放、精灵位置、阴影、粒子、水滴、晃动等视觉效果和 Electron 基本完全一致。需要 Windows 10/11 自带的 WebView2 Runtime。
+
+自检里的「Electron 包」下拉会列出检测到的路径；也可以在「备用 Electron」配置项里手动选 `electron.exe`。
+
+第一次启用时还会自动做一次自检；如果当前引擎缺运行时，会推一次 `farm.env` 事件，让桌宠把“缺少 Electron 运行时 / 怎么修”转告主人。之后不会重复提醒。
+
+Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `electron.exe`；所以默认不再下载第二份 Electron。备用 Electron 可以放在安装目录的 `node_modules\electron\dist\electron.exe`，或在「备用 Electron」里手动选择路径。
 
 ### 安装路径
 
@@ -88,7 +112,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 
 - 「自动」使用主屏
 - 下拉里会列出当前所有显示器，改完约 1 秒内移动到目标屏幕
-- 这个设置作用于 Electron 图层；WPF 回退仍跟随桌宠所在屏幕
+- 这个设置作用于 Electron 图层；WPF/WebView2 回退使用主屏（与现有 WPF 行为一致）
 
 ### 备份与重置
 
@@ -101,10 +125,13 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 
 ## 桌面图层
 
-- **Windows 10/11**：默认 Electron/HTML 图层；Electron 不可用时回退 WPF。
-- **macOS / Linux**：核心 World、WebUI 和 Electron 图层可用；没有 Windows WPF 回退。
+- 图层拆成 `bg` / `top` 两个透明窗口：`bg` 在桌宠下面，`top` 是桌宠的 owned window，永远在桌宠上面。
+- 野草、装饰、作物、掉落物和特效按 `layer` 设置分配到两个窗口；上层野草/装饰可以正常遮挡桌宠，下层作物在桌宠后面。
+- 层级守护每 500ms 重新确认桌宠窗口；桌宠重新置顶、显示/隐藏、被点击或窗口重建后，会自动重新挂 owner / 把 `bg` 放回桌宠下面，防止图层整体翻转。
+- **Windows 10/11**：默认「自动」——检测到备用 Electron 就用 Electron，否则用 WPF/WebView2；不会为了安装扩展下载 Electron。两个引擎都使用同一套 Canvas renderer，缩放和特效一致。
+- **macOS / Linux**：暂不支持；`os` 已收紧为 `win32`。
 - 图层跟着桌宠显示/隐藏/退出；任务栏换边、换屏会重新计算位置。
-- 独立 WPF 背包已移除；背包、商店、农场预览、摆放和手动合成都在 WebUI。
+- 背包、商店、农场预览、摆放和手动合成都在 WebUI。
 
 ## 工具
 
@@ -124,7 +151,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 | `farm_sell` | 卖背包里的道具 |
 | `farm_place` | 把装饰放到地上 |
 
-事件：`farm.ripe`、`farm.dry`、`farm.day`、`farm.state`。`farm.day` 默认关，`dailyEvent=true` 才推。
+事件：`farm.ripe`、`farm.dry`、`farm.day`、`farm.state`、`farm.env`。`farm.day` 默认关，`dailyEvent=true` 才推；`farm.env` 只在第一次启用自检失败时推一次，让桌宠把环境问题转告主人。
 
 ## 默认参数
 
@@ -155,7 +182,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 | `dist/webui.js` / `.css` | 「自定义农场」面板 |
 | `icon.png` | 扩展图标（安装页显示） |
 | `describe.json` | 工具/事件自描述 |
-| `overlay/` | WPF 图层回退 |
+| `overlay/` | WPF/WebView2 回退（同一套渲染器） |
 | `overlay-electron/` | Electron 图层 |
 | `assets/` | 内置作物/杂草/地面/装饰/图标 |
 
@@ -169,7 +196,9 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/run/restart
 
 - Coopanion `>= 0.2.13`，World API `6`
 - Node.js `>= 22`（Coopanion 自带）
-- Electron `^45.1.0`（桌面图层依赖）
+- 仅 Windows 10/11；macOS / Linux 暂不支持，等后续测试
+- Electron 不是 npm 依赖；备用 Electron 可选，Windows 没有时用 WPF/WebView2
+- WPF 回退需要 Windows 10/11 的 WebView2 Runtime（系统一般自带）
 - Windows 10/11 已实机测试；macOS / Linux 未实机测试
 
 ## 许可

@@ -26,7 +26,7 @@ import { CROPS, ROTATION } from './crops.js';
 import { FarmCatalog } from './catalog.js';
 import { live } from './catalog-state.js';
 import { buildZip, readZip } from './zip.js';
-import { bundleHome, defaultHome, makePaths } from './paths.js';
+import { bundleHome, defaultHome, EXTENSION_DIR, makePaths } from './paths.js';
 import { CROP_PRICES, FURNITURE, FURNITURE_ENABLED, SEED_BY_CROP, SEED_BY_ID, SEEDS, sellPriceOf } from './shop.js';
 import { normalizeWeathers, pickWeather, weatherById, weatherFxOf } from './weather.js';
 import {
@@ -315,6 +315,20 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
             'x-options': 'farm-screens',
             'x-hot': true,
           },
+          'worlds.farm.overlayEngine': {
+            type: 'string',
+            title: t('图层引擎', 'Overlay engine'),
+            description: t('自动：有备用 Electron 就用，没有就用 WPF；不会额外下载 Electron。', 'Auto uses a fallback Electron if present, otherwise WPF; no extra Electron download.'),
+            'x-options': 'farm-engines',
+            'x-hot': true,
+          },
+          'worlds.farm.electronPath': {
+            type: 'string',
+            title: t('备用 Electron', 'Fallback Electron'),
+            description: t('可选：electron.exe 路径。留空自动找安装目录/扩展包里的 electron。', 'Optional path to electron.exe; blank auto-detects it in the install/package folders.'),
+            'x-path': { kind: 'file', extensions: ['exe'] },
+            'x-hot': true,
+          },
           'worlds.farm.overlayEnabled': bool(t('写桌面图层的 state.json', 'Write the overlay state.json'), t('默认开。关掉后桌面农场停止更新。', 'On by default. Off stops the desktop farm from updating.')),
           'worlds.farm.hideFarm': bool(t('隐藏农场', 'Hide farm'), t('勾选后停止桌面图层；农场仍在后台生长，取消勾选恢复。', 'Stop the desktop overlay; the farm keeps growing. Uncheck to show it again.')),
         },
@@ -332,6 +346,8 @@ export class FarmWorld {
   #paths = null;
   #homeChanged = false;
   #previousHome = null;
+  #layerEngineKey = '';
+  #envCheckPending = false;
   #cmdTimer = null;
   #layerChild = null;
   #layerAt = 0;
@@ -392,6 +408,8 @@ export class FarmWorld {
     return {
       ...DEFAULTS,
       screen: String(this.cfg?.screen ?? ''),
+      overlayEngine: ['auto', 'electron', 'wpf'].includes(String(this.cfg?.overlayEngine ?? 'auto')) ? String(this.cfg?.overlayEngine ?? 'auto') : 'auto',
+      electronPath: String(this.cfg?.electronPath ?? ''),
       maxPlants: this.#num('maxPlants', 1, 24),
       screenWidth,
       zoom: this.#num('zoom', 1, 8),
@@ -1436,6 +1454,11 @@ export class FarmWorld {
   async #tick() {
     if (!this.#started || !this.#state) return;
     await this.#syncInstallHome();
+    await this.#syncLayerEngine();
+    if (this.#envCheckPending) {
+      this.#envCheckPending = false;
+      await this.#runFirstEnvCheck();
+    }
     const cfg = this.#cfgAll();
     this.#syncLayerVisibility();
     const now = this.now();
@@ -1483,6 +1506,9 @@ export class FarmWorld {
       }
     }
     await this.#save();
+    if (!this.#hidden) {
+      try { this.#ensureLayers('巡检'); } catch { /* 忽略 */ }
+    }
   }
 
   async #pushDry(ids) {
@@ -1619,6 +1645,27 @@ export class FarmWorld {
       if (panel === 'manage') {
         if (method === 'backup') return this.#backupNow();
         if (method === 'reset') return this.#resetAll();
+        if (method === 'check') return this.#envCheck();
+        if (method === 'setElectronPath') {
+          const file = String(args?.[0] ?? '').trim();
+          if (file && !existsSync(file)) throw new Error('找不到这个 Electron 文件：' + file);
+          this.persistConfig?.({ electronPath: file });
+          try { this.cfg.electronPath = file; } catch { /* cfg 可能是只读代理 */ }
+          await this.#stopLayers('Electron 路径变更');
+          this.#ensureLayers('Electron 路径变更');
+          this.#layerEngineKey = this.#engine() + '|' + file;
+          return this.#envCheck();
+        }
+        if (method === 'setEngine') {
+          const mode = String(args?.[0] ?? 'auto');
+          if (!['auto', 'electron', 'wpf'].includes(mode)) throw new Error('不认识的图层引擎：' + mode);
+          this.persistConfig?.({ overlayEngine: mode });
+          try { this.cfg.overlayEngine = mode; } catch { /* cfg 可能是只读代理 */ }
+          await this.#stopLayers('图层引擎变更');
+          this.#ensureLayers('图层引擎变更');
+          this.#layerEngineKey = this.#engine() + '|' + String(this.cfg?.electronPath ?? '');
+          return this.#envCheck();
+        }
         if (method === 'state') return { ok: true };
         throw new Error('不认识的存档操作：' + method);
       }
@@ -2365,6 +2412,15 @@ export class FarmWorld {
     }
   }
 
+  async #syncLayerEngine() {
+    const key = this.#engine() + '|' + String(this.cfg?.electronPath ?? '');
+    if (!this.#layerEngineKey) { this.#layerEngineKey = key; return; }
+    if (key === this.#layerEngineKey) return;
+    this.#layerEngineKey = key;
+    await this.#stopLayers('图层引擎变更').catch(() => {});
+    this.#ensureLayers('图层引擎变更');
+  }
+
   #syncLayerVisibility() {
     const hide = this.#flag('hideFarm');
     if (hide === this.#hidden) return;
@@ -2376,8 +2432,9 @@ export class FarmWorld {
   #stopLayers(reason, home = null) {
     if (!this.manageLayers) { return Promise.resolve(); }
     try {
-      const pidFile = join(this.dataDir, 'farm', 'electron.pid');
-      if (existsSync(pidFile)) {
+      for (const name of ['electron.pid', 'webview-bg.pid', 'webview-top.pid', 'webview.pid']) {
+        const pidFile = join(this.dataDir, 'farm', name);
+        if (!existsSync(pidFile)) continue;
         const pid = Number(readFileSync(pidFile, 'utf8').trim());
         if (pid > 0) { try { process.kill(pid); } catch { } }
         try { unlinkSync(pidFile); } catch { }
@@ -2422,12 +2479,35 @@ export class FarmWorld {
    * 确保两块桌面图层在跑：交给 overlay\restart-layers.ps1（单守护 + 自愈 + 幂等）。
    * 只 -Ensure，绝不杀健康的图层 —— 以前"巡检发现不在 → 杀掉重启"正是背景层消失的原因。
    */
-  /** Electron overlay 是否可用：launch.js 和 electron 模块都在。 */
+  #engine() {
+    const v = String(this.cfg?.overlayEngine ?? 'auto');
+    return ['auto', 'electron', 'wpf'].includes(v) ? v : 'auto';
+  }
+
+  /** 找可用的 Electron 可执行文件：配置路径 → 安装目录 → 扩展包 → 开发目录。 */
+  #electronCandidates(paths) {
+    const name = process.platform === 'win32' ? 'electron.exe' : 'electron';
+    const configured = String(this.cfg?.electronPath ?? '').trim();
+    const rows = [];
+    const add = (label, file) => {
+      if (!file || rows.some((r) => r.path === file)) return;
+      rows.push({ label, path: file, ok: existsSync(file) });
+    };
+    if (configured) add('配置的 Electron', configured);
+    add('安装目录 Electron', join(paths.electronDir, 'node_modules', 'electron', 'dist', name));
+    add('安装目录 node_modules', join(paths.home, 'node_modules', 'electron', 'dist', name));
+    add('扩展包 Electron', join(EXTENSION_DIR, 'node_modules', 'electron', 'dist', name));
+    add('开发目录 Electron', join(EXTENSION_DIR, 'overlay-electron', 'node_modules', 'electron', 'dist', name));
+    return rows;
+  }
+
+  #electronExe(paths) {
+    return this.#electronCandidates(paths).find((r) => r.ok)?.path ?? null;
+  }
+
+  /** Electron overlay 是否可用：launch.js 和 electron 可执行文件都在。 */
   #electronReady(paths) {
-    const launcher = join(paths.electronDir, 'launch.js');
-    const local = join(paths.electronDir, 'node_modules', 'electron');
-    const pkg = join(paths.home, 'node_modules', 'electron');
-    return existsSync(launcher) && (existsSync(local) || existsSync(pkg));
+    return existsSync(join(paths.electronDir, 'launch.js')) && Boolean(this.#electronExe(paths));
   }
 
   #electronPidAlive() {
@@ -2444,14 +2524,16 @@ export class FarmWorld {
   #startElectron(paths) {
     if (!this.#electronReady(paths)) return false;
     if (this.#electronPidAlive()) return true;
+    const exe = this.#electronExe(paths);
+    if (!exe) return false;
     try {
       const launcher = join(paths.electronDir, 'launch.js');
       const pidFile = join(this.dataDir, 'farm', 'electron.pid');
-      const child = spawn(process.execPath, [launcher, '--state-path', paths.overlayState, '--assets-dir', paths.assetsDir, '--pid', pidFile, '--log', join(dirname(this.overlayFile()), 'electron.log')], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
+      const child = spawn(process.execPath, [launcher, '--electron', exe, '--state-path', paths.overlayState, '--assets-dir', paths.assetsDir, '--pid', pidFile, '--log', join(dirname(this.overlayFile()), 'electron.log')], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
       child.unref();
       this.#layerChild = child;
       this.#layerAt = Date.now();
-      this.#host?.log?.info?.('自定义农场：已启动 Electron overlay');
+      this.#host?.log?.info?.('自定义农场：已启动 Electron overlay', { electron: exe });
       return true;
     } catch (err) {
       this.#host?.log?.warn?.('自定义农场：Electron overlay 没起来', { err: msg(err) });
@@ -2459,56 +2541,137 @@ export class FarmWorld {
     }
   }
 
+  #wpfPidAlive(layer = null) {
+    try {
+      const layers = layer ? [layer] : ['bg', 'top'];
+      for (const name of layers) {
+        const pidFile = join(this.dataDir, 'farm', 'webview-' + name + '.pid');
+        if (!existsSync(pidFile)) return false;
+        const pid = Number(readFileSync(pidFile, 'utf8').trim());
+        if (!(pid > 0)) return false;
+        process.kill(pid, 0);
+      }
+      return true;
+    } catch { return false; }
+  }
+
+  #startWpf(paths) {
+    if (process.platform !== 'win32') return false;
+    let started = false;
+    for (const layer of ['bg', 'top']) {
+      if (this.#wpfPidAlive(layer)) continue;
+      try {
+        const script = paths.overlayScript;
+        if (!existsSync(script)) return false;
+        const pidFile = join(this.dataDir, 'farm', 'webview-' + layer + '.pid');
+        const logFile = join(dirname(this.overlayFile()), 'webview-' + layer + '.log');
+        const child = spawn('powershell.exe',
+          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script,
+            '-StatePath', paths.overlayState, '-HomeDir', paths.home, '-AssetsDir', paths.assetsDir,
+            '-PidPath', pidFile, '-LogPath', logFile, '-Layer', layer],
+          { stdio: 'ignore', windowsHide: true });
+        child.unref();
+        try { writeFileSync(pidFile, String(child.pid)); } catch { }
+        this.#layerChild = child;
+        this.#layerAt = Date.now();
+        started = true;
+        this.#host?.log?.info?.('自定义农场：已启动 WebView2 ' + layer + ' 图层（同一套 renderer）');
+      } catch (err) {
+        this.#host?.log?.warn?.('自定义农场：WebView2 ' + layer + ' 图层没起来', { err: msg(err) });
+      }
+    }
+    return started || this.#wpfPidAlive();
+  }
+
   #ensureLayers(reason) {
     if (!this.manageLayers || this.#flag('hideFarm')) { return; }
-    const paths0 = this.#homePath();
-    if (this.#electronReady(paths0)) {
+    const paths = this.#homePath();
+    const engine = this.#engine();
+    const exe = this.#electronExe(paths);
+    if (engine === 'wpf') {
+      if (this.#wpfPidAlive()) return;
+      this.#startWpf(paths);
+      return;
+    }
+    if (engine === 'electron' && !exe) {
+      this.#host?.log?.warn?.('自定义农场：选择 Electron 图层，但没有找到 electron.exe；回退 WPF');
+    }
+    if (this.#electronReady(paths) && (engine !== 'wpf')) {
       if (this.#electronPidAlive()) return;
-      if (process.platform === 'win32') {
-        try {
-          const script = join(paths0.overlayDir, 'restart-layers.ps1');
-          if (existsSync(script)) {
-            const stop = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script, '-Stop', '-Quiet'], { stdio: 'ignore', windowsHide: true });
-            stop.on('exit', () => { this.#startElectron(paths0); });
-            stop.unref();
-            return;
-          }
-        } catch { /* fall through */ }
-      }
-      this.#startElectron(paths0);
+      this.#startElectron(paths);
       return;
     }
-    if (process.platform !== 'win32') {
+    if (this.#wpfPidAlive()) return;
+    this.#startWpf(paths);
+  }
+
+  /** 第一次启用时自动做一次环境自检；有问题就让桌宠给主人发一条提示。 */
+  async #runFirstEnvCheck() {
+    if (!this.#state || this.#state.envCheckedAt) return;
+    const check = this.#envCheck();
+    this.#state.envCheckedAt = new Date(this.now()).toISOString();
+    this.#state.envLastCheck = { ok: check.ok, engine: check.engine, message: check.message, at: this.#state.envCheckedAt };
+    if (!check.ok) {
+      const text = '自定义农场环境自检发现问题：\n' + check.message +
+        '\n请把这个问题告诉主人：打开 Coopanion 设置 → 游戏配置 → 环境自检，按提示选择 WPF 图层或指定备用 Electron。';
       try {
-        const paths = this.#homePath();
-        const launcher = join(paths.electronDir, 'launch.js');
-        const localElectron = join(paths.electronDir, 'node_modules', 'electron');
-        const packageElectron = join(paths.home, 'node_modules', 'electron');
-        if (existsSync(launcher) && (existsSync(localElectron) || existsSync(packageElectron))) {
-          const pidFile = join(this.dataDir, 'farm', 'electron.pid');
-          const child = spawn(process.execPath, [launcher, '--state-path', paths.overlayState, '--assets-dir', paths.assetsDir, '--pid', pidFile, '--log', join(dirname(this.overlayFile()), 'electron.log')], { detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } });
-          child.unref();
-          this.#layerChild = child;
-          this.#layerAt = Date.now();
-          this.#host?.log?.info?.('自定义农场：已启动 Electron overlay');
-        }
-      } catch (err) { this.#host?.log?.warn?.('自定义农场：Electron overlay 没起来', { err: msg(err) }); }
-      return;
+        this.#host?.pushEvent?.({
+          type: 'farm.env',
+          source: this.id,
+          senderKey: 'farm.env',
+          origin: 'internal',
+          ts: new Date(this.now()).toISOString(),
+          text,
+          meta: { env: check },
+        }, { deliver: true, trigger: 'debounce' });
+      } catch (err) {
+        this.#host?.log?.warn?.('自定义农场：环境问题提醒没送出去', { err: msg(err) });
+      }
     }
-    try {
-      const paths = this.#homePath();
-      const script = join(paths.overlayDir, 'restart-layers.ps1');
-      if (!existsSync(script)) return;
-      const child = spawn('powershell.exe',
-        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', script, '-Ensure', '-Quiet'],
-        { stdio: 'ignore', windowsHide: true });
-      child.unref();
-      this.#layerChild = child;
-      this.#layerAt = Date.now();
-      this.#host?.log?.info?.('自定义农场：正在确保桌面图层在跑' + (reason ? '（' + reason + '）' : ''));
-    } catch (err) {
-      this.#host?.log?.warn?.('自定义农场：桌面图层没起来', { err: msg(err) });
-    }
+    try { await this.#save(); } catch { /* 下次启动再说 */ }
+  }
+
+  #webviewRuntime() {
+    if (process.platform !== 'win32') return false;
+    const roots = [process.env['ProgramFiles(x86)'], process.env.ProgramFiles];
+    return roots.some((root) => root && existsSync(join(root, 'Microsoft', 'EdgeWebView', 'Application')));
+  }
+
+  /** 游戏配置里的「环境自检」。 */
+  #envCheck() {
+    const paths = this.#homePath();
+    const candidates = this.#electronCandidates(paths);
+    const exe = candidates.find((r) => r.ok)?.path ?? null;
+    const wpfScript = process.platform === 'win32' && existsSync(paths.overlayScript);
+    const webviewDll = existsSync(join(paths.overlayDir, 'webview2', 'Microsoft.Web.WebView2.Wpf.dll'))
+      && existsSync(join(paths.overlayDir, 'webview2', 'WebView2Loader.dll'));
+    const webviewRuntime = this.#webviewRuntime();
+    const wpf = wpfScript && webviewDll && webviewRuntime;
+    const engine = this.#engine();
+    const electronOk = Boolean(exe);
+    const ok = engine === 'wpf' ? wpf : (engine === 'electron' ? electronOk : (electronOk || wpf));
+    const lines = [
+      '平台：' + process.platform + ' / Node ' + process.version,
+      '图层引擎：' + engine,
+      'Electron：' + (electronOk ? '✓ ' + exe : '✗ 缺少 Electron 运行时'),
+      'WPF/WebView2 图层：' + (wpf ? '✓ 可用' : '✗ 不可用'),
+    ];
+    if (!wpf) lines.push('WebView2 脚本=' + (wpfScript ? '✓' : '✗') + '，WebView2 库=' + (webviewDll ? '✓' : '✗') + '，WebView2 运行时=' + (webviewRuntime ? '✓' : '✗'));
+    if (!electronOk) lines.push('没有 Electron 时会用 WPF 图层；不会为了安装扩展再下载 Electron。');
+    else if (engine === 'wpf') lines.push('当前选择 WPF；Electron 已找到但不会启动。');
+    return {
+      ok,
+      engine,
+      platform: process.platform,
+      node: process.version,
+      electron: { ok: electronOk, path: exe },
+      electronCandidates: candidates,
+      wpf: { ok: wpf, path: paths.overlayScript },
+      message: lines.join('\n'),
+      text: ok
+        ? '环境自检通过：' + (engine === 'electron' || (engine === 'auto' && electronOk) ? 'Electron 运行时可用' : 'WPF 图层可用（未检测到 Electron）')
+        : '环境自检未通过：缺少当前引擎需要的运行时',
+    };
   }
 
   /**
@@ -2645,7 +2808,9 @@ export class FarmWorld {
       this.#schedule();
       this.#cmdTimer = setInterval(() => { void this.#drainCommands(); }, 1000);
       this.#hidden = this.#flag('hideFarm');
+      this.#layerEngineKey = this.#engine() + '|' + String(this.cfg?.electronPath ?? '');
       if (!this.#hidden) { try { this.#ensureLayers(); } catch { /* 忽略 */ } }
+      this.#envCheckPending = Boolean(this.#host?.pushEvent);
       // 不做周期巡检：巡检会触发"杀掉再起"，和正在启动的进程互相打断（这就是之前反复缺层的原因）
       if (typeof this.#cmdTimer?.unref === 'function') this.#cmdTimer.unref();
       const s = summary(this.#state, cfg);

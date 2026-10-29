@@ -340,6 +340,14 @@
         "en": "A custom state triggered a consume action: e.g. hunger ate a crop (the text says what and the state change), or asks the pet to use farm_consume; also fires when nothing edible is in the bag."
       },
       "trigger": "debounce"
+    },
+    {
+      "type": "farm.env",
+      "description": {
+        "zh": "第一次启用时环境自检发现 Electron/WPF 运行时缺失；正文说明缺什么、怎么在「游戏配置 → 环境自检」里修复，让桌宠转告主人。",
+        "en": "The first-start environment check found a missing Electron/WPF runtime; the text says what is missing and how to fix it in Game Config → Environment check, so the pet can tell its owner."
+      },
+      "trigger": "debounce"
     }
   ]
 }

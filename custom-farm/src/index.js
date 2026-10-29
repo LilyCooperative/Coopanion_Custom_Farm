@@ -66,7 +66,18 @@ export const farmDefinition = {
     persist: (patch) => ctx.persist(patch),
     restart: () => ctx.restart(),
   }),
-  configOptions: (kind, language) => (kind === 'farm-screens' ? screenOptions(language) : []),
+  configOptions: (kind, language) => {
+    if (kind === 'farm-screens') return screenOptions(language);
+    if (kind === 'farm-engines') {
+      const zh = String(language).toLowerCase().startsWith('zh');
+      return [
+        { value: 'auto', label: zh ? '自动（有备用 Electron 就用，否则 WPF/WebView2）' : 'Auto (fallback Electron, else WPF/WebView2)' },
+        { value: 'electron', label: zh ? '备用 Electron（需要 electron.exe）' : 'Fallback Electron (needs electron.exe)' },
+        { value: 'wpf', label: zh ? 'WPF/WebView2（不需要 Electron）' : 'WPF/WebView2 (no Electron)' },
+      ];
+    }
+    return [];
+  },
   describe: {
     tools: describeTools(FARM_TOOL_DECLS),
     events: [
@@ -99,6 +110,14 @@ export const farmDefinition = {
         description: {
           zh: '自定义状态触发消耗行为：比如「饥饿」生效时自动吃掉一个作物（正文写明吃了什么、状态变化），或者提醒桌宠用 farm_consume 去吃；背包里没有可吃道具时也会提醒。',
           en: 'A custom state triggered a consume action: e.g. hunger ate a crop (the text says what and the state change), or asks the pet to use farm_consume; also fires when nothing edible is in the bag.',
+        },
+        trigger: 'debounce',
+      },
+      {
+        type: 'farm.env',
+        description: {
+          zh: '第一次启用时环境自检发现 Electron/WPF 运行时缺失；正文说明缺什么、怎么在「游戏配置 → 环境自检」里修复，让桌宠转告主人。',
+          en: 'The first-start environment check found a missing Electron/WPF runtime; the text says what is missing and how to fix it in Game Config → Environment check, so the pet can tell its owner.',
         },
         trigger: 'debounce',
       },
