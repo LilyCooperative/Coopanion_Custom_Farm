@@ -79,7 +79,7 @@ function groundY() {
 
 function cropInfo(p) {
   const img = image(p.sprite || ((p.prefix || '') + '_' + (p.frame ?? p.level ?? 0)));
-  const s = Z * (Number(state?.farm?.cropScale) || 1);
+  const s = Z * (Number(state?.farm?.cropScale) || 1) * (p.dead ? (Number(state?.witherScale) || 1) : 1);
   return { img, w: ready(img) ? img.naturalWidth * s : 0, h: ready(img) ? img.naturalHeight * s : 0 };
 }
 
@@ -109,18 +109,20 @@ function startWater(x, plotId) {
   const burst = (wf.burst || ['water_burst_1', 'water_burst_2', 'water_burst_3', 'water_burst_4', 'water_burst_5', 'water_burst_6']).filter(Boolean);
   const p = (st.plots || []).find((row) => Number(row.id) === Number(plotId));
   const ci = p ? cropInfo(p) : { w: 0, h: 0 };
+  const ws = Math.max(0.1, Math.min(3, Number(wf.scale) || 0.75));
   const gx = x * window.innerWidth;
   const g = groundY();
   if (pour.length) {
     const img = image(pour[0]);
-    const dW = (img.naturalWidth || 16) * Z;
-    const dH = (img.naturalHeight || 16) * Z;
+    const dW = (img.naturalWidth || 16) * Z * ws;
+    const dH = (img.naturalHeight || 16) * Z * ws;
     const rise = ci.h > 8 ? ci.h : 34 * Z;
     addSplash(gx, g - rise - dH + 6, pour, Math.max(10, Number(wf.pourMs) || 70), dW, dH);
   }
   if (burst.length) {
     const img = image(burst[0]);
-    addSplash(gx, g - (img.naturalHeight || 16) * Z + 2, burst, Math.max(10, Number(wf.burstMs) || 80), (img.naturalWidth || 16) * Z, (img.naturalHeight || 16) * Z);
+    addSplash(gx, g - (img.naturalHeight || 16) * Z * ws + 2, burst, Math.max(10, Number(wf.burstMs) || 80),
+      (img.naturalWidth || 16) * Z * ws, (img.naturalHeight || 16) * Z * ws);
   }
 }
 
@@ -274,8 +276,8 @@ function draw(now) {
     const frame = String(Math.floor(now / 80) % 21).padStart(2, '0');
     const drip = image('water_drip' + stage + '_' + frame);
     if (!ready(drip)) continue;
-    const dw = drip.naturalWidth * Z;
-    const dh = drip.naturalHeight * Z;
+    const dw = drip.naturalWidth * Z * (Number(state?.waterFx?.scale) || 0.75);
+    const dh = drip.naturalHeight * Z * (Number(state?.waterFx?.scale) || 0.75);
     const off = ((Number(p.id) % 3) - 1) * ci.w * 0.18;
     ctx.globalAlpha = 0.9;
     ctx.drawImage(drip, Number(p.x) * W + off - dw / 2, g - ci.h + 2, dw, dh);

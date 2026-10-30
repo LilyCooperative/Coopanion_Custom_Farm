@@ -545,6 +545,8 @@ const TEXT = {
     addFrame: '添加帧',
     frameMs: '帧间隔 ms',
     wither: '枯萎作物贴图',
+    waterScale: '浇水特效缩放',
+    witherScale: '枯萎贴图缩放',
     pickWither: '换图',
     resetWither: '用默认',
     saveStatus: '保存状态设置',
@@ -653,6 +655,8 @@ const TEXT = {
     addFrame: 'Add frame',
     frameMs: 'Frame ms',
     wither: 'Withered crop sprite',
+    waterScale: 'Water FX scale',
+    witherScale: 'Wither sprite scale',
     pickWither: 'Change',
     resetWither: 'Default',
     saveStatus: 'Save status',
@@ -1309,8 +1313,10 @@ function panel(ctx) {
         burst: [...s.fx.burst],
         pourMs: Number(s.fx.pourMs),
         burstMs: Number(s.fx.burstMs),
+        scale: Number(s.fx.scale ?? 0.75),
       },
       wither: s.wither ?? null,
+      witherScale: Number(s.witherScale ?? 1),
     };
   }
 
@@ -1432,6 +1438,11 @@ function panel(ctx) {
       const witherReset = ui.button(T.resetWither, { size: 'sm', onClick: () => { d.wither = null; paintStatus(); } });
       const witherRow = ui.h('div', 'cf-row');
       witherRow.append(ui.field(T.wither, witherCell), witherPick, witherReset);
+      const scaleRow = ui.h('div', 'cf-row');
+      scaleRow.append(
+        ui.field(T.waterScale, numberInput(d.fx.scale, (v) => { d.fx.scale = v; }, '0.05', '0.1', '3')),
+        ui.field(T.witherScale, numberInput(d.witherScale, (v) => { d.witherScale = v; }, '0.05', '0.1', '3')),
+      );
 
       const actions = ui.actions();
       actions.append(
@@ -1444,6 +1455,7 @@ function panel(ctx) {
         frameStrip('burst', T.burstFrames, d),
         ui.h('hr', 'cf-hr2'),
         witherRow,
+        scaleRow,
         actions,
       );
     };

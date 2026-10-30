@@ -472,8 +472,10 @@ export class FarmCatalog {
         burst: ['water_burst_1', 'water_burst_2', 'water_burst_3', 'water_burst_4', 'water_burst_5', 'water_burst_6'],
         pourMs: 70,
         burstMs: 80,
+        scale: 0.75,
       },
       wither: null,
+      witherScale: 1,
     };
   }
 
@@ -939,8 +941,10 @@ export class FarmCatalog {
         burst: frames(fx.burst, def.fx.burst),
         pourMs: int(fx.pourMs, 10, 2000, def.fx.pourMs),
         burstMs: int(fx.burstMs, 10, 2000, def.fx.burstMs),
+        scale: r2(clamp(fx.scale, 0.1, 3, def.fx.scale ?? 0.75)),
       },
       wither: cleanSprite(source.wither) ?? null,
+      witherScale: r2(clamp(source.witherScale, 0.1, 3, def.witherScale ?? 1)),
     };
   }
 
@@ -1390,8 +1394,10 @@ export class FarmCatalog {
           burst: [...this.store.status.fx.burst],
           pourMs: this.store.status.fx.pourMs,
           burstMs: this.store.status.fx.burstMs,
+          scale: this.store.status.fx.scale,
         },
         wither: this.store.status.wither,
+        witherScale: this.store.status.witherScale,
         witherPreview: this.store.status.wither ?? 'sprite_crop_wither_universal',
         defaults: this.builtinStatus(),
       },

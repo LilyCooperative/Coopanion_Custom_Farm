@@ -1110,8 +1110,10 @@ export function overlayView(state) {
       burst: [...(live.status.fx?.burst ?? [])],
       pourMs: Number(live.status.fx?.pourMs ?? 70),
       burstMs: Number(live.status.fx?.burstMs ?? 80),
+      scale: Number(live.status.fx?.scale ?? 0.75),
     } : null,
     wither: live.status?.wither ?? null,
+    witherScale: Number(live.status?.witherScale ?? 1),
     inventory: { total, items: inventory },
     prices: Object.fromEntries(Object.values(live.items ?? {}).filter((it) => it.sell > 0).map((it) => [it.id, it.sell])),
     itemIcons: { ...live.itemIcons },
@@ -1179,7 +1181,9 @@ export function overlayView(state) {
         name: crop.name,
         prefix: crop.prefix,
         frame,
-        sprite: crop.spriteNames?.[Math.min(p.level, crop.stages - 1)] ?? null,
+        sprite: p.dead
+          ? (live.status?.wither ?? 'sprite_crop_wither_universal')
+          : (crop.spriteNames?.[Math.min(p.level, crop.stages - 1)] ?? null),
         level: p.level,
         levels: crop.levels,
         stages: crop.stages,
