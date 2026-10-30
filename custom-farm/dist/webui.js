@@ -2990,6 +2990,9 @@ function animalsPanel(ctx) {
     walkSpeed: zh ? '移动速度（屏幕%/秒）' : 'Move speed (% screen/sec)',
     walkRange: zh ? '默认活动范围' : 'Default range',
     product: zh ? '产物道具' : 'Product item',
+    productName: zh ? '产物名字' : 'Product name',
+    productId: zh ? '产物道具 ID' : 'Product item ID',
+    changeIcon: zh ? '换图标' : 'Change icon',
     everyDays: zh ? '产物间隔（游戏日）' : 'Product interval (game days)',
     count: zh ? '产物数量' : 'Product count',
     prices: zh ? '价格（幼崽买 / 幼崽卖 / 成年卖）' : 'Prices (baby buy / baby sell / adult sell)',
@@ -3038,6 +3041,19 @@ function animalsPanel(ctx) {
     if (!path) return;
     try {
       await ctx.invoke('importAnimalSprite', [speciesKey, stageIndex, action, frameIndex, path]);
+      snap = await ctx.invoke('state');
+      render();
+      ui.toast(T.saved);
+    } catch (err) {
+      ui.toast((err && err.message) || String(err), 'bad');
+    }
+  }
+
+  async function changeProductIcon(speciesKey, stageIndex) {
+    const path = await pickPng();
+    if (!path) return;
+    try {
+      await ctx.invoke('importProductIcon', [speciesKey, stageIndex, path]);
       snap = await ctx.invoke('state');
       render();
       ui.toast(T.saved);
@@ -3117,11 +3133,18 @@ function animalsPanel(ctx) {
         };
         prodRow.append(
           prodOn.el,
-          ui.field(T.product, txt(prod.item, (v) => setProd('item', v))),
+          ui.field(T.productName, txt(prod.name, (v) => setProd('name', v))),
+          ui.field(T.productId, txt(prod.item, (v) => setProd('item', v))),
           ui.field(T.everyDays, num(prod.everyDays, (v) => setProd('everyDays', v), '0.05')),
           ui.field(T.count, num(prod.count, (v) => setProd('count', v), '1')),
         );
-        sheet.body.append(prodRow);
+        const iconRow = ui.h('div', 'cf-row');
+        iconRow.append(ui.h('span', 'cf-note', T.productName), thumb(prod.icon, 32));
+        iconRow.append(ui.button(T.changeIcon, {
+          size: 'sm',
+          onClick: () => void changeProductIcon(sp.key, si),
+        }));
+        sheet.body.append(prodRow, iconRow);
 
         for (const action of ['idle', 'walk', 'peck']) {
           const frames = st.sprites?.[action];

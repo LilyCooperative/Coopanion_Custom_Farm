@@ -268,15 +268,16 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
     live.items.tomato.effects[0]?.state === 'st_satiety' && live.items.tomato.effects[0].delta === 20);
   const deco = cat.saveItem({ kind: 'decor', name: '测试装饰', buy: 10, sell: 5, icon: 'icon_item_soil', sprite: 'icon_item_soil', layer: 'top' });
   check('目录：新增装饰道具', Boolean(deco) && cat.items.some((it) => it.id === deco.id) && deco.layer === 'top');
-  const foodIds = ['rice_ear', 'rice', 'egg', 'meat', 'egg_fried_rice', 'item_15', 'pasta'];
-  check('目录：食材/菜谱道具和价格（含意面）', foodIds.every((id) => cat.items.some((it) => it.id === id)) &&
+  const foodIds = ['rice', 'egg', 'meat', 'egg_fried_rice', 'item_15', 'pasta'];
+  check('目录：食材/菜谱道具和价格（含意面，稻穗已下架）', foodIds.every((id) => cat.items.some((it) => it.id === id)) &&
+    !cat.items.some((it) => it.id === 'rice_ear') &&
     cat.items.find((it) => it.id === 'item_15')?.buy === 0 &&
     cat.items.find((it) => it.id === 'egg_fried_rice')?.buy === 0 &&
     cat.items.find((it) => it.id === 'pasta')?.buy === 0 &&
     !cat.items.some((it) => it.id === 'flour') &&
     cat.items.find((it) => it.id === 'egg')?.buy === 6,
     JSON.stringify(cat.items.filter((it) => foodIds.includes(it.id)).map((it) => [it.id, it.buy, it.sell])));
-  check('目录：4 张食物合成表（含肉酱意面）', ['recipe_rice', 'recipe_egg_fried_rice', 'recipe_tomato_egg', 'recipe_pasta']
+  check('目录：3 张食物合成表（含肉酱意面）', ['recipe_egg_fried_rice', 'recipe_tomato_egg', 'recipe_pasta']
     .every((id) => cat.recipes.some((r) => r.id === id)), JSON.stringify(cat.recipes));
   const recipeBase = cat.recipes.length;
   const customRecipe = cat.saveRecipe({ inputs: [{ item: 'tomato', count: 2 }], output: { item: deco.id, count: 1 } });

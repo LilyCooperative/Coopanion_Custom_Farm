@@ -2209,6 +2209,10 @@ export class FarmWorld {
         const r = catalog.importAnimalSprite(args?.[0], args?.[1], args?.[2], args?.[3], args?.[4]);
         return { ...this.#animalSnapshot(), ...r };
       }
+      case 'importProductIcon': {
+        const r = catalog.importAnimalProductIcon(args?.[0], args?.[1], args?.[2]);
+        return { ...this.#animalSnapshot(), ...r };
+      }
       case 'place': {
         const input = args?.[0] && typeof args[0] === 'object' ? args[0] : { item: args?.[0], x: args?.[1], range: args?.[2] };
         const itemId = String(input.item ?? '');

@@ -38,13 +38,13 @@ export function builtinAnimals() {
     prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
     stages: [
       {
-        key: 'chick', name: '幼崽', days: 1.5, scale: 0.16, prefix: 'animal_chicken_chick',
+        key: 'chick', name: '幼崽', days: 1.5, scale: 0.12, prefix: 'animal_chicken_chick',
         item: 'animal_chicken_chick', product: null,
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_chick', a)])),
       },
       {
-        key: 'hen', name: '成年', days: 0, scale: 0.2, prefix: 'animal_chicken_hen',
-        item: 'animal_chicken_hen', product: { item: 'egg', everyDays: 0.5, count: 1 },
+        key: 'hen', name: '成年', days: 0, scale: 0.15, prefix: 'animal_chicken_hen',
+        item: 'animal_chicken_hen', product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 0.5, count: 1 },
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_hen', a)])),
       },
     ],
@@ -76,6 +76,8 @@ export function normalizeAnimal(src, index = 0) {
   if (!actions.some((a) => a.key === 'walk')) actions.push({ key: 'walk', name: '走路', weight: 10 });
   const productDefaults = {
     item: String(src.product?.item ?? 'egg').trim().slice(0, 40),
+    name: String(src.product?.name ?? '鸡蛋').trim().slice(0, 24),
+    icon: cleanSprite(src.product?.icon) ?? 'icon_item_egg',
     everyDays: clamp(src.product?.everyDays, 0.01, 1000, 0.5),
     count: int(src.product?.count, 1, 99, 1),
   };
@@ -93,6 +95,8 @@ export function normalizeAnimal(src, index = 0) {
       else if (s?.product && typeof s.product === 'object') {
         product = {
           item: String(s.product.item ?? productDefaults.item).trim().slice(0, 40),
+          name: String(s.product.name ?? productDefaults.name).trim().slice(0, 24),
+          icon: cleanSprite(s.product.icon) ?? productDefaults.icon,
           everyDays: clamp(s.product.everyDays, 0.01, 1000, productDefaults.everyDays),
           count: int(s.product.count, 1, 99, productDefaults.count),
         };

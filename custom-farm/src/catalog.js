@@ -59,7 +59,6 @@ const DEFAULT_FOOD_EFFECTS = {
   red_chili: { satiety: 5, mood: 3 },
   red_onion: { satiety: 8, mood: 1 },
   watermelon: { satiety: 24, mood: 7 },
-  rice_ear: { satiety: 8, mood: 1 },
   rice: { satiety: 30, mood: 3 },
   egg: { satiety: 10, mood: 2 },
   meat: { satiety: 20, mood: 2 },
@@ -161,7 +160,6 @@ export class FarmCatalog {
   /** Grok 画的食物/食材图标。菜品 buy=0（只在合成表里出）。 */
   builtinFoodItems() {
     return [
-      { id: 'rice_ear', name: '稻穗', buy: 8, sell: 2, icon: 'icon_item_rice_ear', effects: this.defaultItemEffects('rice_ear') },
       { id: 'rice', name: '大米', buy: 15, sell: 4, icon: 'icon_item_rice', effects: this.defaultItemEffects('rice') },
       { id: 'egg', name: '鸡蛋', buy: 6, sell: 2, icon: 'icon_item_egg', effects: this.defaultItemEffects('egg') },
       { id: 'meat', name: '鲜肉', buy: 22, sell: 6, icon: 'icon_item_meat', effects: this.defaultItemEffects('meat') },
@@ -173,7 +171,6 @@ export class FarmCatalog {
 
   builtinFoodRecipes() {
     return [
-      { id: 'recipe_rice', inputs: [{ item: 'rice_ear', count: 1 }], output: { item: 'rice', count: 1 } },
       { id: 'recipe_egg_fried_rice', inputs: [{ item: 'egg', count: 1 }, { item: 'rice', count: 1 }], output: { item: 'egg_fried_rice', count: 1 } },
       { id: 'recipe_tomato_egg', inputs: [{ item: 'egg', count: 1 }, { item: 'tomato', count: 1 }], output: { item: 'item_15', count: 1 } },
       { id: 'recipe_pasta', inputs: [{ item: 'meat', count: 1 }, { item: 'tomato', count: 1 }], output: { item: 'pasta', count: 1 } },
@@ -267,35 +264,67 @@ export class FarmCatalog {
     this.persist();
   }
 
+  /** 动物阶段产物：在动物页设置名字/图标，道具页只保留价格和效果。 */
+  ensureAnimalProductItem(product, species, stageIndex) {
+    if (!product || typeof product !== 'object') return null;
+    const items = this.store.items ?? (this.store.items = []);
+    let id = String(product.item ?? '').trim();
+    if (!id) id = 'animal_' + species.key + '_' + (species.stages?.[stageIndex]?.key ?? stageIndex) + '_product';
+    let item = items.find((it) => it.id === id);
+    const name = String(product.name ?? '').trim().slice(0, 24) || (species.name + '产物');
+    const icon = cleanSprite(product.icon) ?? item?.icon ?? 'icon_item_soil';
+    if (!item) {
+      item = this.normalizeItem({
+        id, name, kind: 'consumable', buy: 0, sell: 0,
+        icon, consumable: true, effects: [], animalProduct: true,
+      }, items.length, this.store.states ?? []);
+      if (item) items.push(item);
+    } else {
+      item.name = name;
+      item.icon = icon;
+      item.animalProduct = true;
+    }
+    product.item = id;
+    product.name = name;
+    product.icon = icon;
+    return item;
+  }
+
   /** 补默认鸡、幼崽/成年道具和蛋的「动物产品」标记。 */
   ensureAnimals() {
-    if (!this.store || this.store.seededAnimals) return;
-    if (!Array.isArray(this.store.animals) || !this.store.animals.length) {
-      this.store.animals = builtinAnimals();
-    }
+    if (!this.store) return;
     const items = this.store.items ?? (this.store.items = []);
-    for (const species of this.store.animals) {
-      for (const stage of species.stages ?? []) {
-        if (!stage.item || items.some((it) => it.id === stage.item)) continue;
-        const idx = species.stages.indexOf(stage);
-        const isAdult = idx === species.stages.length - 1;
-        const item = this.normalizeItem({
-          id: stage.item,
-          name: species.name + (isAdult ? '（成年）' : '（幼崽）'),
-          kind: 'animal',
-          buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
-          sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
-          icon: stage.sprites?.idle?.[0] ?? 'icon_item_soil',
-          consumable: false,
-          animalSpecies: species.key,
-          animalStage: idx,
-        }, items.length, this.store.states);
-        if (item) items.push(item);
+    if (!this.store.seededAnimals) {
+      if (!Array.isArray(this.store.animals) || !this.store.animals.length) {
+        this.store.animals = builtinAnimals();
+      }
+      for (const species of this.store.animals) {
+        for (let i = 0; i < (species.stages ?? []).length; i++) {
+          const stage = species.stages[i];
+          if (!stage.item || items.some((it) => it.id === stage.item)) continue;
+          const isAdult = i === species.stages.length - 1;
+          const item = this.normalizeItem({
+            id: stage.item,
+            name: species.name + (isAdult ? '（成年）' : '（幼崽）'),
+            kind: 'animal',
+            buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
+            sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
+            icon: stage.sprites?.idle?.[0] ?? 'icon_item_soil',
+            consumable: false,
+            animalSpecies: species.key,
+            animalStage: i,
+          }, items.length, this.store.states);
+          if (item) items.push(item);
+        }
+      }
+      this.store.seededAnimals = true;
+    }
+    // 已存在的动物也要补齐/同步阶段产物道具的名字和图标。
+    for (const species of this.store.animals ?? []) {
+      for (let i = 0; i < (species.stages ?? []).length; i++) {
+        if (species.stages[i].product) this.ensureAnimalProductItem(species.stages[i].product, species, i);
       }
     }
-    const egg = items.find((it) => it.id === 'egg');
-    if (egg) egg.animalProduct = true;
-    this.store.seededAnimals = true;
     this.persist();
   }
 
@@ -580,22 +609,15 @@ export class FarmCatalog {
   }
 
   /** 小麦/面粉没有免费图标，整条链下架；意面改用肉 + 番茄的配方保留。 */
-  /** 稻穗容易被误删；它是稻米链的入口，始终保留一个默认道具。 */
+  /** 稻穗已下架：删掉旧道具和依赖它的配方。 */
   ensureRiceEar() {
     if (!this.store) return;
-    const list = this.store.items ?? [];
-    if (list.some((it) => it.id === 'rice_ear')) return;
-    const def = this.builtinFoodItems().find((it) => it.id === 'rice_ear');
-    if (!def) return;
-    const item = this.normalizeItem({ ...def, kind: 'consumable', consumable: true, effects: def.effects ?? [] }, list.length, this.store.states ?? []);
-    if (item) {
-      list.push(item);
-      if (!(this.store.recipes ?? []).some((r) => r.id === 'recipe_rice')) {
-        const recipe = this.normalizeRecipe(this.builtinFoodRecipes().find((r) => r.id === 'recipe_rice'), this.store.recipes.length);
-        if (recipe) this.store.recipes.push(recipe);
-      }
-      this.persist();
-    }
+    const beforeItems = this.store.items?.length ?? 0;
+    const beforeRecipes = this.store.recipes?.length ?? 0;
+    this.store.items = (this.store.items ?? []).filter((it) => it.id !== 'rice_ear');
+    this.store.recipes = (this.store.recipes ?? []).filter((r) =>
+      r.id !== 'recipe_rice' && r.output?.item !== 'rice_ear' && !(r.inputs ?? []).some((x) => x.item === 'rice_ear'));
+    if ((this.store.items?.length ?? 0) !== beforeItems || (this.store.recipes?.length ?? 0) !== beforeRecipes) this.persist();
   }
 
   ensureRemovedFood() {
@@ -1263,6 +1285,17 @@ export class FarmCatalog {
     return { sprite: r.sprite, width: r.width, height: r.height };
   }
 
+  importAnimalProductIcon(key, stageIndex, srcPath) {
+    const animal = (this.store.animals ?? []).find((a) => a.key === String(key));
+    const stage = animal?.stages?.[Number(stageIndex)];
+    if (!stage?.product) throw new Error('这个阶段还没有配置产物。');
+    const r = this.copySprite(srcPath, 'animal_product', key + '_' + stageIndex + '_icon', 0);
+    stage.product.icon = r.sprite;
+    this.persist();
+    this.apply();
+    return { sprite: r.sprite, width: r.width, height: r.height };
+  }
+
   importSprite(kind, key, slot, srcPath) {
     return this.copySprite(srcPath, kind, key, slot);
   }
@@ -1603,6 +1636,9 @@ export class FarmCatalog {
     for (const id of productIds) {
       const item = this.store.items?.find((it) => it.id === id);
       if (item) item.animalProduct = true;
+    }
+    for (let i = 0; i < normalized.stages.length; i++) {
+      if (normalized.stages[i].product) this.ensureAnimalProductItem(normalized.stages[i].product, normalized, i);
     }
     this.persist();
     this.apply();
