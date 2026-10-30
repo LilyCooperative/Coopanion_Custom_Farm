@@ -1,7 +1,7 @@
 {
   "tools": [
     {
-      "name": "farm_status",
+      "name": "cfarm_status",
       "description": "查看田地：每棵作物的位置 xPct（屏幕底部百分比）、等级、成熟进度、水分、是否熟了/枯萎了、还能收几次，以及背包里有什么、地上掉了什么、野草有几丛/哪些能收、摆放的装饰物在哪个位置、主人自定义的状态（数值 + 开关）当前是多少。最后一行「最近田里的变化」会列出最近少掉的棵和原因——田空了先看这行，别当成存档被清。想知道情况就查这个，田地不会主动推送生长进度。",
       "parameters": {
         "type": "object",
@@ -17,7 +17,7 @@
       }
     },
     {
-      "name": "farm_stand",
+      "name": "cfarm_stand",
       "description": "站到某个位置。at 必填：先用桌宠自己的 pet_move_to 走过去，再把到达的位置（回执里那个百分比除以 100）填进 at。给了 plot 还会顺便校验你有没有真的站到那棵旁边。播种、收割、捡东西都要靠它放行。",
       "parameters": {
         "type": "object",
@@ -47,8 +47,8 @@
       }
     },
     {
-      "name": "farm_plant",
-      "description": "在脚下种一棵。必须先用 pet_move_to 走过去并 farm_stand 报好位置。种一棵要消耗 1 包对应种子（背包里的 seed_tomato 这种）；没有种子就自己补 1~2 包（farm_shop 看价、farm_buy 买），不用问主人。crop 可以填作物名（番茄/南瓜/玉米/土豆/草莓/小白菜等），不填就按轮作自动选；x 不填就种在脚下，也可以自己指定 0~1，但必须在当前农田范围内（农田始终以屏幕中心为中线，宽度可调）。默认允许轻微重叠，太挤会被拒绝并告诉你已经种在哪些百分比。",
+      "name": "cfarm_plant",
+      "description": "在脚下种一棵。必须先用 pet_move_to 走过去并 cfarm_stand 报好位置。种一棵要消耗 1 包对应种子（背包里的 seed_tomato 这种）；没有种子就自己补 1~2 包（cfarm_shop 看价、cfarm_buy 买），不用问主人。crop 可以填作物名（番茄/南瓜/玉米/土豆/草莓/小白菜等），不填就按轮作自动选；x 不填就种在脚下，也可以自己指定 0~1，但必须在当前农田范围内（农田始终以屏幕中心为中线，宽度可调）。默认允许轻微重叠，太挤会被拒绝并告诉你已经种在哪些百分比。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -74,8 +74,8 @@
       }
     },
     {
-      "name": "farm_water",
-      "description": "浇水：走到一棵旁边（先 pet_move_to + farm_stand），一次把够得着的这一片全浇透（含旁边几棵，不用一株一株浇）。给 plot 就以那棵为中心，省略就以你站的位置为中心。已经浇透的会跳过。太久不浇会枯萎，枯了浇不活，要拔掉重种。",
+      "name": "cfarm_water",
+      "description": "浇水：走到一棵旁边（先 pet_move_to + cfarm_stand），一次把够得着的这一片全浇透（含旁边几棵，不用一株一株浇）。给 plot 就以那棵为中心，省略就以你站的位置为中心。已经浇透的会跳过。太久不浇会枯萎，枯了浇不活，要拔掉重种。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -95,8 +95,8 @@
       }
     },
     {
-      "name": "farm_harvest",
-      "description": "收割脚下这棵熟的作物，或者一丛长成、带收获物的杂草。产物会掉在地上，不会直接进背包——收完再 farm_collect 才拿到手。必须站过去。番茄能收 4 次、草莓 5 次，收完退回中间等级继续长；小麦/土豆/卷心菜/玉米/南瓜只能收 1 次，收完就拔掉（所以收一次地里就少一棵，不是 bug）。杂草要长到最高阶段才收得动；没配收获物的杂草只能靠 farm_plant 铲掉。",
+      "name": "cfarm_harvest",
+      "description": "收割脚下这棵熟的作物，或者一丛长成、带收获物的杂草。产物会掉在地上，不会直接进背包——收完再 cfarm_collect 才拿到手。必须站过去。番茄能收 4 次、草莓 5 次，收完退回中间等级继续长；小麦/土豆/卷心菜/玉米/南瓜只能收 1 次，收完就拔掉（所以收一次地里就少一棵，不是 bug）。杂草要长到最高阶段才收得动；没配收获物的杂草只能靠 cfarm_plant 铲掉。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -111,12 +111,12 @@
         "write"
       ],
       "summary": {
-        "zh": "收脚下这棵熟的，产物掉在地上，要用 farm_collect 捡。",
+        "zh": "收脚下这棵熟的，产物掉在地上，要用 cfarm_collect 捡。",
         "en": "Harvest the ripe plant at your feet; the produce drops on the ground and must be collected."
       }
     },
     {
-      "name": "farm_pull",
+      "name": "cfarm_pull",
       "description": "拔掉一棵枯萎的作物（要站在它跟前）。枯萎的作物浇不活，只能拔掉重种；拔的时候会冒一团烟。",
       "parameters": {
         "type": "object",
@@ -133,7 +133,7 @@
       ]
     },
     {
-      "name": "farm_sell",
+      "name": "cfarm_sell",
       "description": "把背包里有出售价的道具卖掉换金币（作物/种子/消耗品/装饰）。没在「道具自定义」里设出售价的不能卖。不给 count 就全卖。",
       "parameters": {
         "type": "object",
@@ -157,7 +157,7 @@
       ]
     },
     {
-      "name": "farm_shop",
+      "name": "cfarm_shop",
       "description": "看商店：列出所有设了购买价的种子/消耗品/装饰（买价、卖价）。没设购买价的不在商店；没设出售价的不能卖。",
       "parameters": {
         "type": "object",
@@ -181,8 +181,8 @@
       ]
     },
     {
-      "name": "farm_buy",
-      "description": "买设了购买价的道具（种子/消耗品/装饰）：id 是道具 id（seed_tomato），count 一次买几个；也可以 items:[{id,count}] 一次买多种。买来先进背包；装饰要再用 farm_place 摆。种子不够可以自己补 1~2 包，不用问；买装饰/大件先问主人。",
+      "name": "cfarm_buy",
+      "description": "买设了购买价的道具（种子/消耗品/装饰）：id 是道具 id（seed_tomato），count 一次买几个；也可以 items:[{id,count}] 一次买多种。买来先进背包；装饰要再用 cfarm_place 摆。种子不够可以自己补 1~2 包，不用问；买装饰/大件先问主人。",
       "parameters": {
         "type": "object",
         "properties": {
@@ -221,7 +221,7 @@
       ]
     },
     {
-      "name": "farm_place",
+      "name": "cfarm_place",
       "description": "把背包里的装饰道具放到农场地面上（消耗 1 个）。「上」层装饰和杂草同层，会清掉落点杂草；「下」层在作物后方、不清草。x 不填就放在你当前站的位置。必须先买/合成到背包里，且道具在「道具自定义」里配了摆放贴图。",
       "parameters": {
         "type": "object",
@@ -245,8 +245,8 @@
       ]
     },
     {
-      "name": "farm_collect",
-      "description": "把脚下够得着的掉落物收进背包。必须站过去（先 farm_stand 报位置）。地上没有就报错并告诉你掉落物在哪些百分比。",
+      "name": "cfarm_collect",
+      "description": "把脚下够得着的掉落物收进背包。必须站过去（先 cfarm_stand 报位置）。地上没有就报错并告诉你掉落物在哪些百分比。",
       "parameters": {
         "type": "object",
         "properties": {}
@@ -260,7 +260,7 @@
       }
     },
     {
-      "name": "farm_consume",
+      "name": "cfarm_consume",
       "description": "吃掉背包里的作物 / 杂草收获物，用来缓解「饥饿」这类状态。需要主人先在「状态自定义」里配好消耗行为（触发状态 + 可消耗道具 + 状态效果）。item 不填就自动挑背包里第一种可吃的；count 默认 1。吃掉后会按配置加减状态值（通常是饱食度）。",
       "parameters": {
         "type": "object",
@@ -287,7 +287,7 @@
       }
     },
     {
-      "name": "farm_craft",
+      "name": "cfarm_craft",
       "description": "按「道具合成表」消耗背包里的材料合成道具。recipe 填合成表 id；不填就列出所有合成表和材料。材料不够会报缺什么。",
       "parameters": {
         "type": "object",
@@ -336,8 +336,8 @@
     {
       "type": "farm.state",
       "description": {
-        "zh": "自定义状态触发消耗行为：比如「饥饿」生效时自动吃掉一个作物（正文写明吃了什么、状态变化），或者提醒桌宠用 farm_consume 去吃；背包里没有可吃道具时也会提醒。",
-        "en": "A custom state triggered a consume action: e.g. hunger ate a crop (the text says what and the state change), or asks the pet to use farm_consume; also fires when nothing edible is in the bag."
+        "zh": "自定义状态触发消耗行为：比如「饥饿」生效时自动吃掉一个作物（正文写明吃了什么、状态变化），或者提醒桌宠用 cfarm_consume 去吃；背包里没有可吃道具时也会提醒。",
+        "en": "A custom state triggered a consume action: e.g. hunger ate a crop (the text says what and the state change), or asks the pet to use cfarm_consume; also fires when nothing edible is in the bag."
       },
       "trigger": "debounce"
     },

@@ -6,35 +6,35 @@ import { DEFAULTS, overlayView, summary } from './farm.js';
 import { FARM_TOOL_DECLS, FarmWorld, screenOptions } from './world.js';
 
 const TOOL_SUMMARIES = {
-  farm_status: {
+  cfarm_status: {
     zh: '看田：每棵作物的位置、等级、进度、水分、是否可收/枯萎，外加背包、地上的掉落物、摆放的装饰物位置和最近田里的变化（少了哪棵、为什么）。',
     en: 'Show every plant (position, level, progress, moisture, ripe/wilted) plus the bag, the drops, placed decorations and recent field changes (which plant is gone and why).',
   },
-  farm_stand: {
+  cfarm_stand: {
     zh: '站到某个位置（at 必填），播种/收割/捡东西都要先站过去。',
     en: 'Stand at a position (at is required); planting, harvesting and collecting all need it.',
   },
-  farm_plant: {
+  cfarm_plant: {
     zh: '在脚下种一棵：要消耗 1 包对应种子（种子在背包里，没有就自己补 1~2 包），位置可自己挑，两棵不能重叠。',
     en: 'Plant one at your feet; consumes one seed pack from the bag (restock 1–2 packs yourself if empty), position optional, no overlap.',
   },
-  farm_water: {
+  cfarm_water: {
     zh: '浇水：一次浇透脚下够得着的一片（含旁边几棵），已经浇透的会跳过。',
     en: 'Water the whole reachable patch in one call (neighbours included); already-full plants are skipped.',
   },
-  farm_harvest: {
-    zh: '收脚下这棵熟的，产物掉在地上，要用 farm_collect 捡。',
+  cfarm_harvest: {
+    zh: '收脚下这棵熟的，产物掉在地上，要用 cfarm_collect 捡。',
     en: 'Harvest the ripe plant at your feet; the produce drops on the ground and must be collected.',
   },
-  farm_collect: {
+  cfarm_collect: {
     zh: '把脚下的掉落物收进背包。',
     en: 'Pick up the drops around your feet into the bag.',
   },
-  farm_consume: {
+  cfarm_consume: {
     zh: '吃掉背包里的作物/杂草收获物，缓解「饥饿」这类状态（要主人在状态自定义里配好消耗行为）。',
     en: 'Eat a crop/weed produce to relieve states like hunger (configured in the status page).',
   },
-  farm_craft: {
+  cfarm_craft: {
     zh: '按「道具合成表」消耗背包材料合成道具；不填 recipe 就列出所有表。',
     en: 'Craft from the configured recipes; without recipe it lists all recipes.',
   },
@@ -116,15 +116,15 @@ export const farmDefinition = {
       {
         type: 'farm.state',
         description: {
-          zh: '自定义状态进入「桌宠主动消耗」时触发：正文列出消耗品池里当前可用的道具，让桌宠自己用 farm_consume 挑；随机消耗不推这条事件。',
-          en: 'A custom state in pet-choice consume mode fires: the text lists available items so the pet can pick one with farm_consume; random consume does not emit this event.',
+          zh: '自定义状态进入「桌宠主动消耗」时触发：正文列出消耗品池里当前可用的道具，让桌宠自己用 cfarm_consume 挑；随机消耗不推这条事件。',
+          en: 'A custom state in pet-choice consume mode fires: the text lists available items so the pet can pick one with cfarm_consume; random consume does not emit this event.',
         },
         trigger: 'debounce',
       },
       {
         type: 'farm.product',
         description: {
-          zh: '动物产物掉在地上；正文写明产物、数量和屏幕位置，提示走过去 farm_stand 再 farm_collect。',
+          zh: '动物产物掉在地上；正文写明产物、数量和屏幕位置，提示走过去 cfarm_stand 再 cfarm_collect。',
           en: 'An animal product dropped on the ground; the text names it, its amount and position, and says to walk over and collect.',
         },
         trigger: 'debounce',

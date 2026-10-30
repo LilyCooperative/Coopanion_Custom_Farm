@@ -614,7 +614,7 @@ export function plant(state, { x, crop, cfg = DEFAULTS, random = Math.random } =
     throw new Error(
       '没有' + (CROPS[key]?.name ?? key) + '种子（' + seedId + (seed ? '，' + seed.buy + ' 金币/包' : '') + '）。' +
       '自己补 1~2 包：' + (alt ? '或者先种' + alt.name.replace(/种子$/, '') + '（' + alt.buy + ' 金币/包）；' : '') +
-      '买的话 farm_buy {id:"' + seedId + '", count:1}。',
+      '买的话 cfarm_buy {id:"' + seedId + '", count:1}。',
     );
   }
   // 播种会把脚下这丛野草铲掉（图层放破坏特效）
@@ -634,7 +634,7 @@ export function plant(state, { x, crop, cfg = DEFAULTS, random = Math.random } =
 }
 
 /**
- * 播种前把脚下枯掉的植株清掉（默认行为：桌宠不用为一棵枯株单独 farm_pull）。
+ * 播种前把脚下枯掉的植株清掉（默认行为：桌宠不用为一棵枯株单独 cfarm_pull）。
  * 只动 REACH 范围内、确实枯了的；返回清掉几棵，并记进田地大事记。
  */
 export function removeDeadAt(state, x) {
@@ -1009,7 +1009,7 @@ export function harvestWeed(state, cfg = DEFAULTS, weedId = null, random = Math.
     throw new Error(type.name + ' 还没长成（' + (lv + 1) + '/' + type.stages + ' 阶段），等它长到最高阶段再收。');
   }
   if (!type.item || Number(type.value) <= 0) {
-    throw new Error(type.name + ' 没有可收的产物；走过去 farm_plant 会把它铲掉。');
+    throw new Error(type.name + ' 没有可收的产物；走过去 cfarm_plant 会把它铲掉。');
   }
   const dirSign = random() < 0.5 ? -1 : 1;
   const dist = 0.012 + random() * 0.028;
@@ -1036,7 +1036,7 @@ export function harvestWeed(state, cfg = DEFAULTS, weedId = null, random = Math.
 /** 把够得着的掉落物收进背包。 */
 export function collect(state, cfg = DEFAULTS, at = null) {
   const here = Number.isFinite(Number(at)) ? Number(at) : Number(state.standingAt);
-  if (!Number.isFinite(here)) throw new Error('不知道你在哪：先走到掉落物旁边，farm_stand 时把 at 报上来。');
+  if (!Number.isFinite(here)) throw new Error('不知道你在哪：先走到掉落物旁边，cfarm_stand 时把 at 报上来。');
   const taken = [];
   const stay = [];
   for (const drop of state.drops) {

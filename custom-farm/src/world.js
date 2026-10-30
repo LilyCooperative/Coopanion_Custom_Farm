@@ -5,12 +5,12 @@
  * 熟了不发光：收下来的东西**掉在地上**，桌宠要走过去捡，捡起来才进背包。
  * 太久不浇水会枯萎；生长周期直接用真实配置数据（src/crops.js）。
  *
- *    farm_status    看田、看背包、看地上掉了什么
- *    farm_stand     站到某个位置（at 必填，来自 pet_move_to）
- *    farm_plant     在脚下种一棵（位置可自己挑，也可让世界随机）
- *    farm_water     浇水（先走到跟前，一次浇一片）
- *    farm_harvest   收脚下这棵，产物掉在地上
- *    farm_collect   把脚下的掉落物收进背包
+ *    cfarm_status    看田、看背包、看地上掉了什么
+ *    cfarm_stand     站到某个位置（at 必填，来自 pet_move_to）
+ *    cfarm_plant     在脚下种一棵（位置可自己挑，也可让世界随机）
+ *    cfarm_water     浇水（先走到跟前，一次浇一片）
+ *    cfarm_harvest   收脚下这棵，产物掉在地上
+ *    cfarm_collect   把脚下的掉落物收进背包
  *
  * 刷新是纯代码 tick，只有「缺水 / 熟了 / 需要吃东西」才 pushEvent；
  * 「新的一天」要 dailyEvent=true 才推，绝不因刷新本身唤醒模型。
@@ -93,13 +93,13 @@ const CROP_LIST = () => Object.values(CROPS).map((c) => c.name + '(' + c.key + '
 
 export const FARM_TOOL_DECLS = [
   {
-    name: 'farm_status',
+    name: 'cfarm_status',
     tags: ['read', 'snapshot'],
     description: '查看田地：每棵作物的位置 xPct（屏幕底部百分比）、等级、成熟进度、水分、是否熟了/枯萎了、还能收几次，以及背包里有什么、地上掉了什么、野草有几丛/哪些能收、摆放的装饰物在哪个位置、主人自定义的状态（数值 + 开关）当前是多少。最后一行「最近田里的变化」会列出最近少掉的棵和原因——田空了先看这行，别当成存档被清。想知道情况就查这个，田地不会主动推送生长进度。',
     parameters: { type: 'object', properties: {} },
   },
   {
-    name: 'farm_stand',
+    name: 'cfarm_stand',
     tags: ['write'],
     description: '站到某个位置。at 必填：先用桌宠自己的 pet_move_to 走过去，再把到达的位置（回执里那个百分比除以 100）填进 at。给了 plot 还会顺便校验你有没有真的站到那棵旁边。播种、收割、捡东西都要靠它放行。',
     parameters: {
@@ -113,9 +113,9 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_plant',
+    name: 'cfarm_plant',
     tags: ['write'],
-    description: '在脚下种一棵。必须先用 pet_move_to 走过去并 farm_stand 报好位置。种一棵要消耗 1 包对应种子（背包里的 seed_tomato 这种）；没有种子就自己补 1~2 包（farm_shop 看价、farm_buy 买），不用问主人。crop 可以填作物名（番茄/南瓜/玉米/土豆/草莓/小白菜等），不填就按轮作自动选；x 不填就种在脚下，也可以自己指定 0~1，但必须在当前农田范围内（农田始终以屏幕中心为中线，宽度可调）。默认允许轻微重叠，太挤会被拒绝并告诉你已经种在哪些百分比。',
+    description: '在脚下种一棵。必须先用 pet_move_to 走过去并 cfarm_stand 报好位置。种一棵要消耗 1 包对应种子（背包里的 seed_tomato 这种）；没有种子就自己补 1~2 包（cfarm_shop 看价、cfarm_buy 买），不用问主人。crop 可以填作物名（番茄/南瓜/玉米/土豆/草莓/小白菜等），不填就按轮作自动选；x 不填就种在脚下，也可以自己指定 0~1，但必须在当前农田范围内（农田始终以屏幕中心为中线，宽度可调）。默认允许轻微重叠，太挤会被拒绝并告诉你已经种在哪些百分比。',
     parameters: {
       type: 'object',
       properties: {
@@ -126,9 +126,9 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_water',
+    name: 'cfarm_water',
     tags: ['write'],
-    description: '浇水：走到一棵旁边（先 pet_move_to + farm_stand），一次把够得着的这一片全浇透（含旁边几棵，不用一株一株浇）。给 plot 就以那棵为中心，省略就以你站的位置为中心。已经浇透的会跳过。太久不浇会枯萎，枯了浇不活，要拔掉重种。',
+    description: '浇水：走到一棵旁边（先 pet_move_to + cfarm_stand），一次把够得着的这一片全浇透（含旁边几棵，不用一株一株浇）。给 plot 就以那棵为中心，省略就以你站的位置为中心。已经浇透的会跳过。太久不浇会枯萎，枯了浇不活，要拔掉重种。',
     parameters: {
       type: 'object',
       properties: {
@@ -138,9 +138,9 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_harvest',
+    name: 'cfarm_harvest',
     tags: ['write'],
-    description: '收割脚下这棵熟的作物，或者一丛长成、带收获物的杂草。产物会掉在地上，不会直接进背包——收完再 farm_collect 才拿到手。必须站过去。番茄能收 4 次、草莓 5 次，收完退回中间等级继续长；小麦/土豆/卷心菜/玉米/南瓜只能收 1 次，收完就拔掉（所以收一次地里就少一棵，不是 bug）。杂草要长到最高阶段才收得动；没配收获物的杂草只能靠 farm_plant 铲掉。',
+    description: '收割脚下这棵熟的作物，或者一丛长成、带收获物的杂草。产物会掉在地上，不会直接进背包——收完再 cfarm_collect 才拿到手。必须站过去。番茄能收 4 次、草莓 5 次，收完退回中间等级继续长；小麦/土豆/卷心菜/玉米/南瓜只能收 1 次，收完就拔掉（所以收一次地里就少一棵，不是 bug）。杂草要长到最高阶段才收得动；没配收获物的杂草只能靠 cfarm_plant 铲掉。',
     parameters: {
       type: 'object',
       properties: {
@@ -150,7 +150,7 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_pull',
+    name: 'cfarm_pull',
     tags: ['write'],
     description: '拔掉一棵枯萎的作物（要站在它跟前）。枯萎的作物浇不活，只能拔掉重种；拔的时候会冒一团烟。',
     parameters: {
@@ -160,7 +160,7 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_sell',
+    name: 'cfarm_sell',
     tags: ['write'],
     description: '把背包里有出售价的道具卖掉换金币（作物/种子/消耗品/装饰）。没在「道具自定义」里设出售价的不能卖。不给 count 就全卖。',
     parameters: {
@@ -174,7 +174,7 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_shop',
+    name: 'cfarm_shop',
     tags: ['read'],
     description: '看商店：列出所有设了购买价的种子/消耗品/装饰（买价、卖价）。没设购买价的不在商店；没设出售价的不能卖。',
     parameters: {
@@ -186,9 +186,9 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_buy',
+    name: 'cfarm_buy',
     tags: ['write'],
-    description: '买设了购买价的道具（种子/消耗品/装饰）：id 是道具 id（seed_tomato），count 一次买几个；也可以 items:[{id,count}] 一次买多种。买来先进背包；装饰要再用 farm_place 摆。种子不够可以自己补 1~2 包，不用问；买装饰/大件先问主人。',
+    description: '买设了购买价的道具（种子/消耗品/装饰）：id 是道具 id（seed_tomato），count 一次买几个；也可以 items:[{id,count}] 一次买多种。买来先进背包；装饰要再用 cfarm_place 摆。种子不够可以自己补 1~2 包，不用问；买装饰/大件先问主人。',
     parameters: {
       type: 'object',
       properties: {
@@ -212,7 +212,7 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_place',
+    name: 'cfarm_place',
     tags: ['write'],
     description: '把背包里的装饰道具放到农场地面上（消耗 1 个）。「上」层装饰和杂草同层，会清掉落点杂草；「下」层在作物后方、不清草。x 不填就放在你当前站的位置。必须先买/合成到背包里，且道具在「道具自定义」里配了摆放贴图。',
     parameters: {
@@ -226,13 +226,13 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_collect',
+    name: 'cfarm_collect',
     tags: ['write'],
-    description: '把脚下够得着的掉落物收进背包。必须站过去（先 farm_stand 报位置）。地上没有就报错并告诉你掉落物在哪些百分比。',
+    description: '把脚下够得着的掉落物收进背包。必须站过去（先 cfarm_stand 报位置）。地上没有就报错并告诉你掉落物在哪些百分比。',
     parameters: { type: 'object', properties: {} },
   },
   {
-    name: 'farm_consume',
+    name: 'cfarm_consume',
     tags: ['write'],
     description: '吃掉背包里的作物 / 杂草收获物，用来缓解「饥饿」这类状态。需要主人先在「状态自定义」里配好消耗行为（触发状态 + 可消耗道具 + 状态效果）。item 不填就自动挑背包里第一种可吃的；count 默认 1。吃掉后会按配置加减状态值（通常是饱食度）。',
     parameters: {
@@ -245,7 +245,7 @@ export const FARM_TOOL_DECLS = [
     },
   },
   {
-    name: 'farm_craft',
+    name: 'cfarm_craft',
     tags: ['write'],
     description: '按「道具合成表」消耗背包里的材料合成道具。recipe 填合成表 id；不填就列出所有合成表和材料。材料不够会报缺什么。',
     parameters: {
@@ -376,7 +376,7 @@ export class FarmWorld {
   #layerChild = null;
   #layerAt = 0;
   #hidden = false;
-  /** 上一次 farm_status 的真实时间/游戏日：用来说明"这中间过了多久"，免得桌宠把走时当成跳档。 */
+  /** 上一次 cfarm_status 的真实时间/游戏日：用来说明"这中间过了多久"，免得桌宠把走时当成跳档。 */
   #lastStatusAt = 0;
   #lastStatusDay = 0;
   #ripePending = new Set();
@@ -861,19 +861,19 @@ export class FarmWorld {
 
   async #tool(name, args) {
     switch (name) {
-      case 'farm_status': return this.#statusTool();
-      case 'farm_stand': return await this.#standTool(args);
-      case 'farm_plant': return await this.#plantTool(args);
-      case 'farm_water': return await this.#waterTool(args);
-      case 'farm_harvest': return await this.#harvestTool(args);
-      case 'farm_collect': return await this.#collectTool();
-    case 'farm_consume': return await this.#consumeTool(args);
-    case 'farm_craft': return await this.#craftTool(args);
-      case 'farm_pull': return await this.#pullTool(args);
-      case 'farm_sell': return await this.#sellTool(args);
-      case 'farm_shop': return this.#shopTool(args);
-      case 'farm_buy': return await this.#buyTool(args);
-      case 'farm_place': return await this.#placeTool(args);
+      case 'cfarm_status': return this.#statusTool();
+      case 'cfarm_stand': return await this.#standTool(args);
+      case 'cfarm_plant': return await this.#plantTool(args);
+      case 'cfarm_water': return await this.#waterTool(args);
+      case 'cfarm_harvest': return await this.#harvestTool(args);
+      case 'cfarm_collect': return await this.#collectTool();
+    case 'cfarm_consume': return await this.#consumeTool(args);
+    case 'cfarm_craft': return await this.#craftTool(args);
+      case 'cfarm_pull': return await this.#pullTool(args);
+      case 'cfarm_sell': return await this.#sellTool(args);
+      case 'cfarm_shop': return this.#shopTool(args);
+      case 'cfarm_buy': return await this.#buyTool(args);
+      case 'cfarm_place': return await this.#placeTool(args);
       default: return { text: '[' + name + ' 失败] 不认识这个工具。', failed: true };
     }
   }
@@ -937,7 +937,7 @@ export class FarmWorld {
         (s.animals ? '动物 ' + s.animals + ' 只。' : '') +
         (s.standingAt !== null ? '你在 ' + Math.round(s.standingAt * 100) + '%。' : '你还没报过位置。'),
     ];
-    if (s.plots.length === 0) lines.push('  地是空的：走到想种的地方，farm_stand 之后 farm_plant。');
+    if (s.plots.length === 0) lines.push('  地是空的：走到想种的地方，cfarm_stand 之后 cfarm_plant。');
     if (this.#lastStatusAt && this.now() - this.#lastStatusAt >= 60_000) {
       const mins = Math.max(1, Math.round((this.now() - this.#lastStatusAt) / 60000));
       const away = mins >= 120 ? (Math.round(mins / 6) / 10) + ' 小时' : mins + ' 分钟';
@@ -962,7 +962,7 @@ export class FarmWorld {
     if (s.weeds > 0) {
       if (s.weedRipe > 0) {
         lines.push('野草 ' + s.weeds + ' 丛，其中 ' + s.weedRipe + ' 丛长成能收：' +
-          s.weedList.map((w) => w.name + '（' + w.xPct + '%）').join('、') + '。走过去 farm_harvest 收，产物掉地上再 farm_collect。');
+          s.weedList.map((w) => w.name + '（' + w.xPct + '%）').join('、') + '。走过去 cfarm_harvest 收，产物掉地上再 cfarm_collect。');
       } else {
         lines.push('野草 ' + s.weeds + ' 丛（都还没长成；种东西时会把脚下的铲掉）。');
       }
@@ -976,7 +976,7 @@ export class FarmWorld {
         : st.name + ' ' + st.value + (st.unit || '') + '/' + st.max)).join('、') + '。');
     }
     if (s.dropList.length) {
-      lines.push('地上掉落：' + s.dropList.map((d) => d.item + '（' + d.xPct + '%）').join('、') + '。走过去 farm_collect 捡起来。');
+      lines.push('地上掉落：' + s.dropList.map((d) => d.item + '（' + d.xPct + '%）').join('、') + '。走过去 cfarm_collect 捡起来。');
     }
     const bag = Object.entries(s.bag);
     if (bag.length) {
@@ -984,7 +984,7 @@ export class FarmWorld {
     }
     if (s.ripe > 0) {
       const targets = s.plots.filter((p) => p.ready).map((p) => p.xPct + '%（' + p.id + ' 号）').join('、');
-      lines.push('要收的：' + targets + '。先 pet_move_to 走过去，farm_stand 之后 farm_harvest。');
+      lines.push('要收的：' + targets + '。先 pet_move_to 走过去，cfarm_stand 之后 cfarm_harvest。');
     }
     return { text: lines.join('\n') };
   }
@@ -1009,7 +1009,7 @@ export class FarmWorld {
     } else {
       lines.push('脚下没有作物，这里可以种。');
     }
-    if (drops.length) lines.push('这一带地上有 ' + drops.length + ' 个掉落物，可以 farm_collect。');
+    if (drops.length) lines.push('这一带地上有 ' + drops.length + ' 个掉落物，可以 cfarm_collect。');
     return { text: lines.join('\n') };
   }
 
@@ -1017,7 +1017,7 @@ export class FarmWorld {
     this.#ensureStarted();
     const cfg = this.#cfgAll();
     const at = this.#state.standingAt;
-    if (!Number.isFinite(Number(at))) throw new Error('还没报位置：先 pet_move_to 走过去，farm_stand 把 at 报上来，再来种。');
+    if (!Number.isFinite(Number(at))) throw new Error('还没报位置：先 pet_move_to 走过去，cfarm_stand 把 at 报上来，再来种。');
     const wanted = args?.crop ? cropFromText(args.crop) : null;
     if (args?.crop && !wanted) throw new Error('没有这种作物：' + args.crop + '。能种的是 ' + CROP_LIST() + '。');
     const x = args?.x === undefined || args?.x === null || args?.x === '' ? Number(at) : Number(args.x);
@@ -1033,7 +1033,7 @@ export class FarmWorld {
       text: [
         '你在 ' + pct(plot.x) + '% 种下了' + crop.name + '（' + plot.id + ' 号）。',
         seed ? '用了 1 包' + seed.name + '，背包还剩 ' + seedLeft + ' 包。' +
-          (seedLeft === 0 ? '种子用完了。自己补 1~2 包：farm_buy {items:[{id:"' + seed.id + '",count:1}]}。' : '')
+          (seedLeft === 0 ? '种子用完了。自己补 1~2 包：cfarm_buy {items:[{id:"' + seed.id + '",count:1}]}。' : '')
           : '',
         '它一共 ' + crop.levels + ' 级、' + crop.total + ' 生长点（游戏里 ' + Math.round(crop.total / cfg.pointsPerDay) + ' 天）；按当前水分大约 ' +
           Math.round((crop.total / (cfg.pointsPerDay * moistureFactor(plot.moisture, cfg))) * cfg.realMinutesPerDay) + ' 真实分钟后熟。' +
@@ -1054,7 +1054,7 @@ export class FarmWorld {
     if (plotId !== null) {
       const target = this.#state.plots.find((p) => Number(p.id) === plotId);
       if (!target) throw new Error(plotId + ' 号地没有作物。');
-      if (target.dead) throw new Error(plotId + ' 号已经枯了，浇水救不活；走到跟前用 farm_plant 拔掉重种。');
+      if (target.dead) throw new Error(plotId + ' 号已经枯了，浇水救不活；走到跟前用 cfarm_plant 拔掉重种。');
       const gap = Math.abs(Number(target.x) - at);
       if (gap > REACH) {
         throw new Error(plotId + ' 号在 ' + pct(target.x) + '%，你站在 ' + pct(at) + '%，够不着。先 pet_move_to 走过去再浇。');
@@ -1110,7 +1110,7 @@ export class FarmWorld {
       if (Math.abs(Number(target.x) - at) > REACH) throw new Error('脚下这棵在 ' + pct(target.x) + '%，你站在 ' + pct(at) + '%，够不着。');
     }
     const r = await this.#mutate((state) => pull(state, cfg, target.id));
-    return { text: '把 ' + pct(r.x) + '% 那棵枯掉的' + r.crop + '拔掉了，腾出空地。想种就 farm_plant。' };
+    return { text: '把 ' + pct(r.x) + '% 那棵枯掉的' + r.crop + '拔掉了，腾出空地。想种就 cfarm_plant。' };
   }
 
   async #sellTool(args) {
@@ -1137,7 +1137,7 @@ export class FarmWorld {
     return {
       text: '卖了 ' + r.count + ' 个' + (r.name ?? cropOf(key)?.name ?? key) + '（单价 ' + r.unit + '）→ +' + r.coins +
         ' 金币，现在有 ' + Math.floor(s.coins) + ' 金币。' + (r.left > 0 ? '背包还剩 ' + r.left + ' 个。' : '') +
-        (seedLine ? ' ' + seedLine + '要补就 farm_buy（自己补 1~2 包，不用问）。' : ''),
+        (seedLine ? ' ' + seedLine + '要补就 cfarm_buy（自己补 1~2 包，不用问）。' : ''),
     };
   }
 
@@ -1190,7 +1190,7 @@ export class FarmWorld {
   #shopTool(args) {
     this.#ensureStarted();
     if (args?.kind === 'furniture') {
-      return { text: '家具下架了；现在用「道具自定义 → 装饰道具」加装饰，再用 farm_place 摆到地上。' };
+      return { text: '家具下架了；现在用「道具自定义 → 装饰道具」加装饰，再用 cfarm_place 摆到地上。' };
     }
     const kind = ['seed', 'consumable', 'decor', 'animal', 'all'].includes(args?.kind) ? args.kind : 'all';
     const shop = Object.values(live.items ?? {}).filter((it) => it.buy > 0);
@@ -1198,7 +1198,7 @@ export class FarmWorld {
       ['seed', '种子（种一棵消耗 1 包）'],
       ['consumable', '消耗品'],
       ['animal', '动物幼崽（买回来去动物页放置）'],
-      ['decor', '装饰（买回来用 farm_place 摆）'],
+      ['decor', '装饰（买回来用 cfarm_place 摆）'],
     ];
     const lines = ['商店（金币 ' + Math.floor(this.#state.coins ?? 0) + '）：'];
     for (const [g, title] of groups) {
@@ -1208,8 +1208,8 @@ export class FarmWorld {
       if (!rows.length) lines.push('  （这一类还没有设购买价的道具）');
       for (const it of rows) lines.push('  ' + it.id + ' · ' + it.name + ' · 买 ' + it.buy + ' / 卖 ' + (it.sell > 0 ? it.sell : '不卖'));
     }
-    lines.push('买：farm_buy {items:[{id:"seed_tomato",count:1}]}（多种写一个 items 里，省 token；没设购买价的不在商店）。');
-    lines.push('卖：farm_sell {item}（没设出售价的不能卖）。');
+    lines.push('买：cfarm_buy {items:[{id:"seed_tomato",count:1}]}（多种写一个 items 里，省 token；没设购买价的不在商店）。');
+    lines.push('卖：cfarm_sell {item}（没设出售价的不能卖）。');
     return { text: lines.join('\n') };
   }
 
@@ -1231,7 +1231,7 @@ export class FarmWorld {
       const text = msg(err);
       if (/钱不够/.test(text)) {
         const line = this.#sellableLine();
-        if (line) throw new Error(text + ' ' + line + '先 farm_sell，或者问主人一声要不要卖。');
+        if (line) throw new Error(text + ' ' + line + '先 cfarm_sell，或者问主人一声要不要卖。');
       }
       throw err;
     }
@@ -1239,7 +1239,7 @@ export class FarmWorld {
     const parts = r.items.map((x) => x.count + ' 个' + x.name + '（' + x.price + '，背包 ' + x.left + ' 个）');
     return {
       text: '买了 ' + parts.join('、') + '，共 -' + r.total + ' 金币，还剩 ' + Math.floor(s.coins) + ' 金币。' +
-        (r.items.some((x) => x.kind === 'decor') ? '装饰要摆就 farm_place {item:"id"}。' : ''),
+        (r.items.some((x) => x.kind === 'decor') ? '装饰要摆就 cfarm_place {item:"id"}。' : ''),
     };
   }
 
@@ -1261,7 +1261,7 @@ export class FarmWorld {
   #requireHere() {
     const at = this.#state.standingAt;
     if (!Number.isFinite(Number(at))) {
-      throw new Error('还没报位置：先 pet_move_to 走过去，farm_stand 把 at 报上来。');
+      throw new Error('还没报位置：先 pet_move_to 走过去，cfarm_stand 把 at 报上来。');
     }
     return Number(at);
   }
@@ -1286,7 +1286,7 @@ export class FarmWorld {
     if (Math.abs(Number(plot.x) - at) > REACH + 0.01) {
       throw new Error('你站在 ' + pct(at) + '%，' + plotId + ' 号地在 ' + pct(plot.x) + '%，够不着。先 pet_move_to 走过去。');
     }
-    if (plot.dead) throw new Error(plotId + ' 号地枯萎了，收不了。farm_plant 在同一个位置会把它拔掉重种。');
+    if (plot.dead) throw new Error(plotId + ' 号地枯萎了，收不了。cfarm_plant 在同一个位置会把它拔掉重种。');
     if (!isRipe(plot)) {
       throw new Error(plotId + ' 号地还没熟（进度 ' + Math.round((plot.growth / cropOf(plot.crop).total) * 100) + '%）。');
     }
@@ -1302,12 +1302,12 @@ export class FarmWorld {
       : '这棵收满 ' + crop.lifespan + ' 次了，已经拔掉，位置空出来了。');
     else lines.push('它退回第 ' + (crop.repeatLevel + 1) + ' 级继续长，还能再收 ' + Math.max(0, crop.lifespan - plot.harvests) + ' 次。');
     const s = summary(this.#state, cfg);
-    if (s.dropList.length) lines.push('地上现在有：' + s.dropList.map((d) => d.item + '（' + d.xPct + '%）').join('、') + '。站在原地 farm_collect 就能捡。');
+    if (s.dropList.length) lines.push('地上现在有：' + s.dropList.map((d) => d.item + '（' + d.xPct + '%）').join('、') + '。站在原地 cfarm_collect 就能捡。');
     // 收获时是"要不要卖"的触发点：只提一句，别每 tick 都问
     const sale = this.#sellableLine();
-    if (sale) lines.push(sale + '钱不够买种子就 farm_sell；要卖先问主人一声。');
+    if (sale) lines.push(sale + '钱不够买种子就 cfarm_sell；要卖先问主人一声。');
     const seedLine = this.#seedLine();
-    if (seedLine) lines.push(seedLine + '要补就 farm_buy（自己补 1~2 包，不用问）。');
+    if (seedLine) lines.push(seedLine + '要补就 cfarm_buy（自己补 1~2 包，不用问）。');
     return { text: lines.join('\n') };
   }
 
@@ -1327,16 +1327,16 @@ export class FarmWorld {
     const lv = Number(weed.level ?? 0);
     if (lv < type.stages - 1) {
       throw new Error('你站在 ' + pct(at) + '%，脚下是一丛' + type.name + '（' + (lv + 1) + '/' + type.stages +
-        ' 阶段），还没长成。等它长到最高阶段再来，或者 farm_plant 直接铲掉。');
+        ' 阶段），还没长成。等它长到最高阶段再来，或者 cfarm_plant 直接铲掉。');
     }
     if (!type.item || Number(type.value) <= 0) {
-      throw new Error('脚下是一丛' + type.name + '，没有可收的产物。想清掉就 farm_plant 在这里种一棵。');
+      throw new Error('脚下是一丛' + type.name + '，没有可收的产物。想清掉就 cfarm_plant 在这里种一棵。');
     }
     const result = await this.#mutate((state) => harvestWeed(state, cfg, weed.id, this.random));
     const lines = [
       '你收了 ' + pct(result.weed.x) + '% 的' + result.weed.name + '，' + result.drop.count + ' 个' +
         result.drop.name + '掉在 ' + pct(result.drop.x) + '% 的地上。',
-      '站在原地 farm_collect 就能捡。',
+      '站在原地 cfarm_collect 就能捡。',
     ];
     const s = summary(this.#state, cfg);
     if (s.dropList.length) lines.push('地上现在有：' + s.dropList.map((d) => d.item + '（' + d.xPct + '%）').join('、') + '。');
@@ -1451,7 +1451,7 @@ export class FarmWorld {
         lines.push('  ' + r.id + '：' + r.inputs.map((i) => label(i.item) + '×' + i.count).join(' + ') +
           ' → ' + label(r.output.item) + '×' + r.output.count);
       }
-      lines.push('要合成：farm_craft {recipe:"' + recipes[0].id + '"}。');
+      lines.push('要合成：cfarm_craft {recipe:"' + recipes[0].id + '"}。');
       return { text: lines.join('\n') };
     }
     const recipe = recipes.find((r) => r.id === raw);
@@ -1693,7 +1693,7 @@ export class FarmWorld {
       senderKey: 'farm.dry',
       origin: 'world',
       ts: new Date().toISOString(),
-      text: '自定义农场：' + mine.length + ' 棵渴了，再不浇就要枯：\n' + list + '\n走到跟前 farm_water 就行。',
+      text: '自定义农场：' + mine.length + ' 棵渴了，再不浇就要枯：\n' + list + '\n走到跟前 cfarm_water 就行。',
       meta: { plots: mine.map((p) => p.id) },
     }, { deliver: true, trigger: 'debounce' });
   }
@@ -1733,7 +1733,7 @@ export class FarmWorld {
       senderKey: 'farm.product',
       origin: 'internal',
       ts: new Date(this.now()).toISOString(),
-      text: '自定义农场：动物产物掉在地上了：' + text + '。走过去 farm_stand，再 farm_collect 捡进背包。',
+      text: '自定义农场：动物产物掉在地上了：' + text + '。走过去 cfarm_stand，再 cfarm_collect 捡进背包。',
       meta: { products: products.map((p) => ({ item: p.item, count: p.count, xPct: Math.round(p.x * 100), animal: p.animalId })) },
     }, { deliver: true, trigger: 'debounce' });
     host.log?.info?.('自定义农场：动物产物', { count: products.length });
@@ -1767,7 +1767,7 @@ export class FarmWorld {
       origin: 'internal',
       ts: new Date(this.now()).toISOString(),
       text: '自定义农场：' + mine.map((p) => p.id + ' 号' + p.crop + '（' + p.xPct + '%）').join('、') +
-        ' 熟了。走过去 farm_stand、farm_harvest，收完东西会掉在地上，再 farm_collect 捡进背包。',
+        ' 熟了。走过去 cfarm_stand、cfarm_harvest，收完东西会掉在地上，再 cfarm_collect 捡进背包。',
       meta: { ids, spots: mine.map((p) => ({ id: p.id, xPct: p.xPct })) },
     }, { deliver: true, trigger: 'debounce' });
     host.log?.info?.('自定义农场：成熟', { ids });
@@ -1858,7 +1858,7 @@ export class FarmWorld {
       promptDocs: [{
         key: 'worlds.' + this.id + '.env',
         title: '环境提示词',
-        description: '发给桌宠的环境提示词：消耗/状态、节奏、工具用法。它是静态文字，不会跟作物/价格设置自动同步；具体数据以 farm_status / farm_shop 为准。',
+        description: '发给桌宠的环境提示词：消耗/状态、节奏、工具用法。它是静态文字，不会跟作物/价格设置自动同步；具体数据以 cfarm_status / cfarm_shop 为准。',
         path: ENV_PROMPT,
         role: 'envPrompt',
       }],
@@ -2732,13 +2732,13 @@ export class FarmWorld {
         if (r.action.auto) continue;
         const names = r.action.items.map((id) => live.names?.[id] ?? id).join('、');
         await this.#pushStateEvent('「' + r.triggerName + '」生效了：背包里暂时没有池子里的可消耗道具（' + names +
-          '）。可以先看 farm_craft 合成表，材料够就做一个池子里的消耗品，再 farm_consume；材料也不够再提醒主人。', meta);
+          '）。可以先看 cfarm_craft 合成表，材料够就做一个池子里的消耗品，再 cfarm_consume；材料也不够再提醒主人。', meta);
         continue;
       }
       if (r.promptOnly) {
         const names = r.choices?.length ? r.choices.map((c) => c.name).join('、') : r.itemName;
         await this.#pushStateEvent('「' + r.triggerName + '」生效了：背包里有' + names +
-          '。自己挑一个能消耗的，用 farm_consume {item:"..."} 消耗；如果池子里没有或想换，可以先看 farm_craft，材料够就做一个池子里的消耗品再消耗。日常合成不用问主人，具体怎么说按环境提示词。', meta);
+          '。自己挑一个能消耗的，用 cfarm_consume {item:"..."} 消耗；如果池子里没有或想换，可以先看 cfarm_craft，材料够就做一个池子里的消耗品再消耗。日常合成不用问主人，具体怎么说按环境提示词。', meta);
         continue;
       }
       // auto（随机消耗）：只改数值/背包，不推事件、不唤醒桌宠。

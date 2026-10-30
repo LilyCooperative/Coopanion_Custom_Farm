@@ -1970,7 +1970,7 @@ const IT = {
     consumables: '消耗品道具',
     consumablesDesc: '自己加的道具：买价/卖价、缩略图，以及吃掉后的状态效果。',
     animalProducts: '动物产品',
-    animalProductsDesc: '动物定时产出的道具；产物掉在地上，桌宠要用 farm_collect 捡。',
+    animalProductsDesc: '动物定时产出的道具；产物掉在地上，桌宠要用 cfarm_collect 捡。',
     decorations: '装饰道具',
     decorationsDesc: '可买/可合成；设置缩略图、摆放贴图和图层（上/中/下）后，去「背包」页点放置。上层会清掉落点杂草；中层和下层不清草。',
     addConsumable: '添加消耗品',
@@ -2016,7 +2016,7 @@ const IT = {
     consumables: 'Consumables',
     consumablesDesc: 'Custom items: buy/sell price, icon and the state effects when eaten.',
     animalProducts: 'Animal products',
-    animalProductsDesc: 'Items produced by animals; they drop on the ground and the pet collects them with farm_collect.',
+    animalProductsDesc: 'Items produced by animals; they drop on the ground and the pet collects them with cfarm_collect.',
     decorations: 'Decorations',
     decorationsDesc: 'Buy or craft; set icon, placement sprite and layer (top/mid/bottom), then place from the Bag page. Top clears weeds at the spot; middle and bottom leave weeds alone.',
     addConsumable: 'Add consumable',
@@ -2058,7 +2058,7 @@ const IT = {
 const RT = {
   zh: {
     title: '道具合成表',
-    desc: '每张表用 1~4 个道具（材料）合成新道具。材料从背包扣，产物进背包；桌宠可以用 farm_craft 合成。',
+    desc: '每张表用 1~4 个道具（材料）合成新道具。材料从背包扣，产物进背包；桌宠可以用 cfarm_craft 合成。',
     add: '添加合成表',
     inputs: '材料',
     output: '产物',
@@ -2077,7 +2077,7 @@ const RT = {
   },
   en: {
     title: 'Crafting recipes',
-    desc: 'Each recipe turns 1–4 items into a new one. Materials are taken from the bag, the output goes in; the pet can craft with farm_craft.',
+    desc: 'Each recipe turns 1–4 items into a new one. Materials are taken from the bag, the output goes in; the pet can craft with cfarm_craft.',
     add: 'Add recipe',
     inputs: 'Materials',
     output: 'Output',

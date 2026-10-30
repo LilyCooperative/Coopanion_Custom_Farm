@@ -100,7 +100,7 @@ export function buyPriceOf(itemId) {
 
 /**
  * 家具总开关：2026-10-27 起暂时下架（摆放方案还没定）。
- * false = 商店不列、farm_buy 不卖家具、farm_place 报错；存档里已经有的家具保留不删。
+ * false = 商店不列、cfarm_buy 不卖家具、cfarm_place 报错；存档里已经有的家具保留不删。
  * 恢复：改回 true。
  */
 export const FURNITURE_ENABLED = false;

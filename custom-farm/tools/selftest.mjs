@@ -335,7 +335,7 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   const decoView = overlayView(decoState).furniture;
   check('装饰：overlay 带上下层', decoView[0].layer === 'top' && decoView[1].layer === 'bottom');
   const decoSummary = summary(decoState, cfg).decorations;
-  check('装饰：farm_status 摘要带位置和图层', decoSummary.length === 2 && decoSummary[0].xPct === 50 &&
+  check('装饰：cfarm_status 摘要带位置和图层', decoSummary.length === 2 && decoSummary[0].xPct === 50 &&
     decoSummary[1].xPct === 50 && decoSummary[0].layer === 'top', JSON.stringify(decoSummary));
   cat.saveState({ name: '测试心情', kind: 'number', min: -10, max: 10, initial: 0, driftPerDay: 1, unit: '点' });
   const mood = cat.states.find((s) => s.name === '测试心情');
@@ -439,26 +439,26 @@ check('随机挑的位置可用', checkSpot(s1, far, 'tomato', cfg).ok === true,
 
 // 挑一个真的空着的位置站过去
 const freeSpot = pickSpot(s1, 'tomato', cfg, random);
-const stand0 = await tool('farm_stand')({ at: freeSpot });
-check('farm_stand 只给 at 也行', !stand0.failed, stand0.text.split('\n')[0]);
-const noAt = await tool('farm_stand')({ plot: 1 });
+const stand0 = await tool('cfarm_stand')({ at: freeSpot });
+check('cfarm_stand 只给 at 也行', !stand0.failed, stand0.text.split('\n')[0]);
+const noAt = await tool('cfarm_stand')({ plot: 1 });
 check('不给 at 被拒绝', noAt.failed === true && noAt.text.includes('at'), noAt.text.split('\n')[0]);
 
 const beforeCount = (await readState()).plots.length;
 // 种子：没有种子不能种；买了先进背包，种下扣 1 包
-const noSeed = await tool('farm_plant')({ crop: '南瓜' });
+const noSeed = await tool('cfarm_plant')({ crop: '南瓜' });
 check('没有种子种不了', noSeed.failed === true && /种子/.test(noSeed.text), noSeed.text.split('\n')[0]);
-const seedBought = await tool('farm_buy')({ id: 'seed_strawberry', count: 1 });
+const seedBought = await tool('cfarm_buy')({ id: 'seed_strawberry', count: 1 });
 check('买种子进背包', !seedBought.failed && /草莓种子/.test(seedBought.text), seedBought.text.split('\n')[0]);
 check('种子在背包里', (await readState()).inventory.seed_strawberry === 1);
-const planted = await tool('farm_plant')({ crop: '草莓' });
+const planted = await tool('cfarm_plant')({ crop: '草莓' });
 check('能种新作物', !planted.failed && planted.text.includes('草莓'), planted.text.split('\n')[0]);
 check('种下扣 1 包种子', (await readState()).inventory.seed_strawberry === undefined);
 check('数量 +1（任意数量，不是固定 4 块）', (await readState()).plots.length === beforeCount + 1);
 const s2 = await readState();
 const straw = s2.plots.filter((p) => p.crop === 'strawberry').pop();
 check('种在脚下的位置', Math.abs(straw.x - freeSpot) < 1e-9, String(straw.x) + ' vs ' + freeSpot);
-const onTop = await tool('farm_plant')({ crop: '土豆' });
+const onTop = await tool('cfarm_plant')({ crop: '土豆' });
 check('站在同一处再种会被拒绝（会重叠）', onTop.failed === true, onTop.text.split('\n')[0]);
 
 // --- 4. 生长 + 成熟事件 ----------------------------------------------------
@@ -468,15 +468,15 @@ const grown = await readState();
 check('生长推进了等级', grown.plots.some((p) => p.level > 0), grown.plots.map((p) => p.level).join(','));
 check('成熟事件推送了', events.some((e) => e.type === 'farm.ripe'), events.map((e) => e.type).join(','));
 const ripeEvent = events.find((e) => e.type === 'farm.ripe');
-check('成熟事件说清去哪儿收', /熟了/.test(ripeEvent.text) && /farm_collect/.test(ripeEvent.text), ripeEvent.text);
+check('成熟事件说清去哪儿收', /熟了/.test(ripeEvent.text) && /cfarm_collect/.test(ripeEvent.text), ripeEvent.text);
 
 // --- 5. 收割 → 掉在地上（不进背包） ---------------------------------------
 const s3 = await readState();
 const ripe = s3.plots.find((p) => isRipe(p));
 check('有熟的', Boolean(ripe), s3.plots.map((p) => p.level + '/' + cropOf(p.crop).levels).join(' '));
-await tool('farm_stand')({ at: ripe.x, plot: ripe.id });
+await tool('cfarm_stand')({ at: ripe.x, plot: ripe.id });
 const bagBefore = Object.values(s3.inventory).reduce((a, b) => a + b, 0);
-const harv = await tool('farm_harvest')({ plot: ripe.id });
+const harv = await tool('cfarm_harvest')({ plot: ripe.id });
 check('收割成功', !harv.failed, harv.text.split('\n')[0]);
 const s4 = await readState();
 check('产物掉在地上', s4.drops.length >= 1, 'drops=' + s4.drops.length);
@@ -491,12 +491,12 @@ check('游戏表里番茄产量 2~4', CROPS.tomato.minCount === 2 && CROPS.tomat
 check('土豆固定 2~4、南瓜固定 1', CROPS.potato.minCount === 2 && CROPS.potato.maxCount === 4 && CROPS.pumpkin.minCount === 1);
 
 // --- 6. 捡起来才进背包 -----------------------------------------------------
-const away = await tool('farm_stand')({ at: 0.3 });
+const away = await tool('cfarm_stand')({ at: 0.3 });
 check('走远去站', !away.failed, away.text.split('\n')[0]);
-const badCollect = await tool('farm_collect')({});
+const badCollect = await tool('cfarm_collect')({});
 check('离得远捡不到', badCollect.failed === true, badCollect.text.split('\n')[0]);
-await tool('farm_stand')({ at: s4.drops[0].x });
-const col = await tool('farm_collect')({});
+await tool('cfarm_stand')({ at: s4.drops[0].x });
+const col = await tool('cfarm_collect')({});
 check('站过去能捡', !col.failed, col.text.split('\n')[0]);
 const s5 = await readState();
 check('背包里有了', Object.values(s5.inventory).reduce((a, b) => a + b, 0) > bagBefore, JSON.stringify(s5.inventory));
@@ -585,10 +585,10 @@ check('缺水会枯萎', dryState.plots.some((p) => p.dead), dryState.plots.map(
 check('枯萎不单独唤醒模型', !events.slice(dryBefore).some((e) => e.type === 'farm.wilt'));
 const deadPlot = dryState.plots.find((p) => p.dead);
 const dryTool = (n) => dryWorld.tools().find((t) => t.name === n).handler;
-await dryTool('farm_stand')({ at: deadPlot.x });
-const deadHarv = await dryTool('farm_harvest')({ plot: deadPlot.id });
+await dryTool('cfarm_stand')({ at: deadPlot.x });
+const deadHarv = await dryTool('cfarm_harvest')({ plot: deadPlot.id });
 check('枯萎的收不了', deadHarv.failed === true && deadHarv.text.includes('枯萎'), deadHarv.text.split('\n')[0]);
-const replant = await dryTool('farm_plant')({ crop: '土豆' });
+const replant = await dryTool('cfarm_plant')({ crop: '土豆' });
 check('原地重种会把枯的拔掉', !replant.failed, replant.text.split('\n')[0]);
 const afterReplant = JSON.parse(await readFile(dryWorld.stateFile(), 'utf8'));
 check('枯的那棵没了', !afterReplant.plots.some((p) => p.id === deadPlot.id));
@@ -596,15 +596,15 @@ await dryWorld.stop();
 
 // --- 9. 浇水（必须走到跟前） ------------------------------------------------
 const waterTarget = (await readState()).plots.find((p) => !p.dead);
-await tool('farm_stand')({ at: waterTarget.x });
-const tooFar = await tool('farm_water')({ plot: ((await readState()).plots.find((p) => !p.dead && Math.abs(p.x - waterTarget.x) > 0.1) ?? {}).id })
+await tool('cfarm_stand')({ at: waterTarget.x });
+const tooFar = await tool('cfarm_water')({ plot: ((await readState()).plots.find((p) => !p.dead && Math.abs(p.x - waterTarget.x) > 0.1) ?? {}).id })
   .catch((e) => ({ failed: true, text: String(e) }));
-const waterRes = await tool('farm_water')({});
+const waterRes = await tool('cfarm_water')({});
 check('浇水成功', !waterRes.failed && waterRes.text.includes('浇'), waterRes.text.split('\n')[0]);
 const wState = await readState();
 check('浇水特效有记录', wState.fx.some((f) => f.kind === 'water'));
 check('浇水回执压成一行（省 token）', !waterRes.text.includes('\n'), waterRes.text);
-const againRes = await tool('farm_water')({});
+const againRes = await tool('cfarm_water')({});
 check('已经浇透的不重复浇（省 token / 不重复播特效）', againRes.text.includes('浇透'), againRes.text);
 
 // --- 9b. 一次浇一片：邻近作物一起更新 ---------------------------------------
@@ -646,8 +646,8 @@ check('invoke state 有 bagTotal', typeof inv.bagTotal === 'number', 'bag=' + in
   const before = await readState();
   const dead = before.plots.find((p) => p.dead);
   if (dead) {
-    await tool('farm_stand')({ at: dead.x });
-    const pulled = await tool('farm_pull')({ plot: dead.id });
+    await tool('cfarm_stand')({ at: dead.x });
+    const pulled = await tool('cfarm_pull')({ plot: dead.id });
     const after = await readState();
     check('枯株能被拔掉', !after.plots.some((p) => p.id === dead.id), pulled.text.slice(0, 50));
     check('拔的时候有破坏特效', (after.fx ?? []).some((x) => x.kind === 'pull'));
@@ -657,8 +657,8 @@ check('invoke state 有 bagTotal', typeof inv.bagTotal === 'number', 'bag=' + in
   }
   const live = before.plots.find((p) => !p.dead);
   if (live) {
-    await tool('farm_stand')({ at: live.x });
-    const bad = await tool('farm_pull')({ plot: live.id });
+    await tool('cfarm_stand')({ at: live.x });
+    const bad = await tool('cfarm_pull')({ plot: live.id });
     check('活的不能拔', bad.failed === true, bad.text.slice(0, 40));
   }
 }
@@ -669,63 +669,63 @@ check('invoke state 有 bagTotal', typeof inv.bagTotal === 'number', 'bag=' + in
   const item = Object.keys(a.inventory).find((k) => CROP_PRICES[k]?.sell > 0);
   const have = a.inventory[item];
   const unit = CROP_PRICES[item].sell;
-  const sold = await tool('farm_sell')({ item, count: 1 });
+  const sold = await tool('cfarm_sell')({ item, count: 1 });
   const b = await readState();
   check('卖东西加金币', b.coins === a.coins + unit, sold.text.slice(0, 60));
   check('卖完背包少一个', (b.inventory[item] ?? 0) === have - 1);
 
   // 种子也能卖（游戏售价：土豆种子 6）
-  const seedSold = await tool('farm_sell')({ item: 'seed_potato', count: 1 });
+  const seedSold = await tool('cfarm_sell')({ item: 'seed_potato', count: 1 });
   check('种子能卖', !seedSold.failed && /土豆种子/.test(seedSold.text) && /6/.test(seedSold.text), seedSold.text.slice(0, 60));
 
-  const shop = await tool('farm_shop')({});
+  const shop = await tool('cfarm_shop')({});
   check('商店列出种子和价格', /seed_tomato/.test(shop.text) && /种子/.test(shop.text) && /金币/.test(shop.text));
-  const shopFurn = await tool('farm_shop')({ kind: 'furniture' });
+  const shopFurn = await tool('cfarm_shop')({ kind: 'furniture' });
   if (FURNITURE_ENABLED) {
     check('商店也能看家具', /家具/.test(shopFurn.text) && shopFurn.text.length > 80);
 
     const cheap = FURNITURE.slice().sort((x, y) => x.buy - y.buy)[0];
     const coinsBeforeFurniture = (await readState()).coins;
-    const bought = await tool('farm_buy')({ id: cheap.id });
+    const bought = await tool('cfarm_buy')({ id: cheap.id });
     const c = await readState();
     check('买家具扣钱', c.coins === coinsBeforeFurniture - cheap.buy, bought.text.slice(0, 60));
     check('买家具进背包', c.furniture.length === (b.furniture?.length ?? 0) + 1);
 
     const uid = c.furniture[c.furniture.length - 1].uid;
-    const placed = await tool('farm_place')({ uid, x: 0.42 });
+    const placed = await tool('cfarm_place')({ uid, x: 0.42 });
     const d = await readState();
     check('家具能摆到指定位置', d.furniture.find((f) => f.uid === uid).x === 0.42, placed.text);
   } else {
     check('家具已下架：商店不列', /下架/.test(shopFurn.text) && !/plantbasin/.test(shopFurn.text), shopFurn.text.slice(0, 80));
-    const buyFurn = await tool('farm_buy')({ id: FURNITURE[0].id });
+    const buyFurn = await tool('cfarm_buy')({ id: FURNITURE[0].id });
     check('家具已下架：买不到', buyFurn.failed === true && /下架/.test(buyFurn.text), buyFurn.text.slice(0, 80));
   }
-  const broke = await tool('farm_buy')({ id: 'seed_tomato', count: 999 });
+  const broke = await tool('cfarm_buy')({ id: 'seed_tomato', count: 999 });
   check('钱不够会提示背包可卖的东西', broke.failed === true && /可卖/.test(broke.text), broke.text.slice(0, 80));
 
   // 一次买多种：一个 items，只扣一次总价
   const coinsBeforeCart = (await readState()).coins;
-  const cart = await tool('farm_buy')({ items: [{ id: 'seed_corn', count: 1 }, { id: 'seed_potato', count: 1 }] });
+  const cart = await tool('cfarm_buy')({ items: [{ id: 'seed_corn', count: 1 }, { id: 'seed_potato', count: 1 }] });
   const afterCart = await readState();
   check('一次买多种种子', !cart.failed && /玉米种子/.test(cart.text) && /土豆种子/.test(cart.text), cart.text.slice(0, 80));
   check('批量购买只扣一次总价', afterCart.coins === coinsBeforeCart - 85, afterCart.coins + ' vs ' + coinsBeforeCart);
 
   // 种子卖光 → 过一天 → 只推一次"要不要补种子"的询问（不自动买）
   for (const k of Object.keys(afterCart.inventory)) {
-    if (k.startsWith('seed_')) await tool('farm_sell')({ item: k });
+    if (k.startsWith('seed_')) await tool('cfarm_sell')({ item: k });
   }
   const asks0 = events.filter((e) => e.type === 'farm.buy').length;
   await tickSeconds(3);
   const asks = events.filter((e) => e.type === 'farm.buy').length;
   check('种子用完不会自动唤醒询问', asks === asks0, events.filter((e) => e.type === 'farm.buy').slice(-1)[0]?.text?.slice(0, 60) ?? 'none');
 
-  const bad = await tool('farm_buy')({ id: 'no_such_furniture' });
+  const bad = await tool('cfarm_buy')({ id: 'no_such_furniture' });
   check('买不存在的东西会失败', bad.failed === true, bad.text.slice(0, 40));
 }
 
 const coinsBeforeStop = (await readState()).coins;
 await world.stop();
-check('stop 之后工具报错', (await tool('farm_status')({})).failed === true);
+check('stop 之后工具报错', (await tool('cfarm_status')({})).failed === true);
 clock += 60_000;
 const world2 = new FarmWorld({ cfg, dataDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
 await world2.start(host);
@@ -740,12 +740,12 @@ const blocked = join(dataDir, 'blocked-file');
 await writeFile(blocked, 'x', 'utf8');
 const world3 = new FarmWorld({ cfg: { ...cfg, overlayEnabled: false }, dataDir: blocked, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
 await world3.start(host);
-// world3 的存档目录是个文件，读不出来；从 farm_status 里抠一个位置
-const st3 = await world3.tools().find((t) => t.name === 'farm_status').handler({});
+// world3 的存档目录是个文件，读不出来；从 cfarm_status 里抠一个位置
+const st3 = await world3.tools().find((t) => t.name === 'cfarm_status').handler({});
 const m3 = /(\d+)%/.exec(st3.text || '');
 const w3x = m3 ? Number(m3[1]) / 100 : 0.5;
-await world3.tools().find((t) => t.name === 'farm_stand').handler({ at: w3x });
-const broken = await world3.tools().find((t) => t.name === 'farm_water').handler({});
+await world3.tools().find((t) => t.name === 'cfarm_stand').handler({ at: w3x });
+const broken = await world3.tools().find((t) => t.name === 'cfarm_water').handler({});
 check('存档写不进去时工具报失败', broken.failed === true && broken.text.includes('存档没写下去'), broken.text);
 await world3.stop();
 
