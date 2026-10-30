@@ -18,7 +18,7 @@
 import { spawn } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { mkdir, copyFile, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -642,6 +642,100 @@ export class FarmWorld {
       files,
       text: files.length ? '已备份到 ' + dir : '没有可备份的存档文件；已创建空备份目录 ' + dir,
     };
+  }
+
+  async #listBackups() {
+    const root = join(this.dataDir, 'farm', 'backups');
+    const backups = [];
+    try {
+      const names = await readdir(root, { withFileTypes: true });
+      for (const ent of names) {
+        if (!ent.isDirectory()) continue;
+        const dir = join(root, ent.name);
+        const stateFile = join(dir, 'state.json');
+        const customFile = join(dir, 'custom.json');
+        if (!existsSync(stateFile) && !existsSync(customFile)) continue;
+        let mtime = 0;
+        try { mtime = (await stat(stateFile)).mtimeMs; } catch { }
+        backups.push({
+          name: ent.name,
+          path: dir,
+          time: mtime ? new Date(mtime).toISOString() : null,
+          hasState: existsSync(stateFile),
+          hasCustom: existsSync(customFile),
+        });
+      }
+    } catch { /* 没有备份 */ }
+    backups.sort((a, b) => String(b.name).localeCompare(String(a.name)));
+    return { ok: true, backups };
+  }
+
+  async #restoreBackup(name) {
+    const clean = String(name ?? '').trim();
+    if (!/^backup-[A-Za-z0-9_-]+$/.test(clean)) throw new Error('备份目录名不合法。');
+    const dir = join(this.dataDir, 'farm', 'backups', clean);
+    const stateFile = join(dir, 'state.json');
+    if (!existsSync(stateFile)) throw new Error('这个备份里没有 state.json。');
+    let incoming;
+    try { incoming = JSON.parse(await readFile(stateFile, 'utf8')); } catch { throw new Error('备份里的 state.json 不是有效 JSON。'); }
+    const known = new Set(Object.keys(live.items ?? {}));
+    const badItems = new Set();
+    for (const [id, n] of Object.entries(incoming.inventory ?? {})) {
+      if (Number(n) > 0 && !known.has(id)) badItems.add(id);
+    }
+    for (const d of incoming.drops ?? []) if (d?.item && !known.has(d.item)) badItems.add(d.item);
+    for (const f of incoming.furniture ?? []) if (f?.id && !known.has(f.id)) badItems.add(f.id);
+    const badAnimals = (incoming.animals ?? []).filter((a) => !live.animals?.[a?.species]).map((a) => a?.species).filter(Boolean);
+    if (badItems.size || badAnimals.length) {
+      const parts = [];
+      if (badItems.size) parts.push('物品：' + [...badItems].slice(0, 12).join('、'));
+      if (badAnimals.length) parts.push('动物：' + [...new Set(badAnimals)].join('、'));
+      throw new Error('这个存档含有当前设置里不存在的' + parts.join('；') + '。为防止背包/农场出现孤儿物品，已取消读取。请先导入匹配的模板或恢复对应设置。');
+    }
+    const auto = await this.#backupNow().catch(() => null);
+    this.#state = null;
+    await copyFile(stateFile, this.stateFile());
+    this.#host?.log?.warn?.('自定义农场：已读取备份存档', { backup: clean, autoBackup: auto?.path ?? null });
+    if (this.restartWorld) this.setTimeoutImpl(() => { void this.restartWorld(); }, 300);
+    return {
+      ok: true,
+      backup: auto?.path ?? null,
+      text: '已读取备份 ' + clean + '（只读存档，不改当前设置）' + (auto?.path ? '；读前已自动备份到 ' + auto.path : '') + '。World 正在重启。',
+    };
+  }
+
+  async #applyDefaultTemplate() {
+    const catalog = this.#catalogOrThrow();
+    const backup = await this.#backupNow().catch(() => null);
+    const store = catalog.defaultStore();
+    await writeFile(catalog.storePath, JSON.stringify(store, null, 2));
+    catalog.load();
+    const defaults = this.#templateWorldSettings();
+    // 默认模板同时恢复可移植的玩法参数（不碰安装路径/屏幕）。
+    for (const key of Object.keys(defaults)) {
+      if (DEFAULTS[key] === undefined) continue;
+      try { this.cfg[key] = DEFAULTS[key]; } catch { /* 只读代理 */ }
+    }
+    try { this.persistConfig?.(Object.fromEntries(Object.keys(defaults).filter((k) => DEFAULTS[k] !== undefined).map((k) => [k, DEFAULTS[k]]))); } catch { }
+    this.#syncStateValues();
+    await this.#saveOrThrow();
+    this.#host?.log?.warn?.('自定义农场：已应用默认模板 田园农场', { backup: backup?.path ?? null });
+    return {
+      ok: true,
+      backup: backup?.path ?? null,
+      text: '已应用默认模板「田园农场」' + (backup?.path ? '；旧设置备份在 ' + backup.path : '') + '。现有背包/田地按新设置解释，请检查物品是否仍然有效。',
+    };
+  }
+
+  async #importTemplateData(base64) {
+    const raw = String(base64 ?? '');
+    if (!raw) throw new Error('没有收到模板数据。');
+    const buf = Buffer.from(raw, 'base64');
+    if (!buf.length || buf.length > 64 * 1024 * 1024) throw new Error('模板文件大小不对。');
+    const tmp = join(this.dataDir, 'farm', 'template-upload-' + process.pid + '-' + Date.now() + '.zip');
+    await writeFile(tmp, buf);
+    try { return await this.#importTemplate(tmp); }
+    finally { try { await unlink(tmp); } catch { } }
   }
 
   /** 重置一切：先备份，再删 state.json / custom.json，最后重启 World 重新生成默认目录。 */
@@ -1786,6 +1880,12 @@ export class FarmWorld {
     if (method === 'backup') return this.#backupNow();
     if (method === 'reset') return this.#resetAll();
     if (method === 'check') return this.#envCheck();
+    if (method === 'exportTemplate') return this.#exportTemplate();
+    if (method === 'importTemplate') return this.#importTemplate(args?.[0]);
+    if (method === 'importTemplateData') return this.#importTemplateData(args?.[0]);
+    if (method === 'applyDefaultTemplate') return this.#applyDefaultTemplate();
+    if (method === 'listBackups') return this.#listBackups();
+    if (method === 'restoreBackup') return this.#restoreBackup(args?.[0]);
     if (method === 'setElectronPath') {
       const file = String(args?.[0] ?? '').trim();
       if (file && !existsSync(file)) throw new Error('找不到这个 Electron 文件：' + file);
@@ -1812,7 +1912,7 @@ export class FarmWorld {
 
   /** 「农场自定义」页的数据面。统一返回最新 snapshot，面板不用再读一次。 */
   async #customInvoke(method, args, cfg) {
-    if (['backup', 'reset', 'check', 'setEngine', 'setElectronPath'].includes(method)) {
+    if (['backup', 'reset', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup'].includes(method)) {
       return this.#manageAction(method, args);
     }
     if (method === 'sprite') {
@@ -1927,6 +2027,22 @@ export class FarmWorld {
     }
   }
 
+  #templateWorldSettings() {
+    const keys = [
+      'farmCells', 'maxPlants', 'cropGapScale', 'cropGapPct', 'cropScale', 'dropScale',
+      'groundHeight', 'stripHeight', 'moodIntervalMin', 'startCoins', 'pointsPerDay',
+      'realMinutesPerDay', 'maxStepDays', 'tickIntervalMs', 'dryPerDay', 'waterGain',
+      'wiltDays', 'startWeeds', 'maxWeeds', 'weedPerDay', 'weedClearRadius', 'dailyEvent',
+      'sowMoisture', 'throttle',
+    ];
+    const out = {};
+    for (const key of keys) {
+      const value = this.cfg?.[key] ?? DEFAULTS[key];
+      if (value !== undefined) out[key] = value;
+    }
+    return out;
+  }
+
   async #exportTemplate() {
     const catalog = this.#catalogOrThrow();
     try { catalog.persist(); } catch { /* 写不进去也尽量导出内存里的 */ }
@@ -1940,11 +2056,25 @@ export class FarmWorld {
         }, null, 2)),
       },
       { name: 'custom.json', data: await readFile(catalog.storePath) },
+      { name: 'world.json', data: Buffer.from(JSON.stringify(this.#templateWorldSettings(), null, 2)) },
     ];
     let files = [];
     try { files = await readdir(catalog.spritesDir); } catch { /* 没有自定义贴图 */ }
+    const referenced = new Set();
+    const collect = (value) => {
+      if (typeof value === 'string') {
+        if (/^[A-Za-z0-9_-]+$/.test(value)) referenced.add(value);
+      } else if (Array.isArray(value)) {
+        for (const v of value) collect(v);
+      } else if (value && typeof value === 'object') {
+        for (const v of Object.values(value)) collect(v);
+      }
+    };
+    collect(catalog.store);
     for (const file of files.sort()) {
-      if (!/^cust_[A-Za-z0-9_-]+\.png$/i.test(file)) continue;
+      const base = file.replace(/\.png$/i, '');
+      if (!/^[A-Za-z0-9_-]+\.png$/i.test(file)) continue;
+      if (!file.startsWith('cust_') && !referenced.has(base)) continue;
       entries.push({ name: 'sprites/' + file, data: await readFile(join(catalog.spritesDir, file)) });
     }
     const zip = buildZip(entries);
@@ -1988,7 +2118,7 @@ export class FarmWorld {
       await mkdir(dirname(catalog.storePath), { recursive: true });
       for (const entry of sprites) {
         const name = entry.name.split('/').pop();
-        if (!/^cust_[A-Za-z0-9_-]+\.png$/i.test(name)) throw new Error('模板贴图名不合法：' + name);
+        if (!/^[A-Za-z0-9_-]+\.png$/i.test(name)) throw new Error('模板贴图名不合法：' + name);
         if (entry.data.length > 4 * 1024 * 1024) throw new Error('模板贴图超过 4MB：' + name);
         if (entry.data.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('模板贴图不是 PNG：' + name);
         const target = join(catalog.spritesDir, name);
@@ -2000,6 +2130,18 @@ export class FarmWorld {
       await writeFile(tmp, Buffer.from(customEntry.data));
       await rename(tmp, catalog.storePath);
       catalog.load();
+      const worldEntry = entries.find((e) => e.name === 'world.json');
+      if (worldEntry) {
+        try {
+          const world = JSON.parse(worldEntry.data.toString('utf8'));
+          if (world && typeof world === 'object') {
+            for (const [key, value] of Object.entries(world)) {
+              try { this.cfg[key] = value; } catch { /* 只读代理就只更新已知字段 */ }
+            }
+            this.persistConfig?.(world);
+          }
+        } catch { /* world.json 坏了不影响 custom 导入 */ }
+      }
       this.#syncStateValues();
       await this.#saveOrThrow();
     } catch (err) {

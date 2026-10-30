@@ -24,6 +24,7 @@ if (typeof document !== 'undefined') {
     renameFarmConfigTab();
     injectFarmEnvCheck();
     injectFarmConfigActions();
+    injectFarmTemplate();
   };
   const start = () => {
     refreshFarmConfigUi();
@@ -152,6 +153,168 @@ function injectFarmEnvCheck() {
 }
 
 /** 往宿主的「游戏配置」页里塞「存档与重置」按钮。 */
+function injectFarmTemplate() {
+  try {
+    const hash = String(location.hash || '');
+    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    const view = document.querySelector('.configview');
+    if (!view || view.querySelector('[data-farm-template]')) return;
+
+    const section = document.createElement('div');
+    section.className = 'tsection';
+    section.dataset.farmTemplate = '1';
+    section.textContent = '设置模板';
+
+    const desc = document.createElement('div');
+    desc.className = 'tsecdesc';
+    desc.textContent = '模板包含当前全部设置、参数和引用的贴图，可导出/导入。更换模板会重新解释现有背包和农场物品；如果模板导致物品定义变化，会影响背包内已有物品，导入前建议先备份。存档读取只恢复 state.json，不改当前设置；若存档里有当前设置中不存在的物品，会警告并拒绝读取。';
+
+    const makeBtn = (text, primary = false) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn sm' + (primary ? ' primary' : '');
+      b.textContent = text;
+      return b;
+    };
+    const status = document.createElement('span');
+    status.className = 'tdesc';
+    status.setAttribute('role', 'status');
+
+    const row = (label, nodes) => {
+      const r = document.createElement('div');
+      r.className = 'trow';
+      const l = document.createElement('span');
+      l.className = 'tlabel';
+      l.textContent = label;
+      const f = document.createElement('div');
+      f.className = 'tfield';
+      f.style.display = 'flex';
+      f.style.gap = '8px';
+      f.style.flexWrap = 'wrap';
+      f.append(...nodes);
+      r.append(l, f);
+      return r;
+    };
+
+    const exportBtn = makeBtn('导出模板 ZIP', true);
+    const importBtn = makeBtn('导入模板 ZIP', true);
+    const defaultBtn = makeBtn('应用默认模板：田园农场');
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = '.zip';
+    file.style.display = 'none';
+    importBtn.addEventListener('click', () => file.click());
+    file.addEventListener('change', async () => {
+      const f = file.files && file.files[0];
+      file.value = '';
+      if (!f) return;
+      if (!window.confirm('导入模板会覆盖当前全部设置和贴图。若模板导致物品变更，会影响背包内已有物品。继续？')) return;
+      status.textContent = '正在读取模板…';
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(reader.error || new Error('读取文件失败'));
+        reader.readAsDataURL(f);
+      }).catch((err) => { status.textContent = '读取失败：' + err.message; return ''; });
+      if (!dataUrl) return;
+      try {
+        const base64 = dataUrl.split(',')[1] || '';
+        const r = await farmManageCall('importTemplateData', [base64]);
+        status.textContent = r.text || '模板已导入';
+        setTimeout(() => { try { location.reload(); } catch { } }, 1800);
+      } catch (err) {
+        status.textContent = '导入失败：' + ((err && err.message) || err);
+      }
+    });
+    exportBtn.addEventListener('click', async () => {
+      exportBtn.disabled = true;
+      status.textContent = '正在导出…';
+      try {
+        const res = await fetch('/api/webui/providers/' + encodeURIComponent('world:farm') + '/panels/customize/exportTemplate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ args: [] }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || ('HTTP ' + res.status));
+        }
+        const blob = await res.blob();
+        const d = new Date();
+        const p = (n) => String(n).padStart(2, '0');
+        const name = 'custom-farm-template-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) +
+          '-' + p(d.getHours()) + p(d.getMinutes()) + '.zip';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        status.textContent = '模板已开始下载';
+      } catch (err) {
+        status.textContent = '导出失败：' + ((err && err.message) || err);
+      } finally { exportBtn.disabled = false; }
+    });
+    defaultBtn.addEventListener('click', async () => {
+      if (!window.confirm('应用默认模板「田园农场」会替换全部设置和贴图。若导致物品变更，会影响背包内已有物品。继续？')) return;
+      defaultBtn.disabled = true;
+      status.textContent = '正在应用默认模板…';
+      try {
+        const r = await farmManageCall('applyDefaultTemplate');
+        status.textContent = r.text || '已应用默认模板';
+        setTimeout(() => { try { location.reload(); } catch { } }, 1800);
+      } catch (err) {
+        status.textContent = '应用失败：' + ((err && err.message) || err);
+      } finally { defaultBtn.disabled = false; }
+    });
+
+    const backupSelect = document.createElement('select');
+    backupSelect.className = 'input';
+    backupSelect.style.minWidth = '220px';
+    const loadBackup = makeBtn('读取存档', true);
+    const refreshBackupsBtn = makeBtn('刷新');
+    const refreshBackups = async () => {
+      backupSelect.replaceChildren();
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = '选择备份…';
+      backupSelect.append(empty);
+      try {
+        const r = await farmManageCall('listBackups');
+        for (const b of r.backups || []) {
+          if (!b.hasState) continue;
+          const o = document.createElement('option');
+          o.value = b.name;
+          o.textContent = b.name.replace(/^backup-/, '') + (b.time ? ' · ' + b.time.slice(0, 16).replace('T', ' ') : '');
+          backupSelect.append(o);
+        }
+      } catch (err) {
+        status.textContent = '读取备份列表失败：' + ((err && err.message) || err);
+      }
+    };
+    loadBackup.addEventListener('click', async () => {
+      const name = backupSelect.value;      if (!name) { status.textContent = '先选择一个备份'; return; }
+      if (!window.confirm('读取存档只恢复 state.json，不改当前设置。若存档含当前设置没有的物品会拒绝读取。继续？')) return;
+      loadBackup.disabled = true;
+      status.textContent = '正在读取存档…';
+      try {
+        const r = await farmManageCall('restoreBackup', [name]);
+        status.textContent = r.text || '已读取存档';
+        setTimeout(() => { try { location.reload(); } catch { } }, 2200);
+      } catch (err) {
+        status.textContent = '读取失败：' + ((err && err.message) || err);
+      } finally { loadBackup.disabled = false; }
+    });
+
+    const templateRow = row('模板 / 默认模板', [exportBtn, importBtn, defaultBtn, status]);
+    refreshBackupsBtn.addEventListener('click', () => void refreshBackups());
+    const backupRow = row('存档', [backupSelect, refreshBackupsBtn, loadBackup]);
+    section.append(desc);
+    section.append(file);
+    view.prepend(section, templateRow, backupRow);
+    void refreshBackups();
+  } catch { /* 不是宿主的配置页就算了 */ }
+}
+
+
 function injectFarmConfigActions() {
   try {
     const hash = String(location.hash || '');
@@ -1212,8 +1375,6 @@ function panel(ctx) {
     if (!snapshot) return;
     const scroll = root.scrollTop;
     root.replaceChildren();
-    root.append(templateSection());
-    root.append(ui.h('hr', 'cf-hr'));
     root.append(groundSection());
     root.append(ui.h('hr', 'cf-hr'));
     root.append(cropsSection());
