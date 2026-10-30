@@ -3098,7 +3098,7 @@ function ecologyPanel(ctx) {
     { id: 'calm', name: '无风', builtin: true, deletable: false, duration: 300, weight: 30, cropSway: 'both', cropAmp: 4, decorSway: 'none', decorAmp: 1, squash: 0, mood: 2, speed: 1 },
     { id: 'breeze', name: '微风', builtin: true, deletable: true, duration: 250, weight: 40, cropSway: 'left', cropAmp: 5, decorSway: 'none', decorAmp: 3, squash: 0, mood: 1, speed: 1.2 },
     { id: 'gale', name: '大风', builtin: true, deletable: true, duration: 100, weight: 20, cropSway: 'right', cropAmp: 13, decorSway: 'none', decorAmp: 9, squash: 0, mood: -6, speed: 2.4 },
-    { id: 'egg', name: '彩蛋', builtin: true, deletable: true, duration: 300, weight: 10, cropSway: 'none', cropAmp: 0, decorSway: 'none', decorAmp: 0, squash: 0.45, mood: 4, speed: 3 },
+    { id: 'egg', name: '彩蛋', builtin: true, deletable: true, duration: 300, weight: 1, cropSway: 'none', cropAmp: 0, decorSway: 'none', decorAmp: 0, squash: 0.45, mood: 4, speed: 3 },
   ];
 
   function normalizeWeathers(list) {

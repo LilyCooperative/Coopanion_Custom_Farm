@@ -884,7 +884,7 @@ export class FarmWorld {
     const valid = new Set(Object.keys(CROPS));
     const removed = ['chinese_cabbage', 'grape'];
     this.#state.plots = (this.#state.plots ?? []).filter((p) => valid.has(p.crop));
-    this.#state.drops = (this.#state.drops ?? []).filter((d) => valid.has(d.crop));
+    this.#state.drops = (this.#state.drops ?? []).filter((d) => !d.crop || valid.has(d.crop));
     for (const key of removed) {
       delete this.#state.inventory?.[key];
       delete this.#state.inventory?.['seed_' + key];
