@@ -274,7 +274,7 @@ export class FarmCatalog {
     if (!id) id = 'animal_' + species.key + '_' + (species.stages?.[stageIndex]?.key ?? stageIndex) + '_product';
     let item = items.find((it) => it.id === id);
     const name = String(product.name ?? '').trim().slice(0, 24) || (species.name + '产物');
-    const icon = cleanSprite(product.icon) ?? item?.icon ?? 'icon_item_soil';
+    const icon = cleanSprite(product.icon) ?? item?.icon ?? null;
     if (!item) {
       item = this.normalizeItem({
         id, name, kind: 'consumable', buy: 0, sell: 0,
@@ -306,7 +306,7 @@ export class FarmCatalog {
           kind: 'animal',
           buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
           sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
-          icon: stage.sprites?.idle?.[0] ?? 'icon_item_soil',
+          icon: stage.sprites?.idle?.[0] ?? null,
           consumable: false,
           animalSpecies: species.key,
           animalStage: i,
@@ -369,7 +369,7 @@ export class FarmCatalog {
         } else if (crop) {
           item = this.normalizeItem({
             id, kind: 'crop', crop: id, name: crop.name,
-            icon: crop.itemSprite ?? 'icon_item_soil', buy: 0, sell: crop.value,
+            icon: crop.itemSprite ?? (crop.builtin ? 'icon_item_soil' : null), buy: 0, sell: crop.value,
             consumable: true, effects: [],
           }, list.length, this.store.states);
         }
@@ -1063,7 +1063,7 @@ export class FarmCatalog {
     live.itemIcons = {};
     live.names = {};
     for (const it of items) {
-      live.itemIcons[it.id] = it.icon ?? 'icon_item_soil';
+      live.itemIcons[it.id] = it.icon ?? null;
       live.names[it.id] = it.name;
     }
     live.status = {
@@ -1103,7 +1103,7 @@ export class FarmCatalog {
         kind: 'seed',
         crop: crop.key,
         name: crop.name + '种子',
-        icon: crop.seedSprite ?? seedOld.icon ?? 'icon_item_soil',
+        icon: crop.seedSprite ?? seedOld.icon ?? (crop.builtin ? 'icon_item_soil' : null),
         buy: seedOld.buy ?? crop.seedPrice,
         sell: seedOld.sell ?? crop.seedSell,
         consumable: false,
@@ -1116,7 +1116,7 @@ export class FarmCatalog {
         kind: 'crop',
         crop: crop.key,
         name: crop.name,
-        icon: crop.itemSprite ?? cropOld.icon ?? 'icon_item_soil',
+        icon: crop.itemSprite ?? cropOld.icon ?? (crop.builtin ? 'icon_item_soil' : null),
         buy: cropOld.buy ?? 0,
         sell: cropOld.sell ?? crop.value,
         consumable: cropOld.consumable !== false,
@@ -1132,7 +1132,7 @@ export class FarmCatalog {
         kind: 'crop',
         crop: null,
         name: weedOld.name ?? (weed.itemName || weed.name),
-        icon: weed.itemSprite ?? weedOld.icon ?? 'icon_item_soil',
+        icon: weed.itemSprite ?? weedOld.icon ?? (weed.builtin ? 'icon_item_soil' : null),
         buy: weedOld.buy ?? 0,
         sell: weedOld.sell ?? weed.value,
         consumable: weedOld.consumable !== false,
@@ -1171,7 +1171,7 @@ export class FarmCatalog {
     const prefix = original?.prefix ?? null;
     const frames = original?.frames ?? stages;
     const spriteNames = Array.from({ length: stages }, (_, i) => (
-      c.sprites[i] ?? (prefix ? prefix + '_' + Math.min(i, Math.max(0, frames - 1)) : (c.itemSprite ?? c.seedSprite ?? 'icon_item_soil'))
+      c.sprites[i] ?? (prefix ? prefix + '_' + Math.min(i, Math.max(0, frames - 1)) : null)
     ));
     return {
       key: c.key,
@@ -1214,7 +1214,7 @@ export class FarmCatalog {
     const prefix = def?.prefix ?? null;
     const frames = def?.frames ?? w.stages;
     const spriteNames = Array.from({ length: w.stages }, (_, i) => (
-      w.sprites[i] ?? (prefix ? prefix + '_' + Math.min(i, Math.max(0, frames - 1)) : (w.itemSprite ?? 'icon_item_soil'))
+      w.sprites[i] ?? (prefix ? prefix + '_' + Math.min(i, Math.max(0, frames - 1)) : null)
     ));
     return {
       key: w.key,
@@ -1318,7 +1318,7 @@ export class FarmCatalog {
     const custom = crop.sprites?.[i];
     if (custom) return custom;
     if (crop.prefix) return crop.prefix + '_' + Math.min(i, Math.max(0, crop.frames - 1));
-    return crop.itemSprite ?? crop.seedSprite ?? 'icon_item_soil';
+    return null;
   }
 
   weedSpriteName(weed) {
@@ -1328,7 +1328,7 @@ export class FarmCatalog {
     const custom = def.sprites?.[i];
     if (custom) return custom;
     if (def.prefix) return def.prefix + '_' + Math.min(i, Math.max(0, def.frames - 1));
-    return def.itemSprite ?? 'icon_item_soil';
+    return null;
   }
 
   // ------------------------------------------------------------------ 面板操作
@@ -1355,8 +1355,8 @@ export class FarmCatalog {
         seedSprite: c.seedSprite,
         itemSprite: c.itemSprite,
         preview: Array.from({ length: c.stages }, (_, i) => this.cropSpriteName(c, i)),
-        previewSeed: c.seedSprite ?? 'icon_item_soil',
-        previewItem: c.itemSprite ?? 'icon_item_soil',
+        previewSeed: c.seedSprite ?? null,
+        previewItem: c.itemSprite ?? null,
       })),
       weeds: this.weedCompiled.map((w) => ({
         key: w.key,
@@ -1373,7 +1373,7 @@ export class FarmCatalog {
         itemSprite: w.itemSprite,
         layer: ['top', 'mid', 'bottom'].includes(w.layer) ? w.layer : 'top',
         preview: Array.from({ length: w.stages }, (_, i) => this.weedSpriteName({ type: w.key, level: i })),
-        previewItem: w.value > 0 ? (w.itemSprite ?? 'icon_item_soil') : null,
+        previewItem: w.value > 0 ? (w.itemSprite ?? null) : null,
       })),
       animals: (this.store.animals ?? []).map((a) => ({
         ...a,
@@ -1702,7 +1702,7 @@ export class FarmCatalog {
       .map((it) => ({
         ...it,
         effects: effects(it),
-        preview: it.icon ?? 'icon_item_soil',
+        preview: it.icon ?? null,
         spritePreview: it.sprite ?? null,
       }));
     return {
@@ -1711,7 +1711,7 @@ export class FarmCatalog {
       consumables: group('consumable'),
       animalProducts: this.store.items
         .filter((it) => it.animalProduct)
-        .map((it) => ({ ...it, effects: effects(it), preview: it.icon ?? 'icon_item_soil', spritePreview: it.sprite ?? null })),
+        .map((it) => ({ ...it, effects: effects(it), preview: it.icon ?? null, spritePreview: it.sprite ?? null })),
       decorations: group('decor'),
       states: this.store.states
         .filter((s) => s.kind === 'number')
@@ -1720,7 +1720,7 @@ export class FarmCatalog {
   }
 
   snapshotRecipes() {
-    const itemView = (id) => ({ id, name: live.names?.[id] ?? id, icon: live.itemIcons?.[id] ?? 'icon_item_soil' });
+    const itemView = (id) => ({ id, name: live.names?.[id] ?? id, icon: live.itemIcons?.[id] ?? null });
     return {
       recipes: this.store.recipes.map((r) => ({
         ...r,
@@ -1728,7 +1728,7 @@ export class FarmCatalog {
         output: { ...r.output, ...itemView(r.output.item) },
       })),
       items: Object.values(live.items ?? {}).map((it) => ({
-        id: it.id, name: it.name, icon: it.icon ?? 'icon_item_soil', kind: it.kind,
+        id: it.id, name: it.name, icon: it.icon ?? null, kind: it.kind,
       })),
     };
   }

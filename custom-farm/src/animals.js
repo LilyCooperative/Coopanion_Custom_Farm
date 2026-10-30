@@ -89,7 +89,7 @@ export function normalizeAnimal(src, index = 0) {
       for (const a of actions) {
         const list = Array.isArray(s?.sprites?.[a.key]) ? s.sprites[a.key] : [];
         const cleaned = list.map(cleanSprite).filter(Boolean).slice(0, 8);
-        sprites[a.key] = cleaned.length ? cleaned : frames(prefix, a.key);
+        sprites[a.key] = cleaned;
       }
       let product = null;
       if (s?.product === true) product = { ...productDefaults };

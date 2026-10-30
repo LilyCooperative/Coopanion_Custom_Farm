@@ -726,11 +726,11 @@ function panel(ctx) {
     const box = ui.h('div', 'cf-thumb');
     box.style.width = size + 'px';
     box.style.height = size + 'px';
-    if (!name) { box.classList.add('cf-missing'); box.textContent = '?'; return box; }
+    if (!name) { box.classList.add('cf-missing'); return box; }
     const img = ui.h('img');
     img.alt = '';
     img.draggable = false;
-    void spriteUrl(name).then((url) => { if (url) img.src = url; else { box.classList.add('cf-missing'); box.textContent = '?'; } });
+    void spriteUrl(name).then((url) => { if (url) img.src = url; else { box.classList.add('cf-missing'); } });
     box.appendChild(img);
     return box;
   }
@@ -2109,11 +2109,11 @@ function spriteKit(ctx, ui, T) {
     const box = ui.h('div', 'cf-thumb');
     box.style.width = size + 'px';
     box.style.height = size + 'px';
-    if (!name) { box.classList.add('cf-missing'); box.textContent = '?'; return box; }
+    if (!name) { box.classList.add('cf-missing'); return box; }
     const img = ui.h('img');
     img.alt = '';
     img.draggable = false;
-    void url(name).then((u) => { if (u) img.src = u; else { box.classList.add('cf-missing'); box.textContent = '?'; } });
+    void url(name).then((u) => { if (u) img.src = u; else { box.classList.add('cf-missing'); } });
     box.appendChild(img);
     return box;
   }
@@ -3347,7 +3347,7 @@ function animalsPanel(ctx) {
           key, name: zh ? '新动物' : 'New animal', layer: 'mid', enabled: true,
           actions: [{ key: 'idle', name: zh ? '待机' : 'Idle', weight: 60 }, { key: 'walk', name: zh ? '走路' : 'Walk', weight: 40 }],
           walk: { chance: 0.35, speed: 0.012, range: 0.16 },
-          product: { item: '', name: zh ? '产物' : 'Product', icon: 'icon_item_soil', everyDays: 2, count: 1 },
+          product: { item: '', name: zh ? '产物' : 'Product', icon: '', everyDays: 2, count: 1 },
           prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
           stages: [{
             key: 'stage_1', name: zh ? '幼崽' : 'Baby', days: 1.5, scale: 0.12,
