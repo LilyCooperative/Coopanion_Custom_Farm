@@ -26,3 +26,7 @@ overlay-electron/runtime/
 # 生成文档 / 本地归档 / 旧打包产物
 docs/
 custom-farm/*.tgz
+
+# 临时调试产物
+_edge_profile*/
+_config_dom*.html
