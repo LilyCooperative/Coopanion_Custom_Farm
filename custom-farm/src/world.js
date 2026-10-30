@@ -2063,6 +2063,7 @@ export class FarmWorld {
       },
       { name: 'custom.json', data: await readFile(catalog.storePath) },
       { name: 'world.json', data: Buffer.from(JSON.stringify(this.#templateWorldSettings(), null, 2)) },
+      { name: 'env-prompt.md', data: await readFile(ENV_PROMPT) },
     ];
     let files = [];
     try { files = await readdir(catalog.spritesDir); } catch { /* 没有自定义贴图 */ }
@@ -2147,6 +2148,10 @@ export class FarmWorld {
             this.persistConfig?.(world);
           }
         } catch { /* world.json 坏了不影响 custom 导入 */ }
+      }
+      const envEntry = entries.find((e) => e.name === 'env-prompt.md');
+      if (envEntry && envEntry.data.length < 1024 * 1024) {
+        await writeFile(ENV_PROMPT, envEntry.data);
       }
       this.#syncStateValues();
       await this.#saveOrThrow();

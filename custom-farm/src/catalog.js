@@ -290,6 +290,31 @@ export class FarmCatalog {
     return item;
   }
 
+  ensureAnimalItems(species) {
+    const items = this.store.items ?? (this.store.items = []);
+    for (let i = 0; i < (species.stages ?? []).length; i++) {
+      const stage = species.stages[i];
+      if (!stage.item) stage.item = 'animal_' + species.key + '_' + (stage.key || i);
+      let item = items.find((it) => it.id === stage.item);
+      if (!item) {
+        const isAdult = i === species.stages.length - 1;
+        item = this.normalizeItem({
+          id: stage.item,
+          name: species.name + (isAdult ? '（成年）' : '（幼崽）'),
+          kind: 'animal',
+          buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
+          sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
+          icon: stage.sprites?.idle?.[0] ?? 'icon_item_soil',
+          consumable: false,
+          animalSpecies: species.key,
+          animalStage: i,
+        }, items.length, this.store.states);
+        if (item) items.push(item);
+      }
+      if (stage.product) this.ensureAnimalProductItem(stage.product, species, i);
+    }
+  }
+
   /** 补默认鸡、幼崽/成年道具和蛋的「动物产品」标记。 */
   ensureAnimals() {
     if (!this.store) return;
@@ -298,33 +323,11 @@ export class FarmCatalog {
       if (!Array.isArray(this.store.animals) || !this.store.animals.length) {
         this.store.animals = builtinAnimals();
       }
-      for (const species of this.store.animals) {
-        for (let i = 0; i < (species.stages ?? []).length; i++) {
-          const stage = species.stages[i];
-          if (!stage.item || items.some((it) => it.id === stage.item)) continue;
-          const isAdult = i === species.stages.length - 1;
-          const item = this.normalizeItem({
-            id: stage.item,
-            name: species.name + (isAdult ? '（成年）' : '（幼崽）'),
-            kind: 'animal',
-            buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
-            sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
-            icon: stage.sprites?.idle?.[0] ?? 'icon_item_soil',
-            consumable: false,
-            animalSpecies: species.key,
-            animalStage: i,
-          }, items.length, this.store.states);
-          if (item) items.push(item);
-        }
-      }
+      for (const species of this.store.animals) this.ensureAnimalItems(species);
       this.store.seededAnimals = true;
     }
     // 已存在的动物也要补齐/同步阶段产物道具的名字和图标。
-    for (const species of this.store.animals ?? []) {
-      for (let i = 0; i < (species.stages ?? []).length; i++) {
-        if (species.stages[i].product) this.ensureAnimalProductItem(species.stages[i].product, species, i);
-      }
-    }
+    for (const species of this.store.animals ?? []) this.ensureAnimalItems(species);
     this.persist();
   }
 
@@ -1637,9 +1640,7 @@ export class FarmCatalog {
       const item = this.store.items?.find((it) => it.id === id);
       if (item) item.animalProduct = true;
     }
-    for (let i = 0; i < normalized.stages.length; i++) {
-      if (normalized.stages[i].product) this.ensureAnimalProductItem(normalized.stages[i].product, normalized, i);
-    }
+    this.ensureAnimalItems(normalized);
     this.persist();
     this.apply();
     return normalized;

@@ -441,11 +441,11 @@ const TEXT = {
     weedsTitle: '杂草',
     weedsDesc: '增删杂草、阶段数与每阶段天数、出现权重；配了收获物就能走过去收。点标题展开一张卡。',
     weedLayer: '图层',
-    weedLayerTop: '上（和作物/桌宠同前台层）',
-    weedLayerBottom: '下（背景层，作物后方）',
+    weedLayerTop: '上层（桌宠上方，可遮挡桌宠）',
+    weedLayerBottom: '下层（桌宠后方最底层）',
     cropLayer: '图层',
-    cropLayerTop: '上（和桌宠同前台层）',
-    cropLayerBottom: '下（背景层，桌宠后方）',
+    cropLayerTop: '上层（桌宠上方，可遮挡桌宠）',
+    cropLayerBottom: '下层（桌宠后方最底层）',
     addWeed: '添加杂草',
     name: '名字',
     stages: '阶段数',
@@ -548,11 +548,11 @@ const TEXT = {
     weedsTitle: 'Weeds',
     weedsDesc: 'Add/remove weeds, stages, days per stage, spawn weight; with a produce item they can be harvested.',
     weedLayer: 'Layer',
-    weedLayerTop: 'Top (foreground with crops/pet)',
-    weedLayerBottom: 'Bottom (background, behind crops)',
+    weedLayerTop: 'Top (above pet)',
+    weedLayerBottom: 'Bottom (lowest behind pet)',
     cropLayer: 'Layer',
-    cropLayerTop: 'Top (foreground with pet)',
-    cropLayerBottom: 'Bottom (background, behind pet)',
+    cropLayerTop: 'Top (above pet)',
+    cropLayerBottom: 'Bottom (lowest behind pet)',
     addWeed: 'Add weed',
     name: 'Name',
     stages: 'Stages',
@@ -1893,7 +1893,7 @@ const IT = {
     animalProducts: '动物产品',
     animalProductsDesc: '动物定时产出的道具；产物掉在地上，桌宠要用 farm_collect 捡。',
     decorations: '装饰道具',
-    decorationsDesc: '可买/可合成；设置缩略图、摆放贴图和图层（上/下）后，去「背包」页点放置。上层和杂草同层、会清掉落点杂草；下层在农作物后方、不清草。',
+    decorationsDesc: '可买/可合成；设置缩略图、摆放贴图和图层（上/中/下）后，去「背包」页点放置。上层会清掉落点杂草；中层和下层不清草。',
     addConsumable: '添加消耗品',
     addDecor: '添加装饰',
     buy: '买价（0=不卖）',
@@ -1905,8 +1905,8 @@ const IT = {
     autoSeed: '种子随作物自动生成',
     autoCrop: '收获物随作物自动生成',
     layer: '图层',
-    layerTop: '上（和杂草同层，盖住作物/桌宠）',
-    layerBottom: '下（在农作物后方）',
+    layerTop: '上层（桌宠上方，可遮挡桌宠）',
+    layerBottom: '下层（桌宠后方最底层）',
     decorScale: '贴图大小（倍率）',
     decorScaleHint: '只影响这个装饰；1 = 原大，0.3~3。',
     edible: '可以被消耗（吃）',
@@ -1939,7 +1939,7 @@ const IT = {
     animalProducts: 'Animal products',
     animalProductsDesc: 'Items produced by animals; they drop on the ground and the pet collects them with farm_collect.',
     decorations: 'Decorations',
-    decorationsDesc: 'Buy or craft; set icon, placement sprite and layer (top/bottom), then place from the Bag page. Top shares the weed layer and clears weeds at the spot; bottom sits behind crops and leaves weeds alone.',
+    decorationsDesc: 'Buy or craft; set icon, placement sprite and layer (top/mid/bottom), then place from the Bag page. Top clears weeds at the spot; middle and bottom leave weeds alone.',
     addConsumable: 'Add consumable',
     addDecor: 'Add decoration',
     buy: 'Buy (0 = not sold)',
@@ -1951,8 +1951,8 @@ const IT = {
     autoSeed: 'auto from crop',
     autoCrop: 'auto from crop',
     layer: 'Layer',
-    layerTop: 'Top (same layer as weeds; covers crops/pet)',
-    layerBottom: 'Bottom (behind crops)',
+    layerTop: 'Top (above pet)',
+    layerBottom: 'Bottom (lowest behind pet)',
     decorScale: 'Sprite size (scale)',
     decorScaleHint: 'Only this decoration; 1 = original, 0.3–3.',
     edible: 'Edible (can be consumed)',
@@ -3147,7 +3147,7 @@ function animalsPanel(ctx) {
   const { thumb, pickPng } = spriteKit(ctx, ui, { pickTitle: zh ? '选择动物帧 PNG' : 'Pick animal frame PNG' });
   const T = {
     title: zh ? '动物自定义' : 'Animal customization',
-    desc: zh ? '鸡等动物默认在 mid 图层：在桌宠后面、草地前面。这里设置动作帧、随机概率、产物和价格。' : 'Animals default to the mid layer: behind the pet, in front of the ground. Set actions, probabilities, products and prices here.',
+    desc: zh ? '动物默认在中层，可在物种里改成上层或下层；这里设置动作帧、随机概率、产物和价格。' : 'Animals default to the middle layer and can be switched to top or bottom per species. Set actions, probabilities, products and prices here.',
     stock: zh ? '背包里的动物' : 'Animals in bag',
     placed: zh ? '已放置' : 'Placed',
     emptyStock: zh ? '背包里没有动物。去商店买幼崽。' : 'No animals in the bag. Buy a baby in the shop.',
@@ -3242,10 +3242,37 @@ function animalsPanel(ctx) {
     const scroll = root.scrollTop;
     root.replaceChildren();
     const top = ui.sheet({ title: T.title, desc: T.desc });
+    const addBar = ui.actions();
+    addBar.append(ui.button(zh ? '添加动物' : 'Add animal', {
+      variant: 'primary',
+      onClick: () => {
+        const stamp = Date.now().toString(36);
+        const key = 'animal_' + stamp;
+        const fresh = {
+          key, name: zh ? '新动物' : 'New animal', layer: 'mid', enabled: true,
+          actions: [{ key: 'idle', name: zh ? '待机' : 'Idle', weight: 60 }, { key: 'walk', name: zh ? '走路' : 'Walk', weight: 40 }],
+          walk: { chance: 0.35, speed: 0.012, range: 0.16 },
+          product: { item: '', name: zh ? '产物' : 'Product', icon: 'icon_item_soil', everyDays: 2, count: 1 },
+          prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
+          stages: [{
+            key: 'stage_1', name: zh ? '幼崽' : 'Baby', days: 1.5, scale: 0.12,
+            prefix: key + '_stage_1', item: '', product: null,
+            sprites: { idle: [], walk: [], peck: [] },
+          }],
+        };
+        void call('saveAnimal', [fresh], T.saved);
+      },
+    }));
+    top.body.append(addBar);
     root.append(top.el);
 
     for (const sp of snap.animals ?? []) {
-      const sheet = ui.sheet({ title: sp.name + ' (' + sp.key + ')' });
+      const card = ui.h('details', 'cf-card');
+      const head = ui.h('summary', 'cf-head');
+      head.append(ui.h('strong', 'cf-name', sp.name + ' (' + sp.key + ')'), ui.pill(sp.layer, 'plain'));
+      const body = ui.h('div', 'cf-body');
+      card.append(head, body);
+      const sheet = { body };
       const draft = structuredClone(sp);
       const row = ui.h('div', 'cf-row');
       row.append(
@@ -3363,7 +3390,7 @@ function animalsPanel(ctx) {
       bar.append(ui.button(T.save, { variant: 'primary', onClick: () => void call('saveAnimal', [draft], T.saved) }));
       bar.append(ui.button(T.remove, { size: 'sm', variant: 'danger', onClick: () => void call('removeAnimal', [sp.key], T.saved) }));
       sheet.body.append(bar);
-      root.append(sheet.el);
+      root.append(card);
     }
     root.scrollTop = scroll;
   }
