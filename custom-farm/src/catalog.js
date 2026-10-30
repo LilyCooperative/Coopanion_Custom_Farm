@@ -131,6 +131,8 @@ export class FarmCatalog {
       dryPerDay: clamp(opts.waterDefaults?.dryPerDay, 0, 20, 0.15),
       waterGain: clamp(opts.waterDefaults?.waterGain, 0, 5, 1),
       wiltDays: clamp(opts.waterDefaults?.wiltDays, 0.01, 1000, 2.2),
+      enabled: opts.waterDefaults?.enabled !== false,
+      wither: opts.waterDefaults?.wither !== false,
     };
     this.store = null;
     this.compiled = [];
@@ -439,7 +441,7 @@ export class FarmCatalog {
       },
       {
         id: 'deco_fence', name: '木篱笆', kind: 'decor', buy: 100, sell: 35,
-        consumable: false, effects: [], icon: 'icon_deco_fence', sprite: 'deco_fence', layer: 'bottom',
+        consumable: false, effects: [], icon: 'icon_deco_fence', sprite: 'deco_fence', layer: 'top',
         scale: 0.7,
       },
     ];
@@ -766,7 +768,7 @@ export class FarmCatalog {
     const src = raw && typeof raw === 'object' ? raw : {};
     const specs = {
       farmCells: { type: 'int', min: 12, max: 48 },
-      maxPlants: { type: 'int', min: 1, max: 24 },
+      maxPlants: { type: 'int', min: 1, max: 64 },
       cropGapScale: { type: 'num', min: 0.5, max: 1.2 },
       cropGapPct: { type: 'num', min: 0, max: 10 },
       cropScale: { type: 'num', min: 0.3, max: 2.5 },
@@ -892,7 +894,7 @@ export class FarmCatalog {
       animalProduct: Boolean(src.animalProduct),
       effects: kind === 'seed' || kind === 'decor' || kind === 'animal' ? [] : effects,
       layer: kind === 'decor' ? (['top', 'mid', 'bottom'].includes(src.layer) ? src.layer : 'bottom') : null,
-      scale: kind === 'decor' ? r2(clamp(Number(src.scale), 0.3, 3, 1)) : null,
+      scale: kind === 'decor' ? r2(clamp(Number(src.scale), 0.05, 5, 1)) : null,
     };
   }
 
@@ -927,6 +929,8 @@ export class FarmCatalog {
         dryPerDay: r2(clamp(water.dryPerDay, 0, 20, def.water.dryPerDay)),
         waterGain: r2(clamp(water.waterGain, 0, 5, def.water.waterGain)),
         wiltDays: r2(clamp(water.wiltDays, 0.01, 1000, def.water.wiltDays)),
+        enabled: water.enabled !== false,
+        wither: water.wither !== false,
       },
       fx: {
         pour: frames(fx.pour, def.fx.pour),

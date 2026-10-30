@@ -1262,6 +1262,8 @@ function panel(ctx) {
         dryPerDay: Number(src.water?.dryPerDay ?? 0.15),
         waterGain: Number(src.water?.waterGain ?? 1),
         wiltDays: Number(src.water?.wiltDays ?? 2.2),
+        enabled: src.water?.enabled !== false,
+        wither: src.water?.wither !== false,
       },
     };
   }
@@ -1289,6 +1291,8 @@ function panel(ctx) {
         dryPerDay: Number(s.water.dryPerDay),
         waterGain: Number(s.water.waterGain),
         wiltDays: Number(s.water.wiltDays),
+        enabled: s.water.enabled !== false,
+        wither: s.water.wither !== false,
       },
       fx: {
         pour: [...s.fx.pour],
@@ -1352,6 +1356,17 @@ function panel(ctx) {
       ui.field(T.waterGain, numberInput(d.water.waterGain, (v) => { d.water.waterGain = v; }, '0.05', '0')),
       ui.field(T.wiltDays, numberInput(d.water.wiltDays, (v) => { d.water.wiltDays = v; }, '0.1', '0.01')),
     );
+    const waterFlags = ui.h('div', 'cf-row');
+    waterFlags.append(
+      ui.checkbox('需要浇水（关闭后不会缺水）', {
+        checked: d.water.enabled !== false,
+        onChange: (v) => { d.water.enabled = v; },
+      }).el,
+      ui.checkbox('会枯萎（关闭后干了也不会死）', {
+        checked: d.water.wither !== false,
+        onChange: (v) => { d.water.wither = v; },
+      }).el,
+    );
     const saveBar = ui.rowbar();
     saveBar.append(ui.button(T.saveEcology, {
       variant: 'primary',
@@ -1364,6 +1379,7 @@ function panel(ctx) {
       ui.h('hr', 'cf-hr2'),
       ui.h('strong', 'cf-note', T.ecologyWater),
       waterRow,
+      waterFlags,
       saveBar,
     );
     return sheet.el;
@@ -1961,7 +1977,7 @@ const IT = {
     layerTop: '上层（桌宠上方，可遮挡桌宠）',
     layerBottom: '下层（桌宠后方最底层）',
     decorScale: '贴图大小（倍率）',
-    decorScaleHint: '只影响这个装饰；1 = 原大，0.3~3。',
+    decorScaleHint: '只影响这个装饰；1 = 原大，0.05~5。',
     edible: '可以被消耗（吃）',
     effects: '吃掉后改变',
     effectState: '状态',
@@ -2007,7 +2023,7 @@ const IT = {
     layerTop: 'Top (above pet)',
     layerBottom: 'Bottom (lowest behind pet)',
     decorScale: 'Sprite size (scale)',
-    decorScaleHint: 'Only this decoration; 1 = original, 0.3–3.',
+    decorScaleHint: 'Only this decoration; 1 = original, 0.05–5.',
     edible: 'Edible (can be consumed)',
     effects: 'Changes when eaten',
     effectState: 'State',
@@ -2600,9 +2616,11 @@ function itemsPanel(ctx) {
     }
   }
 
-  function num(value, onChange, step = '1') {
+  function num(value, onChange, step = '1', min = '0', max = '') {
     const input = ui.input({ type: 'number', value: value === null || value === undefined ? '' : String(value) });
     input.step = step;
+    input.min = min;
+    if (max !== '') input.max = max;
     input.addEventListener('input', () => { const n = Number(input.value); if (Number.isFinite(n)) onChange(n); }, { signal: ctx.signal });
     return input;
   }
@@ -2753,7 +2771,7 @@ function itemsPanel(ctx) {
       layerSel.addEventListener('change', () => { draft.layer = layerSel.value; }, { signal: ctx.signal });
       body.append(
         ui.field(T.layer, layerSel),
-        ui.field(T.decorScale, num(draft.scale, (v) => { draft.scale = v; }, '0.05')),
+        ui.field(T.decorScale, num(draft.scale, (v) => { draft.scale = v; }, '0.05', '0.05', '5')),
         ui.h('p', 'cf-note', T.decorScaleHint),
         iconRow(draft, nameRepaint),
         spriteRow(draft, nameRepaint),
@@ -3002,6 +3020,8 @@ function ecologyPanel(ctx) {
         dryPerDay: Number(src.water?.dryPerDay ?? 0.15),
         waterGain: Number(src.water?.waterGain ?? 1),
         wiltDays: Number(src.water?.wiltDays ?? 2.2),
+        enabled: src.water?.enabled !== false,
+        wither: src.water?.wither !== false,
       },
       weathers: normalizeWeathers(src.weathers),
     };
@@ -3147,6 +3167,17 @@ function ecologyPanel(ctx) {
       ui.field(zh ? '一次浇水补水' : 'Water gain', num(d.water.waterGain, (v) => { d.water.waterGain = v; }, '0.05', '0')),
       ui.field(zh ? '干透后枯萎天数' : 'Wilt days', num(d.water.wiltDays, (v) => { d.water.wiltDays = v; }, '0.1', '0.01')),
     );
+    const waterOpts = ui.h('div', 'cf-row');
+    waterOpts.append(
+      ui.checkbox(zh ? '需要浇水（关闭后不会缺水）' : 'Watering required (off = never dry)', {
+        checked: d.water.enabled !== false,
+        onChange: (v) => { d.water.enabled = v; paint(); },
+      }).el,
+      ui.checkbox(zh ? '会枯萎（关闭后干了也不会死）' : 'Crops can wither (off = never die)', {
+        checked: d.water.wither !== false,
+        onChange: (v) => { d.water.wither = v; },
+      }).el,
+    );
     const moodRow = ui.h('div', 'cf-row');
     moodRow.append(ui.field(zh ? '心情结算间隔（真实分钟）' : 'Mood interval (real min)', num(d.moodIntervalMin, (v) => { d.moodIntervalMin = v; }, '1', '1')));
     const weatherBox = ui.h('div', 'cf-list');
@@ -3169,6 +3200,7 @@ function ecologyPanel(ctx) {
       ui.h('hr', 'cf-hr2'),
       ui.h('strong', 'cf-note', zh ? '浇水' : 'Water'),
       water,
+      waterOpts,
       ui.h('hr', 'cf-hr2'),
       ui.h('strong', 'cf-note', zh ? '天气' : 'Weather'),
       moodRow,

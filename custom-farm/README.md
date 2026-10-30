@@ -160,9 +160,9 @@ Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `elec
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `maxPlants` | 12 | 同时最多几棵 |
+| `maxPlants` | 24 | 同时最多几棵（最大 64） |
 | `farmCells` | 48 | 农田总宽度（12~48 格） |
-| `cropGapScale` / `cropGapPct` | 0.8 / 2 | 作物间距 |
+| `cropGapScale` / `cropGapPct` | 0.55 / 1.2 | 作物间距 |
 | `cropScale` / `dropScale` | 1.5 / 0.6 | 作物 / 掉落物大小 |
 | `groundHeight` / `stripHeight` | 5 / 320 | 地表高度 / 图层纵向覆盖 |
 | `realMinutesPerDay` | 60 | 1 游戏日 = 多少真实分钟 |
@@ -170,7 +170,7 @@ Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `elec
 | `tickIntervalMs` | 5000 | 刷新间隔；只影响状态/事件更新频率，不改变生长速度 |
 | `startCoins` | 120 | 新开局金币 |
 | `moodIntervalMin` | 10 | 心情按真实分钟结算的间隔 |
-| 浇水 | 0.15 / 1 / 2.2 | 每天蒸发 / 一次补水 / 干透后枯萎天数 |
+| 浇水 | 0.15 / 1 / 2.2 | 每天蒸发 / 一次补水 / 干透后枯萎天数；可关闭浇水或枯萎 |
 
 ## 文件
 

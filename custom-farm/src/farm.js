@@ -59,7 +59,7 @@ export const DEFAULTS = {
   /** 图层节流：off = 不节流（默认）；auto = 交给 Chromium；on = 允许后台/遮挡节流。 */
   throttle: 'off',
   /** 最多同时种几棵（屏幕上不重叠地放得下的上限） */
-  maxPlants: 12,
+  maxPlants: 24,
   /** 屏幕逻辑宽度，用来把"像素宽"换算成 x 间距 */
   screenWidth: 2048,
   /** 图层的统一缩放倍率（所有作物同一个倍率，相对大小才跟贴图一致） */
@@ -67,9 +67,9 @@ export const DEFAULTS = {
   /** 作物之间的最小额外像素间隔 */
   spriteGapPx: 4,
   /** 贴图间距倍率：1 = 贴图刚好不重叠；<1 更密，允许轻微重叠（默认 0.8） */
-  cropGapScale: 0.8,
+  cropGapScale: 0.55,
   /** 直接指定最小中心距（屏宽百分比）；0 = 用上面的倍率自动算，>0 覆盖 */
-  cropGapPct: 2,
+  cropGapPct: 1.2,
   /** 农作物/杂草贴图整体缩放：1 = 原大小；只放大/缩小植物，不影响地面 */
   cropScale: 1.5,
   /** 掉落物/收获物图标大小：1 = 原大 */
@@ -99,6 +99,8 @@ export const DEFAULTS = {
   tickIntervalMs: 5000,
   /** 每个游戏日蒸发多少水分（0~1 口径）。0.15 ≈ 浇一次能撑 5.7 个游戏日 */
   dryPerDay: 0.15,
+  waterEnabled: true,
+  waterWither: true,
   /** 一次浇水补多少水分（1 = 浇满） */
   waterGain: 1.0,
   /** 土完全干透之后多久枯萎（游戏日） */
@@ -827,20 +829,29 @@ export function advance(state, nowMs, cfg = DEFAULTS, random = Math.random) {
     if (plot.dead) continue;
     const crop = cropOf(plot.crop);
 
-    // 水分
-    plot.moisture = clamp01(plot.moisture - cfg.dryPerDay * gameDays);
-    if (plot.moisture < 0.15 && !plot.dryNotified) { plot.dryNotified = true; out.becameDry.push(plot.id); }
-    if (plot.moisture >= 0.3) plot.dryNotified = false;
-    if (plot.moisture <= 0.001) {
-      if (plot.drySince === null) plot.drySince = state.elapsedDays;
-      else if (state.elapsedDays - plot.drySince >= cfg.wiltDays) {
-        plot.dead = true;
-        out.wilted.push(plot.id);
-        pushFieldLog(state, { kind: 'wilt', id: plot.id, crop: plot.crop, x: plot.x });
-        continue;
-      }
-    } else {
+    // 水分；关闭「需要浇水」后不蒸发、不缺水，作物始终按湿润生长。
+    if (cfg.waterEnabled === false) {
+      plot.moisture = 1;
       plot.drySince = null;
+      plot.dryNotified = false;
+    } else {
+      plot.moisture = clamp01(plot.moisture - cfg.dryPerDay * gameDays);
+      if (plot.moisture < 0.15 && !plot.dryNotified) { plot.dryNotified = true; out.becameDry.push(plot.id); }
+      if (plot.moisture >= 0.3) plot.dryNotified = false;
+      if (plot.moisture <= 0.001) {
+        if (cfg.waterWither === false) {
+          plot.drySince = null;
+        } else if (plot.drySince === null) {
+          plot.drySince = state.elapsedDays;
+        } else if (state.elapsedDays - plot.drySince >= cfg.wiltDays) {
+          plot.dead = true;
+          out.wilted.push(plot.id);
+          pushFieldLog(state, { kind: 'wilt', id: plot.id, crop: plot.crop, x: plot.x });
+          continue;
+        }
+      } else {
+        plot.drySince = null;
+      }
     }
 
     // 生长
@@ -1389,9 +1400,9 @@ export function placeDecoration(state, item, x) {
   if (have <= 0) throw new Error('背包里没有' + item.name + '。');
   state.inventory[item.id] = have - 1;
   if (state.inventory[item.id] <= 0) delete state.inventory[item.id];
-  const layer = item.layer === 'top' ? 'top' : 'bottom';
+  const layer = ['top', 'mid', 'bottom'].includes(item.layer) ? item.layer : 'bottom';
   let cleared = 0;
-  // 上层装饰和杂草同一图层：放下去会把落点杂草清掉；下层在作物后面，不动杂草。
+  // 上层装饰和杂草同一图层：放下去会把落点杂草清掉；中层/下层不动杂草，也不影响作物。
   if (layer === 'top') {
     const before = (state.weeds ?? []).length;
     state.weeds = (state.weeds ?? []).filter((w) => Math.abs(Number(w.x) - nx) > 0.035);

@@ -295,7 +295,7 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
         properties: {
           'worlds.farm.startCoins': int(t('新开局初始金币', 'Starting coins'), t('默认 120，只影响新开档。', 'Default 120; only affects a new save.'), 0, 100000),
           'worlds.farm.farmCells': int(t('农田大小（格）', 'Farm size (cells)'), t('12~48；影响草地、作物和可种范围。', '12–48; affects grass, crops and plantable range.'), 12, 48),
-          'worlds.farm.maxPlants': int(t('最多同时种几棵', 'Max planted'), t('默认 12。', 'Default 12.'), 1, 24),
+          'worlds.farm.maxPlants': int(t('最多同时种几棵', 'Max planted'), t('默认 24。', 'Default 24.'), 1, 64),
           'worlds.farm.startWeeds': int(t('开局野草数量', 'Starting weeds'), t('默认 42；只影响新开档。', 'Default 42; only affects a new save.'), 0, 60),
           'worlds.farm.maxWeeds': int(t('野草上限', 'Max weeds'), t('默认 46。', 'Default 46.'), 0, 60),
           'worlds.farm.weedPerDay': num(t('每天新增野草', 'Weeds per day'), t('默认 0.55。', 'Default 0.55.'), 0, 2),
@@ -380,6 +380,8 @@ export class FarmWorld {
   /** 上一次 farm_status 的真实时间/游戏日：用来说明"这中间过了多久"，免得桌宠把走时当成跳档。 */
   #lastStatusAt = 0;
   #lastStatusDay = 0;
+  #ripePending = new Set();
+  #ripeTimer = null;
   /** 农场自定义（地面 / 作物 / 杂草），启动时从 data\farm\custom.json 载入。 */
   #catalog = null;
 
@@ -436,7 +438,7 @@ export class FarmWorld {
       overlayEngine: ['auto', 'electron', 'wpf'].includes(String(this.cfg?.overlayEngine ?? 'auto')) ? String(this.cfg?.overlayEngine ?? 'auto') : 'auto',
       electronPath: String(this.cfg?.electronPath ?? ''),
       throttle: ['off', 'auto', 'on'].includes(String(this.cfg?.throttle ?? 'off')) ? String(this.cfg?.throttle ?? 'off') : 'off',
-      maxPlants: this.#num('maxPlants', 1, 24),
+      maxPlants: this.#num('maxPlants', 1, 64),
       screenWidth,
       zoom: this.#num('zoom', 1, 8),
       spriteGapPx: this.#num('spriteGapPx', 0, 64),
@@ -456,6 +458,8 @@ export class FarmWorld {
       realMinutesPerDay: this.#num('realMinutesPerDay', 0.005, 1440),
       maxStepDays: this.#num('maxStepDays', 0.01, 1000),
       dryPerDay: water ? Number(water.dryPerDay) : this.#num('dryPerDay', 0, 20),
+      waterEnabled: water ? water.enabled !== false : true,
+      waterWither: water ? water.wither !== false : true,
       waterGain: water ? Number(water.waterGain) : this.#num('waterGain', 0, 5),
       wiltDays: water ? Number(water.wiltDays) : this.#num('wiltDays', 0.01, 1000),
       drynessBase: this.#num('drynessBase', 0, 5),
@@ -964,7 +968,7 @@ export class FarmWorld {
       }
     }
     if (s.decorations.length) {
-      lines.push('摆放的装饰：' + s.decorations.map((d) => d.name + '（' + d.xPct + '%，' + (d.layer === 'top' ? '上层' : '下层') + '）').join('、') + '。');
+      lines.push('摆放的装饰：' + s.decorations.map((d) => d.name + '（' + d.xPct + '%，' + (d.layer === 'top' ? '上层' : d.layer === 'mid' ? '中层' : '下层') + '）').join('、') + '。');
     }
     if (s.states.length) {
       lines.push('状态：' + s.states.map((st) => (st.kind === 'flag'
@@ -1738,8 +1742,24 @@ export class FarmWorld {
   async #pushRipe(ids) {
     const host = this.#host;
     if (!host?.pushEvent) return;
+    for (const id of ids ?? []) this.#ripePending.add(Number(id));
+    if (this.#ripeTimer) return;
+    // 相邻作物常在同一两秒内先后成熟；合并成一条 farm.ripe，别让桌宠收到一串。
+    this.#ripeTimer = this.setTimeoutImpl(() => {
+      this.#ripeTimer = null;
+      void this.#flushRipe().catch((err) => this.#host?.log?.warn?.('自定义农场：成熟提醒没送出去', { err: msg(err) }));
+    }, 1200);
+  }
+
+  async #flushRipe() {
+    const host = this.#host;
+    if (!host?.pushEvent) return;
+    const ids = [...this.#ripePending];
+    this.#ripePending.clear();
+    if (!ids.length) return;
     const s = summary(this.#state, this.#cfgAll());
     const mine = s.plots.filter((p) => ids.includes(p.id));
+    if (!mine.length) return;
     await host.pushEvent({
       type: 'farm.ripe',
       source: this.id,
