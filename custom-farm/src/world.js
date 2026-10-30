@@ -291,10 +291,9 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
       schema: {
         type: 'object',
         title: t('初始化', 'Initialization'),
-        description: t('新开局和农田基础参数；部分参数只影响新游戏或调整农田大小时。', 'Initial values and farm basics; some only affect a fresh game or farm resizing.'),
+        description: t('新开局和农田基础参数；部分参数只影响新游戏。', 'Initial values and farm basics; some only affect a fresh game.'),
         properties: {
           'worlds.farm.startCoins': int(t('新开局初始金币', 'Starting coins'), t('默认 120，只影响新开档。', 'Default 120; only affects a new save.'), 0, 100000),
-          'worlds.farm.farmScale': num(t('农田缩放倍率', 'Farm scale'), t('0.25~2；只缩放农田内容，地面始终铺满屏幕底边。', '0.25–2; scales farm content only; the ground always fills the bottom edge.'), 0.25, 2),
           'worlds.farm.maxPlants': int(t('最多同时种几棵', 'Max planted'), t('默认 24。', 'Default 24.'), 1, 64),
           'worlds.farm.startWeeds': int(t('开局野草数量', 'Starting weeds'), t('默认 42；只影响新开档。', 'Default 42; only affects a new save.'), 0, 60),
           'worlds.farm.maxWeeds': int(t('野草上限', 'Max weeds'), t('默认 46。', 'Default 46.'), 0, 60),
