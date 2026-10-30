@@ -441,6 +441,26 @@ const TEXT = {
 };
 
 const isZh = (lang) => String(lang || '').toLowerCase().startsWith('zh');
+const LAYER_LABELS = {
+  zh: {
+    top: '上层（桌宠上方，可遮挡桌宠）',
+    mid: '中层（桌宠后方、下层前方）',
+    bottom: '下层（桌宠后方最底层）',
+  },
+  en: {
+    top: 'Top (above pet)',
+    mid: 'Middle (behind pet, in front of bottom)',
+    bottom: 'Bottom (lowest behind pet)',
+  },
+};
+const layerOptions = (lang) => {
+  const L = isZh(lang) ? LAYER_LABELS.zh : LAYER_LABELS.en;
+  return [{ value: 'top', label: L.top }, { value: 'mid', label: L.mid }, { value: 'bottom', label: L.bottom }];
+};
+const layerLabel = (lang, value) => {
+  const L = isZh(lang) ? LAYER_LABELS.zh : LAYER_LABELS.en;
+  return L[value] ?? L.bottom;
+};
 
 function panel(ctx) {
   const { ui } = ctx;
@@ -682,7 +702,7 @@ function panel(ctx) {
       preview: [...c.preview],
       previewSeed: c.previewSeed,
       previewItem: c.previewItem,
-      layer: c.layer === 'top' ? 'top' : 'bottom',
+      layer: ['top', 'mid', 'bottom'].includes(c.layer) ? c.layer : 'bottom',
     };
     const details = ui.h('details', 'cf-card');
     if (!c.builtin) details.open = false;
@@ -693,17 +713,14 @@ function panel(ctx) {
       ui.pill(c.builtin ? T.builtin : T.custom, c.builtin ? 'plain' : 'on'),
       ui.chip(c.stages + ' 阶段', 'plain'),
       ui.chip(T.daysTotal(c.totalDays), 'plain'),
-      ui.chip(c.layer === 'top' ? T.cropLayerTop : T.cropLayerBottom, c.layer === 'top' ? 'on' : 'plain'),
+      ui.chip(layerLabel(ctx.language, draft.layer), 'plain'),
     );
     const body = ui.h('div', 'cf-body');
     details.append(summary, body);
 
     const layerSel = ui.select({
       value: draft.layer,
-      options: [
-        { value: 'top', label: T.cropLayerTop },
-        { value: 'bottom', label: T.cropLayerBottom },
-      ],
+      options: layerOptions(ctx.language),
     });
     layerSel.addEventListener('change', () => { draft.layer = layerSel.value; }, { signal: ctx.signal });
 
@@ -846,7 +863,7 @@ function panel(ctx) {
       itemSprite: w.itemSprite,
       preview: [...w.preview],
       previewItem: w.previewItem,
-      layer: w.layer === 'bottom' ? 'bottom' : 'top',
+      layer: ['top', 'mid', 'bottom'].includes(w.layer) ? w.layer : 'top',
     };
     const details = ui.h('details', 'cf-card');
     const summary = ui.h('summary', 'cf-head');
@@ -858,17 +875,14 @@ function panel(ctx) {
       ui.chip(w.stages + ' 阶段', 'plain'),
       ui.chip(T.daysTotal(w.totalDays), 'plain'),
       ui.chip(T.weightHint(share), 'plain'),
-      ui.chip(w.layer === 'bottom' ? T.weedLayerBottom : T.weedLayerTop, w.layer === 'bottom' ? 'plain' : 'on'),
+      ui.chip(layerLabel(ctx.language, draft.layer), 'plain'),
     );
     const body = ui.h('div', 'cf-body');
     details.append(summary, body);
 
     const layerSel = ui.select({
       value: draft.layer,
-      options: [
-        { value: 'top', label: T.weedLayerTop },
-        { value: 'bottom', label: T.weedLayerBottom },
-      ],
+      options: layerOptions(ctx.language),
     });
     layerSel.addEventListener('change', () => { draft.layer = layerSel.value; }, { signal: ctx.signal });
 
@@ -2475,7 +2489,7 @@ function itemsPanel(ctx) {
       thumb(item.icon, 34),
       title,
       ui.pill(item.kind === 'seed' ? '种子' : item.kind === 'crop' ? '农作物' : item.kind === 'consumable' ? '消耗品' : '装饰', 'plain'),
-      ...(item.kind === 'decor' ? [ui.pill(item.layer === 'top' ? T.layerTop : T.layerBottom, item.layer === 'top' ? 'on' : 'plain')] : []),
+      ...(item.kind === 'decor' ? [ui.pill(layerLabel(ctx.language, item.layer), 'plain')] : []),
       ui.chip('￥' + item.buy + ' / ' + item.sell, 'plain'),
     );
     const body = ui.h('div', 'cf-body');
@@ -2517,10 +2531,7 @@ function itemsPanel(ctx) {
     if (kind === 'decor') {
       const layerSel = ui.select({
         value: draft.layer,
-        options: [
-          { value: 'bottom', label: T.layerBottom },
-          { value: 'top', label: T.layerTop },
-        ],
+        options: layerOptions(ctx.language),
       });
       layerSel.addEventListener('change', () => { draft.layer = layerSel.value; }, { signal: ctx.signal });
       body.append(
@@ -3075,7 +3086,7 @@ function animalsPanel(ctx) {
       const row = ui.h('div', 'cf-row');
       row.append(
         ui.field(zh ? '名字' : 'Name', txt(draft.name, (v) => { draft.name = v; })),
-        ui.field(zh ? '图层' : 'Layer', pick([{ value: 'mid', label: 'mid' }, { value: 'top', label: 'top' }, { value: 'bg', label: 'bg' }], draft.layer, (v) => { draft.layer = v; })),
+        ui.field(zh ? '图层' : 'Layer', pick(layerOptions(ctx.language), draft.layer, (v) => { draft.layer = v; })),
       );
       sheet.body.append(row);
       const prices = ui.h('div', 'cf-row');

@@ -174,10 +174,9 @@ function draw(now) {
   if (!state) return;
   const g = groundY();
   const cs = Number(state.farm?.cropScale) || 1;
-  const isTop = LAYER === 'top';
-  const isMid = LAYER === 'mid';
   const showTop = LAYER === 'top' || LAYER === 'all';
   const showBg = LAYER === 'bg' || LAYER === 'all';
+  const showMid = LAYER === 'mid' || LAYER === 'all';
 
   const groundName = state.ground?.tile;
   const gt = image(groundName);
@@ -211,23 +210,31 @@ function draw(now) {
   };
 
   const furniture = Array.isArray(state.furniture) ? state.furniture : [];
-  if (showBg) for (const f of furniture) if (f.layer !== 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
+  if (showBg) for (const f of furniture) if (f.layer === 'bottom') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
+  if (showMid) for (const f of furniture) if (f.layer === 'mid') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
 
   const weeds = Array.isArray(state.weeds) ? state.weeds : [];
-  if (showBg) for (const w of weeds) if (w.layer !== 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
+  if (showBg) for (const w of weeds) if (w.layer === 'bottom') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
+  if (showMid) for (const w of weeds) if (w.layer === 'mid') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
 
   if (showBg) for (const p of state.plots || []) {
-    if (LAYER !== 'all' && p.layer === 'top') continue;
+    if (p.layer !== 'bottom') continue;
+    const ci = cropInfo(p);
+    if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');
+  }
+  if (showMid) for (const p of state.plots || []) {
+    if (p.layer !== 'mid') continue;
     const ci = cropInfo(p);
     if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');
   }
 
   const animals = Array.isArray(state.animals) ? state.animals : [];
-  if (LAYER === 'mid' || LAYER === 'all' || LAYER === 'top') {
+  if (LAYER === 'bg' || LAYER === 'mid' || LAYER === 'all' || LAYER === 'top') {
     const dt = animalLastAt ? Math.min(0.12, Math.max(0, (now - animalLastAt) / 1000)) : 0;
     animalLastAt = now;
     for (const a of animals) {
-      if (LAYER !== 'all' && a.layer !== LAYER) continue;
+      const animalLayer = a.layer === 'bottom' ? 'bg' : a.layer;
+      if (LAYER !== 'all' && animalLayer !== LAYER) continue;
       let drawX = animalDrawX.get(a.id);
       if (!Number.isFinite(drawX) || Math.abs(drawX - Number(a.x)) > 0.25) drawX = Number(a.x);
       const target = Number(a.targetX);
@@ -249,7 +256,7 @@ function draw(now) {
 
   if (showTop) for (const f of furniture) if (f.layer === 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
   if (showTop) for (const w of weeds) if (w.layer === 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
-  if (isTop) for (const p of state.plots || []) {
+  if (showTop) for (const p of state.plots || []) {
     if (p.layer !== 'top') continue;
     const ci = cropInfo(p);
     if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');

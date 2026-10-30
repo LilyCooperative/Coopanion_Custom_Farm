@@ -883,7 +883,7 @@ export class FarmCatalog {
       animalStage: kind === 'animal' ? int(src.animalStage, 0, 7, 0) : null,
       animalProduct: Boolean(src.animalProduct),
       effects: kind === 'seed' || kind === 'decor' || kind === 'animal' ? [] : effects,
-      layer: kind === 'decor' ? (src.layer === 'top' ? 'top' : 'bottom') : null,
+      layer: kind === 'decor' ? (['top', 'mid', 'bottom'].includes(src.layer) ? src.layer : 'bottom') : null,
       scale: kind === 'decor' ? r2(clamp(Number(src.scale), 0.3, 3, 1)) : null,
     };
   }
@@ -949,7 +949,7 @@ export class FarmCatalog {
       sprites,
       seedSprite: cleanSprite(src.seedSprite) ?? (builtin ? 'icon_item_seed_' + key : null),
       itemSprite: cleanSprite(src.itemSprite) ?? (builtin ? 'icon_item_' + key : null),
-      layer: src.layer === 'top' ? 'top' : 'bottom',
+      layer: ['top', 'mid', 'bottom'].includes(src.layer) ? src.layer : 'bottom',
       enabled: src.enabled !== false,
     };
   }
@@ -975,7 +975,7 @@ export class FarmCatalog {
       itemName: String(src.itemName ?? '').trim().slice(0, 24),
       value: int(src.value, 0, 1000000, 0),
       itemSprite: cleanSprite(src.itemSprite),
-      layer: src.layer === 'bottom' ? 'bottom' : 'top',
+      layer: ['top', 'mid', 'bottom'].includes(src.layer) ? src.layer : 'top',
       enabled: src.enabled !== false && weight > 0,
     };
   }
@@ -1179,7 +1179,7 @@ export class FarmCatalog {
       prefix,
       frames,
       spriteW,
-      layer: c.layer === 'top' ? 'top' : 'bottom',
+      layer: ['top', 'mid', 'bottom'].includes(c.layer) ? c.layer : 'bottom',
       lifespan: original?.lifespan ?? 1,
       repeatLevel: original?.repeatLevel ?? 0,
       minCount: original?.minCount ?? 1,
@@ -1219,7 +1219,7 @@ export class FarmCatalog {
       itemName: w.itemName,
       value: w.value,
       itemSprite: w.itemSprite,
-      layer: w.layer === 'bottom' ? 'bottom' : 'top',
+      layer: ['top', 'mid', 'bottom'].includes(w.layer) ? w.layer : 'top',
       enabled: w.enabled && w.weight > 0,
     };
   }
@@ -1337,7 +1337,7 @@ export class FarmCatalog {
         value: c.value,
         seedPrice: c.seedPrice,
         enabled: c.enabled,
-        layer: c.layer === 'top' ? 'top' : 'bottom',
+        layer: ['top', 'mid', 'bottom'].includes(c.layer) ? c.layer : 'bottom',
         sprites: [...(c.sprites ?? [])],
         seedSprite: c.seedSprite,
         itemSprite: c.itemSprite,
@@ -1358,7 +1358,7 @@ export class FarmCatalog {
         itemName: w.itemName,
         value: w.value,
         itemSprite: w.itemSprite,
-        layer: w.layer === 'bottom' ? 'bottom' : 'top',
+        layer: ['top', 'mid', 'bottom'].includes(w.layer) ? w.layer : 'top',
         preview: Array.from({ length: w.stages }, (_, i) => this.weedSpriteName({ type: w.key, level: i })),
         previewItem: w.value > 0 ? (w.itemSprite ?? 'icon_item_soil') : null,
       })),

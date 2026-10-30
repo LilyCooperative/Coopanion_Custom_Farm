@@ -1124,7 +1124,7 @@ export function overlayView(state) {
         item: type?.item ?? null,
         itemName: type?.itemName ?? '',
         ready: Boolean(type?.item && Number(w.level ?? 0) >= type.stages - 1),
-        layer: type?.layer === 'bottom' ? 'bottom' : 'top',
+        layer: ['top', 'mid', 'bottom'].includes(type?.layer) ? type.layer : 'top',
       };
     }),
     pendingPlace: state.pendingPlace ?? null,
@@ -1166,7 +1166,7 @@ export function overlayView(state) {
         x: Number(p.x),
         water: round2(clamp01(p.moisture)),
         swing: Boolean(cropOf(p.crop)?.swing),
-        layer: crop.layer === 'top' ? 'top' : 'bottom',
+        layer: ['top', 'mid', 'bottom'].includes(crop.layer) ? crop.layer : 'bottom',
         ready: isRipe(p),
         dead: Boolean(p.dead),
         progress: Math.round((p.growth / crop.total) * 100),

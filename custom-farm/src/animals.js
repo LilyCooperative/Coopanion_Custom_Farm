@@ -6,7 +6,7 @@
  * 每只动物默认在 mid 图层（top 与 pet 之间、pet 后方）。
  */
 
-export const ANIMAL_LAYERS = ['mid', 'top', 'bg'];
+export const ANIMAL_LAYERS = ['top', 'mid', 'bottom'];
 export const ANIMAL_ACTIONS = ['idle', 'walk', 'peck'];
 
 const clamp = (n, lo, hi, fallback) => {
@@ -60,7 +60,8 @@ export function normalizeAnimal(src, index = 0) {
   if (!src || typeof src !== 'object') return null;
   const key = String(src.key ?? 'animal_' + (index + 1)).replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 32) || ('animal_' + (index + 1));
   const name = String(src.name ?? key).trim().slice(0, 24) || key;
-  const layer = ANIMAL_LAYERS.includes(src.layer) ? src.layer : 'mid';
+  const rawLayer = src.layer === 'bg' ? 'bottom' : src.layer;
+  const layer = ANIMAL_LAYERS.includes(rawLayer) ? rawLayer : 'mid';
   const actionDefs = (Array.isArray(src.actions) ? src.actions : [])
     .map((a) => ({
       key: String(a?.key ?? '').replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 24),
