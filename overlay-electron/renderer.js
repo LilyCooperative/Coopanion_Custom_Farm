@@ -173,11 +173,13 @@ function draw(now) {
   const g = groundY();
   const cs = Number(state.farm?.cropScale) || 1;
   const isTop = LAYER === 'top';
+  const isMid = LAYER === 'mid';
   const showTop = LAYER === 'top' || LAYER === 'all';
+  const showBg = LAYER === 'bg' || LAYER === 'all';
 
   const groundName = state.ground?.tile;
   const gt = image(groundName);
-  if (!isTop && ready(gt)) {
+  if (showBg && ready(gt)) {
     const tw = gt.naturalWidth * Z * cs;
     const th = gt.naturalHeight * Z * cs;
     for (let x = 0; x < W; x += tw) ctx.drawImage(gt, x, g, tw, th);
@@ -207,15 +209,26 @@ function draw(now) {
   };
 
   const furniture = Array.isArray(state.furniture) ? state.furniture : [];
-  if (!isTop) for (const f of furniture) if (f.layer !== 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
+  if (showBg) for (const f of furniture) if (f.layer !== 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
 
   const weeds = Array.isArray(state.weeds) ? state.weeds : [];
-  if (!isTop) for (const w of weeds) if (w.layer !== 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
+  if (showBg) for (const w of weeds) if (w.layer !== 'top') drawSprite(image(w.sprite), Number(w.x), g, 1, Number(w.x) * 13, 'crop');
 
-  if (!isTop) for (const p of state.plots || []) {
+  if (showBg) for (const p of state.plots || []) {
     if (LAYER !== 'all' && p.layer === 'top') continue;
     const ci = cropInfo(p);
     if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');
+  }
+
+  const animals = Array.isArray(state.animals) ? state.animals : [];
+  if (LAYER === 'mid' || LAYER === 'all' || LAYER === 'top') {
+    for (const a of animals) {
+      if (LAYER !== 'all' && a.layer !== LAYER) continue;
+      const frames = Array.isArray(a.frames) && a.frames.length ? a.frames : [a.sprite];
+      const frame = Math.floor((Date.now() - (Number(a.startedAt) || Date.now())) / (Number(a.actionMs) || 220));
+      const sprite = frames[((frame % frames.length) + frames.length) % frames.length] || a.sprite;
+      drawSprite(image(sprite), Number(a.x), g, Number(a.scale) || 0.2, Number(a.x) * 11, 'animal');
+    }
   }
 
   if (showTop) for (const f of furniture) if (f.layer === 'top') drawSprite(image(f.sprite), Number(f.x), g, Number(f.scale) || 1, Number(f.x) * 19, 'decor');
@@ -226,7 +239,7 @@ function draw(now) {
     if (ready(ci.img)) drawSprite(ci.img, Number(p.x), g, 1, Number(p.id) * 1.7, 'crop');
   }
 
-  if (!isTop) for (const p of state.plots || []) {
+  if (showBg) for (const p of state.plots || []) {
     if (p.dead || Number(p.water) < 0.9) continue;
     const ci = cropInfo(p);
     if (!ci.h) continue;
@@ -242,7 +255,7 @@ function draw(now) {
     ctx.globalAlpha = 1;
   }
 
-  if (!isTop) {
+  if (showBg) {
   const drops = Array.isArray(state.drops) ? state.drops : [];
   const dropIds = new Set();
   for (const d of drops) {

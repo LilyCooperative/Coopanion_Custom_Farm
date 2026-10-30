@@ -1,17 +1,21 @@
-﻿# Keep the two Electron farm windows in the same z-order relationship as the
+﻿# Keep the three Electron farm windows in the same z-order relationship as the
 # old WPF layers:
-#   bg  -> directly below the pet window
 #   top -> owned by the pet window (Windows keeps an owned window above its owner)
+#   mid -> directly behind the pet window
+#   bg  -> directly behind mid
 param(
     [Parameter(Mandatory = $true)][string]$Bg,
+    [Parameter(Mandatory = $true)][string]$Mid,
     [Parameter(Mandatory = $true)][string]$Top
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
 $bgPtr = [IntPtr]([Int64]$Bg)
+$midPtr = [IntPtr]([Int64]$Mid)
 $topPtr = [IntPtr]([Int64]$Top)
 $script:owner = [IntPtr]::Zero
 $script:bgPet = [IntPtr]::Zero
+$script:midPet = [IntPtr]::Zero
 
 Add-Type -TypeDefinition @'
 using System;
@@ -50,15 +54,20 @@ public static class FarmZ {
 }
 '@
 
-while ([FarmZ]::IsWindow($bgPtr) -and [FarmZ]::IsWindow($topPtr)) {
+while ([FarmZ]::IsWindow($bgPtr) -and [FarmZ]::IsWindow($midPtr) -and [FarmZ]::IsWindow($topPtr)) {
     $pet = [FarmZ]::FindPet($false)
     if ($pet -ne [IntPtr]::Zero) {
         if ($script:owner -ne $pet) {
             [void][FarmZ]::SetWindowLongPtr($topPtr, [FarmZ]::GWLP_HWNDPARENT, $pet)
             $script:owner = $pet
         }
-        if ($script:bgPet -ne $pet -or [FarmZ]::GetWindow($bgPtr, [FarmZ]::GW_HWNDPREV) -ne $pet) {
-            [void][FarmZ]::SetWindowPos($bgPtr, $pet, 0, 0, 0, 0,
+        if ($script:midPet -ne $pet -or [FarmZ]::GetWindow($midPtr, [FarmZ]::GW_HWNDPREV) -ne $pet) {
+            [void][FarmZ]::SetWindowPos($midPtr, $pet, 0, 0, 0, 0,
+                ([FarmZ]::SWP_NOMOVE -bor [FarmZ]::SWP_NOSIZE -bor [FarmZ]::SWP_NOACTIVATE))
+            $script:midPet = $pet
+        }
+        if ($script:bgPet -ne $pet -or [FarmZ]::GetWindow($bgPtr, [FarmZ]::GW_HWNDPREV) -ne $midPtr) {
+            [void][FarmZ]::SetWindowPos($bgPtr, $midPtr, 0, 0, 0, 0,
                 ([FarmZ]::SWP_NOMOVE -bor [FarmZ]::SWP_NOSIZE -bor [FarmZ]::SWP_NOACTIVATE))
             $script:bgPet = $pet
         }

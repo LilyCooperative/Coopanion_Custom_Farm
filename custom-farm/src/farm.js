@@ -10,6 +10,7 @@ import { CROPS, ROTATION } from './crops.js';
 import { live } from './catalog-state.js';
 import { CROP_PRICES, FURNITURE, FURNITURE_BY_ID, FURNITURE_ENABLED, SEEDS, SEED_BY_CROP, SEED_BY_ID, sellPriceOf, seedItemOf } from './shop.js';
 import { DEFAULT_WEATHERS, normalizeWeathers, weatherFxOf } from './weather.js';
+import { animalView, animalStage } from './animals.js';
 
 export const STATE_VERSION = 3;
 
@@ -563,6 +564,8 @@ export function newState(nowMs = Date.now(), cfg = DEFAULTS, random = Math.rando
     elapsedDays: 0,
     furniture: [],
     weeds: [],
+    animals: [],
+    nextAnimalId: 1,
     nextWeedId: 1,
     nextFurnitureId: 1,
     pendingPlace: null,
@@ -1125,6 +1128,11 @@ export function overlayView(state) {
       };
     }),
     pendingPlace: state.pendingPlace ?? null,
+    animals: (state.animals ?? []).map((a) => {
+      const sp = live.animals?.[a.species];
+      return sp ? animalView(sp, a) : null;
+    }).filter(Boolean),
+    animalAnchors: (state.animals ?? []).map((a) => ({ id: a.id, x: Number(a.anchor), range: Number(a.range) })),
     owned: (state.furniture ?? []).map((x) => ({
       uid: x.uid, id: x.id, name: live.items?.[x.id]?.name ?? FURNITURE_BY_ID[x.id]?.name ?? x.id,
       x: x.x === null || x.x === undefined ? null : Number(x.x),
@@ -1211,6 +1219,11 @@ export function summary(state, cfg = DEFAULTS) {
     bagTotal: total,
     bag: inventory,
     drops: state.drops.length,
+    animals: (state.animals ?? []).length,
+    animalList: (state.animals ?? []).map((a) => {
+      const sp = live.animals?.[a.species];
+      return sp ? animalView(sp, a) : null;
+    }).filter(Boolean),
     planted: state.plots.length,
     max: cfg.maxPlants,
     ripe: state.plots.filter((p) => isRipe(p)).length,

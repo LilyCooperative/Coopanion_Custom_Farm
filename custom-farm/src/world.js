@@ -29,6 +29,7 @@ import { buildZip, readZip } from './zip.js';
 import { bundleHome, defaultHome, EXTENSION_DIR, makePaths } from './paths.js';
 import { CROP_PRICES, FURNITURE, FURNITURE_ENABLED, SEED_BY_CROP, SEED_BY_ID, SEEDS, sellPriceOf } from './shop.js';
 import { normalizeWeathers, pickWeather, weatherById, weatherFxOf } from './weather.js';
+import { advanceAnimal, animalItemOf, animalStage, animalView, normalizeAnimalState } from './animals.js';
 import {
   DEFAULTS,
   REACH,
@@ -179,7 +180,7 @@ export const FARM_TOOL_DECLS = [
     parameters: {
       type: 'object',
       properties: {
-        kind: { type: 'string', enum: ['seed', 'consumable', 'decor', 'furniture', 'all'], description: '看哪一类；默认 all。' },
+        kind: { type: 'string', enum: ['seed', 'consumable', 'decor', 'animal', 'furniture', 'all'], description: '看哪一类；默认 all。' },
       },
       additionalProperties: false,
     },
@@ -787,6 +788,7 @@ export class FarmWorld {
       '田地  ·  第 ' + s.day + ' 天 ' + s.clock + '  ·  ' + s.weather + '  ·  金币 ' + s.coins +
         '  ·  1 天 = ' + s.realMinutesPerDay + ' 分钟现实',
       '种着 ' + s.planted + '/' + s.max + ' 棵，' + s.ripe + ' 棵能收，' + s.dead + ' 棵枯了；背包 ' + s.bagTotal + ' 件；地上 ' + s.drops + ' 个掉落物。' +
+        (s.animals ? '动物 ' + s.animals + ' 只。' : '') +
         (s.standingAt !== null ? '你在 ' + Math.round(s.standingAt * 100) + '%。' : '你还没报过位置。'),
     ];
     if (s.plots.length === 0) lines.push('  地是空的：走到想种的地方，farm_stand 之后 farm_plant。');
@@ -1044,11 +1046,12 @@ export class FarmWorld {
     if (args?.kind === 'furniture') {
       return { text: '家具下架了；现在用「道具自定义 → 装饰道具」加装饰，再用 farm_place 摆到地上。' };
     }
-    const kind = ['seed', 'consumable', 'decor', 'all'].includes(args?.kind) ? args.kind : 'all';
+    const kind = ['seed', 'consumable', 'decor', 'animal', 'all'].includes(args?.kind) ? args.kind : 'all';
     const shop = Object.values(live.items ?? {}).filter((it) => it.buy > 0);
     const groups = [
       ['seed', '种子（种一棵消耗 1 包）'],
       ['consumable', '消耗品'],
+      ['animal', '动物幼崽（买回来去动物页放置）'],
       ['decor', '装饰（买回来用 farm_place 摆）'],
     ];
     const lines = ['商店（金币 ' + Math.floor(this.#state.coins ?? 0) + '）：'];
@@ -1488,9 +1491,12 @@ export class FarmWorld {
         weedsRemoved: size.weedsRemoved, weedsAdded: size.weedsAdded,
       });
     }
+    const beforeDays = Number(this.#state.elapsedDays) || 0;
     const result = advance(this.#state, now, cfg, this.random);
+    const gameDays = Math.max(0, (Number(this.#state.elapsedDays) || 0) - beforeDays);
     this.#applyWeather(cfg, now);
     const weatherMoodChanges = this.#tickMood(cfg, now);
+    const animalProducts = this.#tickAnimals(cfg, now, gameDays);
     if (result.cappedDays > 0) {
       // 关机/睡眠回来：只补算 maxStepDays 天，剩下的不补。否则一次 tick 就能跳几十天、整片田干死。
       this.#host?.log?.info?.('自定义农场：离线/睡眠的时间已截断', {
@@ -1510,6 +1516,9 @@ export class FarmWorld {
     }
     if (result.becameDry.length) {
       try { await this.#pushDry(result.becameDry); } catch (err) { this.#host?.log?.warn?.('自定义农场：缺水提醒没送出去', { err: msg(err) }); }
+    }
+    if (animalProducts.length) {
+      try { await this.#pushProducts(animalProducts); } catch (err) { this.#host?.log?.warn?.('自定义农场：动物产物提醒没送出去', { err: msg(err) }); }
     }
     // 枯萎不单独唤醒模型：没有可执行的补救动作，等它下次看 status 就行。
     // 每天的那条提醒默认不发：桌宠每被唤醒一次都要花 token，而"又过了一天"对它没有行动价值。
@@ -1541,6 +1550,46 @@ export class FarmWorld {
       text: '自定义农场：' + mine.length + ' 棵渴了，再不浇就要枯：\n' + list + '\n走到跟前 farm_water 就行。',
       meta: { plots: mine.map((p) => p.id) },
     }, { deliver: true, trigger: 'debounce' });
+  }
+
+  #tickAnimals(cfg, now, gameDays) {
+    const products = [];
+    const list = this.#state?.animals;
+    if (!Array.isArray(list) || !list.length) return products;
+    if (!(this.#state.nextAnimalId > 0)) this.#state.nextAnimalId = 1;
+    for (const animal of list) {
+      const species = live.animals?.[animal.species];
+      if (!species) continue;
+      const made = advanceAnimal(animal, species, now, gameDays, this.random);
+      for (const p of made) {
+        const id = this.#state.nextDropId++;
+        this.#state.drops.push({
+          id, item: p.item, crop: null, x: round2(p.x), fromX: round2(p.x),
+          count: p.count, sprite: live.itemIcons?.[p.item] ?? 'icon_item_soil',
+          animal: animal.id,
+        });
+        products.push({ ...p, dropId: id, animalId: animal.id });
+      }
+    }
+    return products;
+  }
+
+  async #pushProducts(products) {
+    const host = this.#host;
+    if (!host?.pushEvent || !products.length) return;
+    const text = products.slice(0, 6).map((p) =>
+      (live.names?.[p.item] ?? p.item) + '×' + p.count + '（' + Math.round(p.x * 100) + '%）'
+    ).join('、');
+    await host.pushEvent({
+      type: 'farm.product',
+      source: this.id,
+      senderKey: 'farm.product',
+      origin: 'internal',
+      ts: new Date(this.now()).toISOString(),
+      text: '自定义农场：动物产物掉在地上了：' + text + '。走过去 farm_stand，再 farm_collect 捡进背包。',
+      meta: { products: products.map((p) => ({ item: p.item, count: p.count, xPct: Math.round(p.x * 100), animal: p.animalId })) },
+    }, { deliver: true, trigger: 'debounce' });
+    host.log?.info?.('自定义农场：动物产物', { count: products.length });
   }
 
   async #pushRipe(ids) {
@@ -1610,6 +1659,11 @@ export class FarmWorld {
         description: '背包、农场预览、摆放道具与手动合成；装饰在这里输入坐标放置。',
         getMethods: ['state'],
       }, {
+        id: 'animals',
+        title: '动物',
+        description: '鸡等动物：幼崽/成年、动作帧、随机游走、产物、价格、放置与回收。',
+        getMethods: ['state'],
+      }, {
         id: 'shop',
         title: '商店',
         description: '只列买价 > 0 的道具；点「买 1」放进背包。',
@@ -1653,6 +1707,7 @@ export class FarmWorld {
       const cfg = this.#cfgAll();
       if (panel === 'manage') return this.#manageAction(method, args);
       if (panel === 'status') return this.#statusInvoke(method, args, cfg);
+      if (panel === 'animals') return this.#animalInvoke(method, args);
       if (panel === 'bag') return this.#bagInvoke(method, args);
       if (panel === 'shop') return this.#shopInvoke(method, args);
       if (panel === 'items' && (method === 'saveRecipe' || method === 'removeRecipe')) return this.#recipesInvoke(method, args);
@@ -2098,6 +2153,95 @@ export class FarmWorld {
       return byName !== 0 ? byName : Number(a.positions[0]?.x ?? 0) - Number(b.positions[0]?.x ?? 0);
     });
     return { ground: view.ground?.tile ?? '', items };
+  }
+
+  async #animalInvoke(method, args) {
+    const catalog = this.#catalogOrThrow();
+    switch (method) {
+      case 'state': return this.#animalSnapshot();
+      case 'saveAnimal': {
+        catalog.saveAnimal(args?.[0] ?? {});
+        return this.#animalSnapshot();
+      }
+      case 'removeAnimal': {
+        catalog.removeAnimal(args?.[0]);
+        return this.#animalSnapshot();
+      }
+      case 'place': {
+        const itemId = String(args?.[0]?.item ?? '');
+        const x = Number(args?.[0]?.x);
+        const range = Number(args?.[0]?.range ?? 0.16);
+        const item = live.items?.[itemId];
+        if (!item || item.kind !== 'animal') throw new Error('这不是动物幼崽/成年道具。');
+        const species = live.animals?.[item.animalSpecies];
+        if (!species) throw new Error('找不到这种动物。');
+        const stage = Math.max(0, Number(item.animalStage) || 0);
+        if (!(Number(this.#state.inventory?.[itemId]) > 0)) throw new Error('背包里没有这只动物。');
+        if (!Number.isFinite(Number(x))) throw new Error('锚点位置不对。');
+        const anchor = clamp01(x);
+        const rad = Math.min(0.45, Math.max(0.02, Number.isFinite(range) ? range : 0.16));
+        const tooClose = (this.#state.animals ?? []).some((a) => Math.abs(Number(a.anchor) - anchor) < 0.05);
+        if (tooClose) throw new Error('这个锚点和已有动物太近，换一个位置。');
+        this.#state.inventory[itemId] -= 1;
+        if (this.#state.inventory[itemId] <= 0) delete this.#state.inventory[itemId];
+        this.#state.nextAnimalId = Math.max(1, Number(this.#state.nextAnimalId) || 1);
+        const id = 'a_' + this.#state.nextAnimalId++;
+        this.#state.animals.push({
+          id, species: species.key, stage, ageDays: 0,
+          x: anchor, anchor, range: rad, dir: 1,
+          action: 'idle', actionUntil: this.now() + 1200, actionStartedAt: this.now(),
+          targetX: null, nextProductAt: 0,
+        });
+        await this.#save();
+        return this.#animalSnapshot();
+      }
+      case 'reclaim': {
+        const id = String(args?.[0] ?? '');
+        const idx = (this.#state.animals ?? []).findIndex((a) => a.id === id);
+        if (idx < 0) throw new Error('没有这只动物。');
+        const animal = this.#state.animals[idx];
+        const species = live.animals?.[animal.species];
+        const item = animalItemOf(species, animal.stage);
+        if (item) this.#state.inventory[item] = (Number(this.#state.inventory[item]) || 0) + 1;
+        this.#state.animals.splice(idx, 1);
+        await this.#save();
+        return this.#animalSnapshot();
+      }
+      case 'sell': {
+        const id = String(args?.[0] ?? '');
+        const idx = (this.#state.animals ?? []).findIndex((a) => a.id === id);
+        if (idx < 0) throw new Error('没有这只动物。');
+        const animal = this.#state.animals[idx];
+        const species = live.animals?.[animal.species];
+        if (!species) throw new Error('找不到这种动物。');
+        if (animal.stage < species.stages.length - 1) throw new Error('这只还没成年，不能按成年价卖。');
+        const price = Math.max(0, Number(species.prices?.adultSell) || 0);
+        this.#state.coins = (Number(this.#state.coins) || 0) + price;
+        this.#state.animals.splice(idx, 1);
+        await this.#save();
+        return { ...this.#animalSnapshot(), sold: price };
+      }
+      default: throw new Error('不认识的动物操作：' + method);
+    }
+  }
+
+  #animalSnapshot() {
+    const inventory = this.#state?.inventory ?? {};
+    const stock = Object.values(live.items ?? {})
+      .filter((it) => it.kind === 'animal' && Number(inventory[it.id]) > 0)
+      .map((it) => ({ id: it.id, name: it.name, count: Number(inventory[it.id]), icon: it.icon, species: it.animalSpecies, stage: it.animalStage }));
+    return {
+      animals: (this.#catalog?.animals ?? []).map((a) => ({
+        ...a,
+        preview: a.stages.map((s) => s.sprites?.idle?.[0] ?? null),
+      })),
+      placed: (this.#state?.animals ?? []).map((a) => {
+        const sp = live.animals?.[a.species];
+        return sp ? { ...animalView(sp, a), anchor: a.anchor, range: a.range, adult: a.stage >= sp.stages.length - 1, item: animalItemOf(sp, a.stage), sell: sp.prices?.adultSell ?? 0 } : null;
+      }).filter(Boolean),
+      stock,
+      coins: Math.round(Number(this.#state?.coins) || 0),
+    };
   }
 
   async #shopInvoke(method, args) {
@@ -2550,7 +2694,7 @@ export class FarmWorld {
 
   #wpfPidAlive(layer = null) {
     try {
-      const layers = layer ? [layer] : ['bg', 'top'];
+      const layers = layer ? [layer] : ['bg', 'mid', 'top'];
       for (const name of layers) {
         const pidFile = join(this.dataDir, 'farm', 'webview-' + name + '.pid');
         if (!existsSync(pidFile)) return false;
@@ -2565,7 +2709,7 @@ export class FarmWorld {
   #startWpf(paths) {
     if (process.platform !== 'win32') return false;
     let started = false;
-    for (const layer of ['bg', 'top']) {
+    for (const layer of ['bg', 'mid', 'top']) {
       if (this.#wpfPidAlive(layer)) continue;
       try {
         const script = paths.overlayScript;
@@ -2791,6 +2935,8 @@ export class FarmWorld {
       try {
         // 历史数据里可能混着'花'或没有 type/kind，统一成当前杂草目录
         normalizeWeeds(this.#state);
+        this.#state.animals = normalizeAnimalState(this.#state.animals);
+        if (!(this.#state.nextAnimalId > 0)) this.#state.nextAnimalId = 1;
         const size = applyFarmSize(this.#state, cfg, () => Math.random());
         if (size.changed) {
           host?.log?.info?.('自定义农场：' + (this.#state.lastMessage || '农田大小调整'), {

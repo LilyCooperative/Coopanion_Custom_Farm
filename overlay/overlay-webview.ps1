@@ -9,7 +9,7 @@ param(
     [string]$LogPath = '',
     [int]$StripHeight = 320,
     [int]$LeaseSeconds = 20,
-    [ValidateSet('bg', 'top')][string]$Layer = 'bg',
+    [ValidateSet('bg', 'mid', 'top')][string]$Layer = 'bg',
     [ValidateSet('off', 'auto', 'on')][string]$Throttle = 'off'
 )
 
@@ -89,6 +89,16 @@ public static class FarmWebViewWin32 {
         }, IntPtr.Zero);
         return found;
     }
+    public static IntPtr FindTitle(string title) {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr h, IntPtr l) {
+            var sb = new System.Text.StringBuilder(512);
+            GetWindowTextW(h, sb, 512);
+            if (sb.ToString() == title) { found = h; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
     public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
     public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
     public const uint SWP_NOSIZE = 0x1;
@@ -115,6 +125,7 @@ public static class FarmWebViewWin32 {
 
 $script:owner = [IntPtr]::Zero
 $script:bgPet = [IntPtr]::Zero
+$script:midPet = [IntPtr]::Zero
 function Update-PetZOrder {
     try {
         $h = (New-Object System.Windows.Interop.WindowInteropHelper($win)).Handle
@@ -126,11 +137,19 @@ function Update-PetZOrder {
                 [void][FarmWebViewWin32]::SetWindowLongPtr($h, [FarmWebViewWin32]::GWLP_HWNDPARENT, $pet)
                 $script:owner = $pet
             }
-        } else {
-            if ($script:bgPet -ne $pet -or [FarmWebViewWin32]::GetWindow($h, [FarmWebViewWin32]::GW_HWNDPREV) -ne $pet) {
+        } elseif ($Layer -eq 'mid') {
+            if ($script:midPet -ne $pet -or [FarmWebViewWin32]::GetWindow($h, [FarmWebViewWin32]::GW_HWNDPREV) -ne $pet) {
                 [void][FarmWebViewWin32]::SetWindowPos($h, $pet, 0, 0, 0, 0,
                     ([FarmWebViewWin32]::SWP_NOMOVE -bor [FarmWebViewWin32]::SWP_NOSIZE -bor [FarmWebViewWin32]::SWP_NOACTIVATE))
-                $script:bgPet = $pet
+                $script:midPet = $pet
+            }
+        } else {
+            $mid = [FarmWebViewWin32]::FindTitle('CoopanionFarm-mid')
+            $target = if ($mid -ne [IntPtr]::Zero) { $mid } else { $pet }
+            if ($script:bgPet -ne $target -or [FarmWebViewWin32]::GetWindow($h, [FarmWebViewWin32]::GW_HWNDPREV) -ne $target) {
+                [void][FarmWebViewWin32]::SetWindowPos($h, $target, 0, 0, 0, 0,
+                    ([FarmWebViewWin32]::SWP_NOMOVE -bor [FarmWebViewWin32]::SWP_NOSIZE -bor [FarmWebViewWin32]::SWP_NOACTIVATE))
+                $script:bgPet = $target
             }
         }
     } catch { }
@@ -150,6 +169,7 @@ $win.AllowsTransparency = $true
 $win.Background = [System.Windows.Media.Brushes]::Transparent
 $win.Topmost = $true
 $win.ShowInTaskbar = $false
+$win.Title = 'CoopanionFarm-' + $Layer
 $win.ResizeMode = 'NoResize'
 $win.Focusable = $false
 

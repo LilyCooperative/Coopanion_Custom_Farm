@@ -116,8 +116,16 @@ export const farmDefinition = {
       {
         type: 'farm.state',
         description: {
-          zh: '自定义状态触发消耗行为：比如「饥饿」生效时自动吃掉一个作物（正文写明吃了什么、状态变化），或者提醒桌宠用 farm_consume 去吃；背包里没有可吃道具时也会提醒。',
-          en: 'A custom state triggered a consume action: e.g. hunger ate a crop (the text says what and the state change), or asks the pet to use farm_consume; also fires when nothing edible is in the bag.',
+          zh: '自定义状态进入「桌宠主动消耗」时触发：正文列出消耗品池里当前可用的道具，让桌宠自己用 farm_consume 挑；随机消耗不推这条事件。',
+          en: 'A custom state in pet-choice consume mode fires: the text lists available items so the pet can pick one with farm_consume; random consume does not emit this event.',
+        },
+        trigger: 'debounce',
+      },
+      {
+        type: 'farm.product',
+        description: {
+          zh: '动物产物掉在地上；正文写明产物、数量和屏幕位置，提示走过去 farm_stand 再 farm_collect。',
+          en: 'An animal product dropped on the ground; the text names it, its amount and position, and says to walk over and collect.',
         },
         trigger: 'debounce',
       },

@@ -12,6 +12,7 @@
 - 作物枯死/枯萎 → 直接在原地 `farm_plant` 拔掉重种，**不用问**
 - 收到 `farm.state` 的「桌宠主动消耗」提示 → 从提示列出的消耗品池里挑一个，`farm_consume`
 - 有材料、且池子里没有现成消耗品 → 先 `farm_craft` 做一个池子里的消耗品，再 `farm_consume`
+- 收到 `farm.product` → 走到提示里的位置，`farm_stand` 后 `farm_collect` 捡动物产物
 - 有材料 → `farm_craft`
 - 装饰在背包里 → `farm_place`
 - 种子只剩 0~1 包 → 自己补 1~2 包（不超过金币一半），**不用问**
@@ -26,7 +27,7 @@
 
 ## 省 token 的硬规则
 
-- **不要反复 `farm_status`**。`farm.dry` / `farm.ripe` / `farm.state` / `farm.env` 事件和工具回执里已经带了位置、数量、状态。
+- **不要反复 `farm_status`**。`farm.dry` / `farm.ripe` / `farm.state` / `farm.product` / `farm.env` 事件和工具回执里已经带了位置、数量、状态。
 - 只有事件信息不够、或刚接手一片地时，才调一次 `farm_status`。
 - **一次工具调用处理一片**：`farm_water` 浇够得着的一片，`farm_buy` 用 `items` 一次买多种，不要一棵一棵调。
 - 不要复述工具回执，也不要在每一步向主人解释；做完一句话汇报结果即可。
@@ -37,7 +38,8 @@
 1. **缺水**：收到 `farm.dry` → 走到最近一棵（`pet_move_to` + `farm_stand`）→ `farm_water`，一次把附近几棵都浇了。
 2. **成熟**：收到 `farm.ripe` → 走到位置 → `farm_harvest` → `farm_collect`；背包满了或产物多就直接卖普通产物。
 3. **桌宠主动消耗**：收到 `farm.state`，正文会说池子里有哪些可消耗道具 → 自己挑一个，`farm_consume {item:"..."}`；如果池子里没有或想换，先用 `farm_craft` 看能不能用现有材料做出池子里的消耗品，做出来再消耗。材料也不够时再告诉主人；日常合成不用问。
-4. **首次环境自检失败**：收到 `farm.env` → 按正文把缺什么、去哪里修告诉主人；不要反复刷这条提醒。
+4. **动物产物**：收到 `farm.product` → 走到正文里的位置，`farm_stand` 后 `farm_collect`；产物不会自己进背包。
+5. **首次环境自检失败**：收到 `farm.env` → 按正文把缺什么、去哪里修告诉主人；不要反复刷这条提醒。
 
 > `farm.wilt`（枯萎）和 `farm.buy`（补种子）默认不再单独发事件；不要等它们，自己按上面规则处理。`farm.day` 只有主人显式打开时才发。
 
@@ -80,9 +82,16 @@
 - happy 生效时：主动和主人说一句，不要在这时提要求或扫兴。
 - 收到 `farm.state` 且 meta 里有 `moodState` 时，按当前配置的消耗方式处理；不要自己改心情数值。
 
+## 动物
+
+- 动物在 mid 图层，位于桌宠后方、草地前方；会随机游走、待机或啄食。
+- 产物按设定间隔掉在动物附近，收到 `farm.product` 要过去 `farm_collect`。
+- 动物由主人在「动物」页放置、回收或按成年价出售；不要自己在背包/商店里改动物配置。
+- 产物道具在「道具自定义 → 动物产品」里显示，可以继续作为普通道具使用或出售。
+
 ## 节奏
 
-- 收到 `farm.ripe`、`farm.dry`、`farm.day`、`farm.state`、`farm.env` 才动手；没有事件就安静待着。
+- 收到 `farm.ripe`、`farm.dry`、`farm.day`、`farm.state`、`farm.product`、`farm.env` 才动手；没有事件就安静待着。
 - 主人在任务栏上沿能看到同一片地。走过去时作物会晃、东西会被吸到身上，所以别隔空操作。
 - 一次能做完的事不要拆成多次工具调用。
 

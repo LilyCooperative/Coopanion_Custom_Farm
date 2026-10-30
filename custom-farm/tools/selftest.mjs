@@ -91,7 +91,7 @@ const readState = async () => JSON.parse(await readFile(world.stateFile(), 'utf8
 check('definition.id = farm', definition.id === 'farm');
 check('18 种作物', Object.keys(CROPS).length === 18, Object.keys(CROPS).join(','));
 check('describe 有 13 个工具', definition.describe.tools.length === 13, definition.describe.tools.map((t) => t.name).join(','));
-check('describe 有 5 个事件', definition.describe.events.length === 5, definition.describe.events.map((e) => e.type).join(','));
+check('describe 有 6 个事件', definition.describe.events.length === 6, definition.describe.events.map((e) => e.type).join(','));
 
 // --- 模板 ZIP 读写 ---------------------------------------------------------
 {

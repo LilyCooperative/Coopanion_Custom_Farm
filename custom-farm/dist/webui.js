@@ -1712,6 +1712,8 @@ const IT = {
     cropsDesc: '自动跟「农场自定义」里的收获物同步。卖出价改到这里；可以设置能不能被吃，以及吃掉后改哪个状态。',
     consumables: '消耗品道具',
     consumablesDesc: '自己加的道具：买价/卖价、缩略图，以及吃掉后的状态效果。',
+    animalProducts: '动物产品',
+    animalProductsDesc: '动物定时产出的道具；产物掉在地上，桌宠要用 farm_collect 捡。',
     decorations: '装饰道具',
     decorationsDesc: '可买/可合成；设置缩略图、摆放贴图和图层（上/下）后，去「背包」页点放置。上层和杂草同层、会清掉落点杂草；下层在农作物后方、不清草。',
     addConsumable: '添加消耗品',
@@ -1756,6 +1758,8 @@ const IT = {
     cropsDesc: 'Synced from the Farm page. Sell price lives here; set whether it is edible and which state eating changes.',
     consumables: 'Consumables',
     consumablesDesc: 'Custom items: buy/sell price, icon and the state effects when eaten.',
+    animalProducts: 'Animal products',
+    animalProductsDesc: 'Items produced by animals; they drop on the ground and the pet collects them with farm_collect.',
     decorations: 'Decorations',
     decorationsDesc: 'Buy or craft; set icon, placement sprite and layer (top/bottom), then place from the Bag page. Top shares the weed layer and clears weeds at the spot; bottom sits behind crops and leaves weeds alone.',
     addConsumable: 'Add consumable',
@@ -2534,6 +2538,7 @@ function itemsPanel(ctx) {
       section(T.seeds, T.seedsDesc, snap.seeds, T.noItems, null),
       section(T.crops, T.cropsDesc, snap.crops, T.noItems, null),
       section(T.consumables, T.consumablesDesc, snap.consumables, T.noItems, addConsumable),
+      section(T.animalProducts, T.animalProductsDesc, snap.animalProducts ?? [], T.noItems, null),
       section(T.decorations, T.decorationsDesc, snap.decorations, T.noItems, addDecor),
     ];
     sheets.forEach((sheet, i) => {
@@ -2930,9 +2935,201 @@ function ecologyPanel(ctx) {
   reload();
 }
 
+/* ------------------------------ 动物 ------------------------------ */
+function animalsPanel(ctx) {
+  const { ui } = ctx;
+  const zh = isZh(ctx.language);
+  const T = {
+    title: zh ? '动物' : 'Animals',
+    desc: zh ? '鸡等动物默认在 mid 图层：在桌宠后面、草地前面。这里设置动作帧、随机概率、产物和价格。' : 'Animals default to the mid layer: behind the pet, in front of the ground. Set actions, probabilities, products and prices here.',
+    stock: zh ? '背包里的动物' : 'Animals in bag',
+    placed: zh ? '已放置' : 'Placed',
+    emptyStock: zh ? '背包里没有动物。去商店买幼崽。' : 'No animals in the bag. Buy a baby in the shop.',
+    emptyPlaced: zh ? '农场里还没有动物。' : 'No animals placed yet.',
+    anchor: zh ? '锚点（0~1）' : 'Anchor (0~1)',
+    range: zh ? '活动范围（±）' : 'Range (±)',
+    place: zh ? '放置' : 'Place',
+    reclaim: zh ? '回收' : 'Reclaim',
+    sell: zh ? '成年出售' : 'Sell adult',
+    save: zh ? '保存动物设置' : 'Save animal',
+    remove: zh ? '删除物种' : 'Remove species',
+    saved: zh ? '已保存' : 'Saved',
+    noAnchors: zh ? '预览里还没有锚点。' : 'No anchors in the preview.',
+    walkChance: zh ? '开始走路概率' : 'Walk chance',
+    walkSpeed: zh ? '走路速度' : 'Walk speed',
+    walkRange: zh ? '默认活动范围' : 'Default range',
+    product: zh ? '产物道具' : 'Product item',
+    everyDays: zh ? '产物间隔（游戏日）' : 'Product interval (game days)',
+    count: zh ? '产物数量' : 'Product count',
+    prices: zh ? '价格（幼崽买 / 幼崽卖 / 成年卖）' : 'Prices (baby buy / baby sell / adult sell)',
+    stages: zh ? '生长阶段' : 'Stages',
+    actions: zh ? '动作权重' : 'Action weights',
+    item: zh ? '动物道具' : 'Animal item',
+  };
+  const root = ui.h('div', 'cf-root');
+  ctx.root.appendChild(root);
+  let snap = null;
+  let anchor = 0.5;
+  let range = 0.16;
+
+  async function call(method, args = [], toast) {
+    try {
+      const data = await ctx.invoke(method, args);
+      snap = data;
+      render();
+      if (toast) ui.toast(toast);
+      return data;
+    } catch (err) {
+      ui.toast((err && err.message) || String(err), 'bad');
+      return null;
+    }
+  }
+  const num = (value, onChange, step = '0.01') => {
+    const el = ui.input({ type: 'number', value: String(value ?? '') });
+    el.step = step;
+    el.addEventListener('input', () => { const n = Number(el.value); if (Number.isFinite(n)) onChange(n); }, { signal: ctx.signal });
+    return el;
+  };
+  const txt = (value, onChange) => {
+    const el = ui.input({ value: value ?? '' });
+    el.maxLength = 24;
+    el.addEventListener('input', () => onChange(el.value), { signal: ctx.signal });
+    return el;
+  };
+  const pick = (options, value, onChange) => {
+    const el = ui.select({ value: String(value), options });
+    el.addEventListener('change', () => onChange(el.value), { signal: ctx.signal });
+    return el;
+  };
+
+  function anchorTrack() {
+    const track = ui.h('div', 'animal-track');
+    track.style.cssText = 'position:relative;height:26px;background:#eee;border:1px solid #bbb;border-radius:6px;overflow:hidden;margin:6px 0 14px;';
+    const line = ui.h('div');
+    line.style.cssText = 'position:absolute;left:50%;top:0;bottom:0;width:1px;background:#aaa;';
+    track.append(line);
+    for (const a of snap.placed ?? []) {
+      const mark = ui.h('span');
+      mark.style.cssText = 'position:absolute;top:2px;transform:translateX(-50%);font-size:10px;white-space:nowrap;';
+      mark.style.left = (Number(a.anchor) * 100) + '%';
+      mark.textContent = a.stageName || '?';
+      track.append(mark);
+    }
+    if (!(snap.placed ?? []).length) track.append(ui.h('span', 'cf-note', T.noAnchors));
+    return track;
+  }
+
+  function render() {
+    if (!snap) return;
+    const scroll = root.scrollTop;
+    root.replaceChildren();
+    const top = ui.sheet({ title: T.title, desc: T.desc });
+    top.body.append(anchorTrack());
+
+    const anchorRow = ui.h('div', 'cf-row');
+    anchorRow.append(
+      ui.field(T.anchor, num(anchor, (v) => { anchor = Math.min(1, Math.max(0, v)); }, '0.01')),
+      ui.field(T.range, num(range, (v) => { range = Math.min(0.45, Math.max(0.02, v)); }, '0.01')),
+    );
+    top.body.append(anchorRow);
+
+    const stock = ui.h('div', 'cf-list');
+    if (!(snap.stock ?? []).length) stock.append(ui.placeholder(T.emptyStock));
+    for (const item of snap.stock ?? []) {
+      const row = ui.h('div', 'cf-card');
+      const head = ui.h('div', 'cf-head');
+      head.append(ui.h('strong', 'cf-name', item.name + ' ×' + item.count));
+      const btn = ui.button(T.place, {
+        size: 'sm', variant: 'primary',
+        onClick: () => void call('place', [{ item: item.id, x: anchor, range }], T.saved),
+      });
+      head.append(btn);
+      row.append(head);
+      stock.append(row);
+    }
+    top.body.append(ui.h('strong', 'cf-note', T.stock), stock);
+
+    const placed = ui.h('div', 'cf-list');
+    if (!(snap.placed ?? []).length) placed.append(ui.placeholder(T.emptyPlaced));
+    for (const a of snap.placed ?? []) {
+      const card = ui.h('div', 'cf-card');
+      const head = ui.h('div', 'cf-head');
+      head.append(ui.h('strong', 'cf-name', (a.speciesName || a.species) + ' · ' + (a.stageName || '')), ui.pill(a.action, 'plain'));
+      const body = ui.h('div', 'cf-row');
+      body.append(ui.h('span', 'cf-note', (T.anchor + ' ' + Math.round(Number(a.anchor) * 100) + '% · ' + T.range + ' ' + Math.round(Number(a.range) * 100) + '%')));
+      body.append(ui.button(T.reclaim, { size: 'sm', onClick: () => void call('reclaim', [a.id], T.saved) }));
+      if (a.adult) body.append(ui.button((T.sell + ' ' + (a.sell || 0)), { size: 'sm', variant: 'primary', onClick: () => void call('sell', [a.id], T.saved) }));
+      card.append(head, body);
+      placed.append(card);
+    }
+    top.body.append(ui.h('strong', 'cf-note', T.placed), placed);
+    root.append(top.el);
+
+    for (const sp of snap.animals ?? []) {
+      const sheet = ui.sheet({ title: sp.name + ' (' + sp.key + ')' });
+      const draft = structuredClone(sp);
+      const row = ui.h('div', 'cf-row');
+      row.append(
+        ui.field(zh ? '名字' : 'Name', txt(draft.name, (v) => { draft.name = v; })),
+        ui.field(zh ? '图层' : 'Layer', pick([{ value: 'mid', label: 'mid' }, { value: 'top', label: 'top' }, { value: 'bg', label: 'bg' }], draft.layer, (v) => { draft.layer = v; })),
+      );
+      sheet.body.append(row);
+      const prices = ui.h('div', 'cf-row');
+      prices.append(
+        ui.field(T.prices, ui.h('span', 'cf-note', '')),
+        ui.field(zh ? '幼崽买' : 'Baby buy', num(draft.prices.babyBuy, (v) => { draft.prices.babyBuy = v; }, '1')),
+        ui.field(zh ? '幼崽卖' : 'Baby sell', num(draft.prices.babySell, (v) => { draft.prices.babySell = v; }, '1')),
+        ui.field(zh ? '成年卖' : 'Adult sell', num(draft.prices.adultSell, (v) => { draft.prices.adultSell = v; }, '1')),
+      );
+      sheet.body.append(prices);
+      const walk = ui.h('div', 'cf-row');
+      walk.append(
+        ui.field(T.walkChance, num(draft.walk.chance, (v) => { draft.walk.chance = v; }, '0.01')),
+        ui.field(T.walkSpeed, num(draft.walk.speed, (v) => { draft.walk.speed = v; }, '0.001')),
+        ui.field(T.walkRange, num(draft.walk.range, (v) => { draft.walk.range = v; }, '0.01')),
+      );
+      sheet.body.append(walk);
+      const prod = ui.h('div', 'cf-row');
+      prod.append(
+        ui.field(T.product, txt(draft.product.item, (v) => { draft.product.item = v; })),
+        ui.field(T.everyDays, num(draft.product.everyDays, (v) => { draft.product.everyDays = v; }, '0.05')),
+        ui.field(T.count, num(draft.product.count, (v) => { draft.product.count = v; }, '1')),
+      );
+      sheet.body.append(prod);
+      for (const st of draft.stages) {
+        const stageRow = ui.h('div', 'cf-row');
+        stageRow.append(
+          ui.field(zh ? '阶段' : 'Stage', txt(st.name, (v) => { st.name = v; })),
+          ui.field(zh ? '天数' : 'Days', num(st.days, (v) => { st.days = v; }, '0.1')),
+          ui.field(zh ? '缩放' : 'Scale', num(st.scale, (v) => { st.scale = v; }, '0.01')),
+          ui.field(zh ? '贴图前缀' : 'Sprite prefix', txt(st.prefix, (v) => { st.prefix = v; })),
+        );
+        sheet.body.append(stageRow);
+      }
+      const actRow = ui.h('div', 'cf-row');
+      for (const a of draft.actions) {
+        actRow.append(ui.field(a.name || a.key, num(a.weight, (v) => { a.weight = v; }, '1')));
+      }
+      sheet.body.append(actRow);
+      const bar = ui.actions();
+      bar.append(ui.button(T.save, { variant: 'primary', onClick: () => void call('saveAnimal', [draft], T.saved) }));
+      bar.append(ui.button(T.remove, { size: 'sm', variant: 'danger', onClick: () => void call('removeAnimal', [sp.key], T.saved) }));
+      sheet.body.append(bar);
+      root.append(sheet.el);
+    }
+    root.scrollTop = scroll;
+  }
+
+  (async () => {
+    try { snap = await ctx.invoke('state'); render(); } catch (err) { ui.toast((err && err.message) || String(err), 'bad'); }
+  })();
+}
+
+
 export default {
   panels: {
     bag: { mount: bagPanel },
+    animals: { mount: animalsPanel },
     shop: { mount: shopPanel },
     customize: { mount: panel },
     ecology: { mount: ecologyPanel },

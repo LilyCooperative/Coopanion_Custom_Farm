@@ -13,6 +13,7 @@ import { basename, join } from 'node:path';
 import { CROPS, ROTATION } from './crops.js';
 import { live } from './catalog-state.js';
 import { CROP_PRICES, SEEDS, SEED_BY_CROP, SEED_BY_ID } from './shop.js';
+import { builtinAnimals, normalizeAnimal } from './animals.js';
 import { normalizeWeathers } from './weather.js';
 
 export const CUSTOM_VERSION = 1;
@@ -266,6 +267,38 @@ export class FarmCatalog {
     this.persist();
   }
 
+  /** 补默认鸡、幼崽/成年道具和蛋的「动物产品」标记。 */
+  ensureAnimals() {
+    if (!this.store || this.store.seededAnimals) return;
+    if (!Array.isArray(this.store.animals) || !this.store.animals.length) {
+      this.store.animals = builtinAnimals();
+    }
+    const items = this.store.items ?? (this.store.items = []);
+    for (const species of this.store.animals) {
+      for (const stage of species.stages ?? []) {
+        if (!stage.item || items.some((it) => it.id === stage.item)) continue;
+        const idx = species.stages.indexOf(stage);
+        const isAdult = idx === species.stages.length - 1;
+        const item = this.normalizeItem({
+          id: stage.item,
+          name: species.name + (isAdult ? '（成年）' : '（幼崽）'),
+          kind: 'animal',
+          buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
+          sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
+          icon: stage.sprites?.idle?.[0] ?? 'icon_item_soil',
+          consumable: false,
+          animalSpecies: species.key,
+          animalStage: idx,
+        }, items.length, this.store.states);
+        if (item) items.push(item);
+      }
+    }
+    const egg = items.find((it) => it.id === 'egg');
+    if (egg) egg.animalProduct = true;
+    this.store.seededAnimals = true;
+    this.persist();
+  }
+
   /** 旧档的饥饿消耗行为只列了几种作物；补上米饭/意面等新食物一次。 */
   ensureEdibleItems() {
     if (!this.store || this.store.seededEdibleItems) return;
@@ -410,6 +443,7 @@ export class FarmCatalog {
       ground: { selected: DEFAULT_GROUND, custom: [] },
       crops: this.builtinCrops(),
       weeds: this.builtinWeeds(),
+      animals: builtinAnimals(),
       status: this.builtinStatus(),
       states: [],
       rules: [],
@@ -429,6 +463,7 @@ export class FarmCatalog {
     seededCropPool: false,
     seededConsumablePool: false,
     seededConsumeClean: false,
+    seededAnimals: false,
     };
   }
 
@@ -439,6 +474,10 @@ export class FarmCatalog {
 
   get states() {
     return this.store?.states ?? [];
+  }
+
+  get animals() {
+    return this.store?.animals ?? [];
   }
 
   get rules() {
@@ -477,6 +516,7 @@ export class FarmCatalog {
     this.ensureEdibleItems();
     this.ensureConsumablePool();
     this.ensureConsumeClean();
+    this.ensureAnimals();
     this.ensureBuiltinDecor();
     this.ensureCabin();
     this.ensureDecorSet();
@@ -668,6 +708,7 @@ export class FarmCatalog {
       },
       crops: cropList.map((c, i) => this.normalizeCrop(c, i)).filter(Boolean),
       weeds: weedList.map((w, i) => this.normalizeWeed(w, i)).filter(Boolean),
+      animals: (Array.isArray(raw.animals) ? raw.animals : []).map((a, i) => normalizeAnimal(a, i)).filter(Boolean),
       status: this.normalizeStatus(raw.status, def.status),
       states,
       rules,
@@ -687,6 +728,7 @@ export class FarmCatalog {
     seededCropPool: Boolean(raw.seededCropPool),
     seededConsumablePool: Boolean(raw.seededConsumablePool),
     seededConsumeClean: Boolean(raw.seededConsumeClean),
+    seededAnimals: Boolean(raw.seededAnimals),
     };
   }
 
@@ -794,7 +836,7 @@ export class FarmCatalog {
 
   normalizeItem(src, index, states) {
     if (!src || typeof src !== 'object') return null;
-    const kinds = ['seed', 'crop', 'consumable', 'decor'];
+    const kinds = ['seed', 'crop', 'consumable', 'decor', 'animal'];
     const kind = kinds.includes(src.kind) ? src.kind : 'consumable';
     const id = (String(src.id ?? '').replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 40)) || ('item_' + (index + 1));
     const name = String(src.name ?? '').trim().slice(0, 24) || id;
@@ -815,7 +857,10 @@ export class FarmCatalog {
       buy: int(src.buy, 0, 1000000, 0),
       sell: int(src.sell, 0, 1000000, 0),
       consumable: kind === 'consumable' ? true : (kind === 'crop' ? src.consumable !== false : false),
-      effects: kind === 'seed' || kind === 'decor' ? [] : effects,
+      animalSpecies: kind === 'animal' ? String(src.animalSpecies ?? '').slice(0, 40) : null,
+      animalStage: kind === 'animal' ? int(src.animalStage, 0, 7, 0) : null,
+      animalProduct: Boolean(src.animalProduct),
+      effects: kind === 'seed' || kind === 'decor' || kind === 'animal' ? [] : effects,
       layer: kind === 'decor' ? (src.layer === 'top' ? 'top' : 'bottom') : null,
       scale: kind === 'decor' ? r2(clamp(Number(src.scale), 0.3, 3, 1)) : null,
     };
@@ -977,6 +1022,7 @@ export class FarmCatalog {
       ?? live.ground.custom.find((g) => g.id === live.ground.selected);
     live.ground.tile = selectedGround?.sprite ?? null;
     live.items = Object.fromEntries(items.map((it) => [it.id, it]));
+    live.animals = Object.fromEntries((this.store.animals ?? []).map((a) => [a.key, a]));
     live.decorations = items.filter((it) => it.kind === 'decor');
     live.consumables = items.filter((it) => it.consumable);
     live.itemIcons = {};
@@ -1269,6 +1315,12 @@ export class FarmCatalog {
         preview: Array.from({ length: w.stages }, (_, i) => this.weedSpriteName({ type: w.key, level: i })),
         previewItem: w.value > 0 ? (w.itemSprite ?? 'icon_item_soil') : null,
       })),
+      animals: (this.store.animals ?? []).map((a) => ({
+        ...a,
+        prices: { ...a.prices },
+        actions: a.actions.map((x) => ({ ...x })),
+        stages: a.stages.map((s) => ({ ...s, sprites: Object.fromEntries(Object.entries(s.sprites).map(([k, v]) => [k, [...v]])) })),
+      })),
       totals: { crops: this.compiled.length, weeds: this.weedCompiled.length },
       status: {
         water: { ...this.store.status.water },
@@ -1525,6 +1577,28 @@ export class FarmCatalog {
     this.apply();
   }
 
+  saveAnimal(input) {
+    if (!input || typeof input !== 'object') throw new Error('动物参数不对。');
+    const list = this.store.animals ?? (this.store.animals = []);
+    const idx = input.key ? list.findIndex((a) => a.key === input.key) : -1;
+    const base = idx >= 0 ? list[idx] : {};
+    const normalized = normalizeAnimal({ ...base, ...input }, idx >= 0 ? idx : list.length);
+    if (!normalized) throw new Error('动物配置不完整。');
+    if (idx >= 0) list[idx] = normalized; else list.push(normalized);
+    const product = this.store.items?.find((it) => it.id === normalized.product?.item);
+    if (product) product.animalProduct = true;
+    this.persist();
+    this.apply();
+    return normalized;
+  }
+
+  removeAnimal(key) {
+    this.store.animals = (this.store.animals ?? []).filter((a) => a.key !== String(key));
+    this.persist();
+    this.apply();
+    return this.store.animals;
+  }
+
   saveConsume(input) {
     if (!input || typeof input !== 'object') throw new Error('消耗行为参数不对。');
     const list = this.store.consume;
@@ -1571,6 +1645,9 @@ export class FarmCatalog {
       seeds: group('seed'),
       crops: group('crop'),
       consumables: group('consumable'),
+      animalProducts: this.store.items
+        .filter((it) => it.animalProduct)
+        .map((it) => ({ ...it, effects: effects(it), preview: it.icon ?? 'icon_item_soil', spritePreview: it.sprite ?? null })),
       decorations: group('decor'),
       states: this.store.states
         .filter((s) => s.kind === 'number')

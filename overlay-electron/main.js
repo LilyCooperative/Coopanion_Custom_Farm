@@ -36,6 +36,7 @@ function clearPid() {
 }
 
 let bgWin = null;
+let midWin = null;
 let topWin = null;
 let zorder = null;
 let quitting = false;
@@ -90,14 +91,15 @@ function hwndOf(win) {
 }
 
 function startZOrder() {
-  if (quitting || !bgWin || !topWin) return;
+  if (quitting || !bgWin || !midWin || !topWin) return;
   if (zorder && !zorder.killed) return;
   const bg = hwndOf(bgWin);
+  const mid = hwndOf(midWin);
   const top = hwndOf(topWin);
-  if (!bg || !top) return;
+  if (!bg || !mid || !top) return;
   try {
     zorder = spawn('powershell.exe',
-      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(__dirname, 'zorder.ps1'), '-Bg', bg, '-Top', top],
+      ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(__dirname, 'zorder.ps1'), '-Bg', bg, '-Mid', mid, '-Top', top],
       { stdio: 'ignore', windowsHide: true });
     zorder.on('exit', () => {
       log('zorder helper exited');
@@ -152,9 +154,9 @@ function createWindow(layer) {
 }
 
 function fit() {
-  if (!bgWin || !topWin) return;
+  if (!bgWin || !midWin || !topWin) return;
   const b = bounds();
-  for (const win of [bgWin, topWin]) {
+  for (const win of [bgWin, midWin, topWin]) {
     if (win.isDestroyed()) continue;
     const cur = win.getBounds();
     if (cur.x !== b.x || cur.y !== b.y || cur.width !== b.width || cur.height !== b.height) {
@@ -179,6 +181,7 @@ if (!app.requestSingleInstanceLock()) {
     writePid();
     writeScreens();
     bgWin = createWindow('bg');
+    midWin = createWindow('mid');
     topWin = createWindow('top');
     setTimeout(startZOrder, 800);
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, fit);
@@ -192,10 +195,11 @@ function quit() {
   clearPid();
   try { if (zorder && !zorder.killed) zorder.kill(); } catch { }
   zorder = null;
-  for (const win of [bgWin, topWin]) {
+  for (const win of [bgWin, midWin, topWin]) {
     try { if (win && !win.isDestroyed()) win.destroy(); } catch { }
   }
   bgWin = null;
+  midWin = null;
   topWin = null;
   if (logStream) logStream.end();
   app.quit();
