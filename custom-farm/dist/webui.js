@@ -54,7 +54,7 @@ function injectFarmEnvCheck() {
   try {
     const hash = String(location.hash || '');
     if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
-    const view = document.querySelector('.configview');
+    const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-env]')) return;
 
     const section = document.createElement('div');
@@ -158,7 +158,7 @@ function injectFarmTemplate() {
   try {
     const hash = String(location.hash || '');
     if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
-    const view = document.querySelector('.configview');
+    const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-template]')) return;
 
     const section = document.createElement('div');
@@ -279,7 +279,7 @@ function injectFarmInitCoins() {
   try {
     const hash = String(location.hash || '');
     if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
-    const view = document.querySelector('.configview');
+    const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-init-coins]')) return;
     const labels = [...view.querySelectorAll('label, .tlabel, .field-label, .cfg-label')];
     const label = labels.find((el) => {
@@ -348,7 +348,7 @@ function injectFarmConfigActions() {
   try {
     const hash = String(location.hash || '');
     if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
-    const view = document.querySelector('.configview');
+    const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-manage]')) return;
 
     const section = document.createElement('div');
@@ -695,6 +695,13 @@ const TEXT = {
 };
 
 const isZh = (lang) => String(lang || '').toLowerCase().startsWith('zh');
+function farmConfigView() {
+  const views = [...document.querySelectorAll('.configview')];
+  return views.find((v) => {
+    const r = v.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && v.offsetParent !== null;
+  }) || views[0] || null;
+}
 const LAYER_LABELS = {
   zh: {
     top: '上层（桌宠上方，可遮挡桌宠）',
