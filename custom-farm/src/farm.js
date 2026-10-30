@@ -1111,6 +1111,7 @@ export function overlayView(state) {
       pourMs: Number(live.status.fx?.pourMs ?? 70),
       burstMs: Number(live.status.fx?.burstMs ?? 80),
       scale: Number(live.status.fx?.scale ?? 0.6),
+      durationMs: Number(live.status.fx?.durationMs ?? 0),
     } : null,
     wither: live.status?.wither ?? null,
     witherScale: Number(live.status?.witherScale ?? 1),

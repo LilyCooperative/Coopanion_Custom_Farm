@@ -286,8 +286,24 @@ function injectFarmInitCoins() {
       const text = (el.textContent || '').trim();
       return text.includes('新开局初始金币') || text.includes('Starting coins');
     });
-    if (!label) return;
-    const holder = label.closest('.tfield') || label.parentElement;
+    let holder = label ? (label.closest('.tfield') || label.parentElement) : null;
+    let fallbackRow = null;
+    if (!holder) {
+      const section = [...view.querySelectorAll('.tsection')].find((el) => /初始化|Initialization/.test(el.textContent || ''));
+      if (!section) return;
+      fallbackRow = document.createElement('div');
+      fallbackRow.className = 'trow';
+      const l = document.createElement('span');
+      l.className = 'tlabel';
+      l.textContent = '金币';
+      holder = document.createElement('div');
+      holder.className = 'tfield';
+      holder.style.display = 'flex';
+      holder.style.gap = '8px';
+      holder.style.flexWrap = 'wrap';
+      fallbackRow.append(l, holder);
+      section.after(fallbackRow);
+    }
     if (!holder) return;
     const wrap = document.createElement('span');
     wrap.dataset.farmInitCoins = '1';
@@ -296,7 +312,7 @@ function injectFarmInitCoins() {
     wrap.style.gap = '6px';
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn sm';
+    btn.className = 'btn sm primary';
     btn.textContent = '初始化当前金币';
     const status = document.createElement('span');
     status.className = 'tdesc';
@@ -546,6 +562,7 @@ const TEXT = {
     frameMs: '帧间隔 ms',
     wither: '枯萎作物贴图',
     waterScale: '浇水特效缩放',
+    waterDuration: '特效持续时间（毫秒，0=自动）',
     witherScale: '枯萎贴图缩放',
     pickWither: '换图',
     resetWither: '用默认',
@@ -656,6 +673,7 @@ const TEXT = {
     frameMs: 'Frame ms',
     wither: 'Withered crop sprite',
     waterScale: 'Water FX scale',
+    waterDuration: 'Duration (ms, 0 = auto)',
     witherScale: 'Wither sprite scale',
     pickWither: 'Change',
     resetWither: 'Default',
@@ -1314,6 +1332,7 @@ function panel(ctx) {
         pourMs: Number(s.fx.pourMs),
         burstMs: Number(s.fx.burstMs),
         scale: Number(s.fx.scale ?? 0.6),
+        durationMs: Number(s.fx.durationMs ?? 0),
       },
       wither: s.wither ?? null,
       witherScale: Number(s.witherScale ?? 1),
@@ -1446,6 +1465,7 @@ function panel(ctx) {
       const waterScaleRow = ui.h('div', 'cf-row');
       waterScaleRow.append(
         ui.field(T.waterScale, numberInput(d.fx.scale, (v) => { d.fx.scale = v; }, '0.05', '0.1', '3')),
+        ui.field(T.waterDuration, numberInput(d.fx.durationMs, (v) => { d.fx.durationMs = v; }, '50', '0', '10000')),
       );
 
       const actions = ui.actions();

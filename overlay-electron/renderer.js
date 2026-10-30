@@ -97,9 +97,9 @@ function spawnParticles(x, y, count, spread) {
   }
 }
 
-function addSplash(x, y, frames, per, w, h) {
+function addSplash(x, y, frames, per, w, h, duration = 0) {
   if (!frames.length) return;
-  splashes.push({ x, y, frames, per, w, h, born: performance.now() });
+  splashes.push({ x, y, frames, per, w, h, duration: Number(duration) || 0, born: performance.now() });
 }
 
 function startWater(x, plotId) {
@@ -110,6 +110,7 @@ function startWater(x, plotId) {
   const p = (st.plots || []).find((row) => Number(row.id) === Number(plotId));
   const ci = p ? cropInfo(p) : { w: 0, h: 0 };
   const ws = Math.max(0.1, Math.min(3, Number(wf.scale) || 0.6));
+  const duration = Math.max(0, Math.min(10000, Number(wf.durationMs) || 0));
   const gx = x * window.innerWidth;
   const g = groundY();
   if (pour.length) {
@@ -117,12 +118,12 @@ function startWater(x, plotId) {
     const dW = (img.naturalWidth || 16) * Z * ws;
     const dH = (img.naturalHeight || 16) * Z * ws;
     const rise = ci.h > 8 ? ci.h : 34 * Z;
-    addSplash(gx, g - rise - dH + 6, pour, Math.max(10, Number(wf.pourMs) || 70), dW, dH);
+    addSplash(gx, g - rise - dH + 6, pour, Math.max(10, Number(wf.pourMs) || 70), dW, dH, duration);
   }
   if (burst.length) {
     const img = image(burst[0]);
     addSplash(gx, g - (img.naturalHeight || 16) * Z * ws + 2, burst, Math.max(10, Number(wf.burstMs) || 80),
-      (img.naturalWidth || 16) * Z * ws, (img.naturalHeight || 16) * Z * ws);
+      (img.naturalWidth || 16) * Z * ws, (img.naturalHeight || 16) * Z * ws, duration);
   }
 }
 
@@ -162,8 +163,10 @@ function processFx() {
 
 function drawFrames(e, now) {
   const age = now - e.born;
-  const idx = Math.floor(age / e.per);
-  if (idx >= e.frames.length) return false;
+  const total = e.duration > 0 ? e.duration : e.frames.length * e.per;
+  if (age >= total) return false;
+  const per = e.duration > 0 ? e.duration / e.frames.length : e.per;
+  const idx = Math.min(e.frames.length - 1, Math.floor(age / per));
   const img = image(e.frames[idx]);
   if (ready(img)) ctx.drawImage(img, e.x - e.w / 2, e.y, e.w, e.h);
   return true;
