@@ -197,6 +197,7 @@ function injectFarmTemplate() {
     const exportBtn = makeBtn('导出模板 ZIP', true);
     const importBtn = makeBtn('导入模板 ZIP', true);
     const defaultBtn = makeBtn('应用默认模板：田园农场');
+    const builtinBtn = makeBtn('导入内置模板：田园农场');
     const file = document.createElement('input');
     file.type = 'file';
     file.accept = '.zip';
@@ -264,7 +265,20 @@ function injectFarmTemplate() {
       } finally { defaultBtn.disabled = false; }
     });
 
-    const templateRow = row('模板 / 默认模板', [exportBtn, importBtn, defaultBtn, status]);
+    builtinBtn.addEventListener('click', async () => {
+      if (!window.confirm('导入内置模板「田园农场」会替换全部设置和贴图，并覆盖对应贴图。继续？')) return;
+      builtinBtn.disabled = true;
+      status.textContent = '正在导入内置模板…';
+      try {
+        const r = await farmManageCall('importBuiltinTemplate');
+        status.textContent = r.text || '内置模板已导入';
+        setTimeout(() => { try { location.reload(); } catch { } }, 1800);
+      } catch (err) {
+        status.textContent = '导入失败：' + ((err && err.message) || err);
+      } finally { builtinBtn.disabled = false; }
+    });
+
+    const templateRow = row('模板 / 默认模板', [exportBtn, importBtn, defaultBtn, builtinBtn, status]);
     section.append(desc);
     section.append(file);
     view.prepend(section, templateRow);

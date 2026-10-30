@@ -748,6 +748,12 @@ export class FarmWorld {
     };
   }
 
+  async #importBuiltinTemplate() {
+    const file = join(EXTENSION_DIR, 'templates', 'tianye-farm.zip');
+    if (!existsSync(file)) throw new Error('安装包里缺少内置模板 templates/tianye-farm.zip。');
+    return this.#importTemplate(file);
+  }
+
   async #importTemplateData(base64) {
     const raw = String(base64 ?? '');
     if (!raw) throw new Error('没有收到模板数据。');
@@ -1941,6 +1947,7 @@ export class FarmWorld {
     if (method === 'check') return this.#envCheck();
     if (method === 'exportTemplate') return this.#exportTemplate();
     if (method === 'importTemplate') return this.#importTemplate(args?.[0]);
+    if (method === 'importBuiltinTemplate') return this.#importBuiltinTemplate();
     if (method === 'importTemplateData') return this.#importTemplateData(args?.[0]);
     if (method === 'applyDefaultTemplate') return this.#applyDefaultTemplate();
     if (method === 'listBackups') return this.#listBackups();
@@ -1972,7 +1979,7 @@ export class FarmWorld {
 
   /** 「农场自定义」页的数据面。统一返回最新 snapshot，面板不用再读一次。 */
   async #customInvoke(method, args, cfg) {
-    if (['backup', 'reset', 'initCoins', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup', 'openBackups'].includes(method)) {
+    if (['backup', 'reset', 'initCoins', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importBuiltinTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup', 'openBackups'].includes(method)) {
       return this.#manageAction(method, args);
     }
     if (method === 'sprite') {
