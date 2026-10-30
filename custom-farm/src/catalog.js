@@ -442,7 +442,7 @@ export class FarmCatalog {
       {
         id: 'deco_fence', name: '木篱笆', kind: 'decor', buy: 100, sell: 35,
         consumable: false, effects: [], icon: 'icon_deco_fence', sprite: 'deco_fence', layer: 'top',
-        scale: 0.7,
+        scale: 0.35,
       },
     ];
   }
