@@ -446,10 +446,10 @@ const TEXT = {
   zh: {
     title: '农场',
     groundDesc: '点一张换农场地面；也可以加自己的 PNG。地面按选中的这一张横向周期重复；改完下次图层刷新生效。',
-    farmSize: '农田大小（格）',
+    farmSize: '农田缩放倍率',
     groundHeight: '地表高度（像素）',
     stripHeight: '屏幕纵向覆盖高度（像素）',
-    farmSettingsHint: '农田大小会缩放草地、作物、野草和草地厚度；地表高度控制地面露出多少（默认 10，约到桌宠鞋底）；屏幕纵向覆盖高度控制图层窗口高度，作物/装饰太大被削顶时调大（默认 320）。地面贴图按选中长条自动重复铺满。',
+    farmSettingsHint: '农田缩放倍率只改变作物/杂草/装饰的大小和分布，地面始终铺满屏幕底边；0.25~2，默认 1。地表高度控制地面露出多少；屏幕纵向覆盖高度控制图层窗口高度，作物/装饰太大被削顶时调大。',
     saveFarm: '保存农场设置',
     maxPlants: '最多同时种几棵',
     cropGapScale: '作物间距（倍率）',
@@ -553,10 +553,10 @@ const TEXT = {
   en: {
     title: 'Farm',
     groundDesc: 'Pick a ground tile, or add your own PNG. The chosen tile repeats horizontally; applies on the next layer refresh.',
-    farmSize: 'Farm size (cells)',
+    farmSize: 'Farm scale',
     groundHeight: 'Ground height (px)',
     stripHeight: 'Vertical coverage height (px)',
-    farmSettingsHint: 'Farm size scales the grass, crops, weeds and grass thickness; ground height controls how much ground is visible (default 4, about the pet shoe sole). The selected strip repeats automatically.',
+    farmSettingsHint: 'Farm scale only resizes/repositions farm content; the ground always fills the bottom edge. 0.25–2, default 1. Ground height controls how much ground is visible; strip height controls the overlay window height.',
     saveFarm: 'Save farm settings',
     maxPlants: 'Max plants',
     cropGapScale: 'Crop spacing (scale)',
@@ -853,14 +853,14 @@ function panel(ctx) {
     const d = getSettings();
     const setRow = ui.h('div', 'cf-row');
     setRow.append(
-      ui.field(T.farmSize, numberInput(d.farmCells, (v) => { d.farmCells = v; }, '1', '12')),
+      ui.field(T.farmSize, numberInput(d.farmScale, (v) => { d.farmScale = v; }, '0.05', '0.25', '2')),
       ui.field(T.groundHeight, numberInput(d.groundHeight, (v) => { d.groundHeight = v; }, '1', '2')),
       ui.field(T.stripHeight, numberInput(d.stripHeight, (v) => { d.stripHeight = v; }, '10', '120')),
     );
     const saveBar = ui.rowbar();
     saveBar.append(ui.button(T.saveFarm, {
       variant: 'primary',
-      onClick: () => void saveSettings(['farmCells', 'groundHeight', 'stripHeight'], T.saved),
+      onClick: () => void saveSettings(['farmScale', 'groundHeight', 'stripHeight'], T.saved),
     }));
     sheet.body.append(
       setRow,
@@ -879,10 +879,11 @@ function panel(ctx) {
     return sel;
   }
 
-  function numberInput(value, onChange, step = '1', min = '0') {
+  function numberInput(value, onChange, step = '1', min = '0', max = '') {
     const input = ui.input({ type: 'number', value: value === null || value === undefined ? '' : String(value) });
     input.step = step;
     input.min = min;
+    if (max !== '') input.max = max;
     input.addEventListener('input', () => { const n = Number(input.value); if (Number.isFinite(n)) onChange(n); }, { signal: ctx.signal });
     return input;
   }
@@ -1241,13 +1242,13 @@ function panel(ctx) {
   function cloneSettings(s) {
     const src = s ?? {};
     return {
-      farmCells: Number(src.farmCells ?? 48),
+      farmScale: Number(src.farmScale ?? (src.farmCells ? Number(src.farmCells) / 48 : 1)),
       groundHeight: Number(src.groundHeight ?? 5),
       stripHeight: Number(src.stripHeight ?? 320),
       moodIntervalMin: Number(src.moodIntervalMin ?? 10),
-      maxPlants: Number(src.maxPlants ?? 12),
-      cropGapScale: Number(src.cropGapScale ?? 0.8),
-      cropGapPct: Number(src.cropGapPct ?? 2),
+      maxPlants: Number(src.maxPlants ?? 24),
+      cropGapScale: Number(src.cropGapScale ?? 0.55),
+      cropGapPct: Number(src.cropGapPct ?? 1.2),
       cropScale: Number(src.cropScale ?? 1.5),
       dropScale: Number(src.dropScale ?? 0.6),
       startWeeds: Number(src.startWeeds ?? 42),

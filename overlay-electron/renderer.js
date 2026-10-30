@@ -183,9 +183,8 @@ function draw(now) {
   if (showBg && ready(gt)) {
     const tw = gt.naturalWidth * Z * cs;
     const th = gt.naturalHeight * Z * cs;
-    const left = Math.max(0, Number(state.farm?.min ?? 0) * W);
-    const right = Math.min(W, Number(state.farm?.max ?? 1) * W);
-    for (let x = left; x < right; x += tw) ctx.drawImage(gt, x, g, Math.min(tw, right - x), th);
+    // 缩放只影响内容大小，地面始终从 0 铺到屏幕底边。
+    for (let x = 0; x < W; x += tw) ctx.drawImage(gt, x, g, tw, th);
   }
 
   const wf = state.weatherFx || { mode: 'both', swayAmp: 3.2, squash: 0, speed: 1 };

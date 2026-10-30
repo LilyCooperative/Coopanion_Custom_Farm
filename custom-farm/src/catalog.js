@@ -768,6 +768,7 @@ export class FarmCatalog {
     const src = raw && typeof raw === 'object' ? raw : {};
     const specs = {
       farmCells: { type: 'int', min: 12, max: 48 },
+      farmScale: { type: 'num', min: 0.25, max: 2 },
       maxPlants: { type: 'int', min: 1, max: 64 },
       cropGapScale: { type: 'num', min: 0.5, max: 1.2 },
       cropGapPct: { type: 'num', min: 0, max: 10 },

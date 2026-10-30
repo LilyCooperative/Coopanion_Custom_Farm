@@ -21,26 +21,28 @@ export const X_MAX = 0.97;
 /** 农田基准格数：48 格 = 满宽；最小 12 格。 */
 export const FARM_BASE_CELLS = 48;
 export const FARM_MIN_CELLS = 12;
+export const FARM_MIN_SCALE = 0.25;
+export const FARM_MAX_SCALE = 2;
 
 /**
- * 农田可种范围：以屏幕中心为中线，宽度随 farmCells 缩放。
- * 48 格 = 满宽，12 格 = 1/4 宽；作物/杂草的贴图也按同一比例缩放。
+ * 农田内容缩放：以屏幕中心为中线，地面始终铺满底边。
+ * farmScale 只缩放作物/杂草/装饰和它们的位置，不缩窄地面。
  */
 export function farmBounds(cfg = DEFAULTS) {
-  const cells = Math.min(FARM_BASE_CELLS, Math.max(FARM_MIN_CELLS, Math.round(Number(cfg.farmCells ?? FARM_BASE_CELLS))));
-  const cropScale = cells / FARM_BASE_CELLS;
-  const width = (X_MAX - X_MIN) * cropScale;
+  const rawScale = Number(cfg.farmScale ?? (Number(cfg.farmCells) / FARM_BASE_CELLS) ?? 1);
+  const cropScale = Math.min(FARM_MAX_SCALE, Math.max(FARM_MIN_SCALE, Number.isFinite(rawScale) ? rawScale : 1));
   return {
-    min: 0.5 - width / 2,
-    max: 0.5 + width / 2,
-    width,
+    min: X_MIN,
+    max: X_MAX,
+    width: X_MAX - X_MIN,
     center: 0.5,
-    cells,
+    cells: FARM_BASE_CELLS,
     cropScale,
+    farmScale: cropScale,
   };
 }
 
-/** 视觉上的农田范围与可种范围一致。 */
+/** 视觉上的农田范围与地面范围一致。 */
 export function farmPatch(cfg = DEFAULTS) {
   return farmBounds(cfg);
 }
@@ -76,6 +78,7 @@ export const DEFAULTS = {
   dropScale: 0.6,
   /** 农田整体大小（格）：12~48，48 = 满宽；缩放草地/作物/野草，但可种范围始终满宽 */
   farmCells: 48,
+  farmScale: 1,
   /** 地表露出的高度（屏幕像素）：越大地面越高，默认只到桌宠鞋底附近。 */
   groundHeight: 5,
   stripHeight: 320,
@@ -305,19 +308,23 @@ export function seedWeeds(state, cfg, random) {
 
 
 /**
- * 农田整体大小（格）变化：以屏幕中心为中线，草地/作物/野草贴图一起缩放。
- * - 所有作物/野草位置按同一比例围绕 0.5 缩放（桌宠按新 x 找）；
- * - 缩放后 x 落到可种范围外的作物删除并退 1 包种子；
- * - 缩小时新露出的边缘野地补杂草（可种）。
+ * 农田内容缩放倍率变化：以屏幕中心为中线缩放内容，地面始终铺满底边。
+ * - 位置围绕 0.5 按倍率重映射；
+ * - 超出屏幕的内容删除/退回；
+ * - 地面宽度不变，只改变作物/杂草/装饰的显示大小和分布。
  */
 export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
-  const oldCells = Math.min(FARM_BASE_CELLS, Math.max(FARM_MIN_CELLS, Math.round(Number(state.farmCells ?? FARM_BASE_CELLS))));
-  const newCells = Math.min(FARM_BASE_CELLS, Math.max(FARM_MIN_CELLS, Math.round(Number(cfg.farmCells ?? FARM_BASE_CELLS))));
-  const oldScale = oldCells / FARM_BASE_CELLS;
-  const newScale = newCells / FARM_BASE_CELLS;
+  const oldRaw = Number(state.farmScale ?? (Number(state.farmCells) / FARM_BASE_CELLS) ?? 1);
+  const newRaw = Number(cfg.farmScale ?? (Number(cfg.farmCells) / FARM_BASE_CELLS) ?? 1);
+  const oldScale = Math.min(FARM_MAX_SCALE, Math.max(FARM_MIN_SCALE, Number.isFinite(oldRaw) ? oldRaw : 1));
+  const newScale = Math.min(FARM_MAX_SCALE, Math.max(FARM_MIN_SCALE, Number.isFinite(newRaw) ? newRaw : 1));
+  const oldCells = Math.round(oldScale * FARM_BASE_CELLS);
+  const newCells = Math.round(newScale * FARM_BASE_CELLS);
   const ratio = newScale / oldScale;
   const out = {
-    changed: oldCells !== newCells,
+    changed: Math.abs(newScale - oldScale) > 1e-9,
+    oldScale,
+    newScale,
     oldCells,
     newCells,
     cropScale: newScale,
@@ -413,11 +420,11 @@ export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
   }
   state.animals = animals;
 
+  state.farmScale = newScale;
   state.farmCells = newCells;
-  state.lastMessage = '农田 ' + oldCells + ' → ' + newCells + ' 格（整体缩放）' +
+  state.lastMessage = '农田缩放 ' + oldScale + ' → ' + newScale + ' 倍（地面仍铺满底边）' +
     (out.removed.length ? '，移除了 ' + out.removed.length + ' 棵（退 ' + out.refunded + ' 包种子）' : '') +
     (out.weedsRemoved ? '，清掉 ' + out.weedsRemoved + ' 丛界外野草' : '') +
-    (out.weedsAdded ? '，新野地补了 ' + out.weedsAdded + ' 丛野草' : '') +
     (out.furnitureRecycled ? '，回收 ' + out.furnitureRecycled + ' 件界外装饰' : '') +
     (out.animalsRecycled ? '，回收 ' + out.animalsRecycled + ' 只界外动物' : '') + '。';
   return out;
@@ -579,6 +586,7 @@ export function newState(nowMs = Date.now(), cfg = DEFAULTS, random = Math.rando
     lastTickMs: nowMs,
     seedsGranted: false,
     farmCells: Number(cfg.farmCells ?? FARM_BASE_CELLS),
+    farmScale: Number(cfg.farmScale ?? 1),
     screenWidth: Number(cfg.screenWidth ?? 2048),
   };
   // 新开局先发一包种子，再种下开局 4 棵（它们会消耗掉其中 4 包）
@@ -1084,7 +1092,7 @@ export function nearestPlot(state, at = null) {
 export function overlayView(state) {
   const inventory = { ...state.inventory };
   const total = Object.values(inventory).reduce((a, b) => a + b, 0);
-  const fb = farmBounds({ ...DEFAULTS, farmCells: state.farmCells });
+  const fb = farmBounds({ ...DEFAULTS, farmScale: state.farmScale, farmCells: state.farmCells });
   const groundTile = live.ground?.tile ?? null;
   return {
     day: state.day,
@@ -1454,6 +1462,7 @@ export function migrate(state, cfg = DEFAULTS, random = Math.random) {
     grantStarterSeeds(state);
     if (!Number.isFinite(state.screenWidth)) state.screenWidth = Number(cfg.screenWidth ?? 2048);
     if (!Number.isFinite(state.farmCells)) state.farmCells = FARM_BASE_CELLS;
+    if (!Number.isFinite(state.farmScale)) state.farmScale = Math.min(1, Math.max(0.25, Number(state.farmCells) / FARM_BASE_CELLS));
     if (!Array.isArray(state.fieldLog)) state.fieldLog = [];
     if (!state.states || typeof state.states !== 'object') state.states = {};
     if (!state.stateActions || typeof state.stateActions !== 'object') state.stateActions = {};
@@ -1490,6 +1499,7 @@ export function migrate(state, cfg = DEFAULTS, random = Math.random) {
     lastTickMs: state.lastTickMs ?? Date.now(),
     seedsGranted: false,
     farmCells: FARM_BASE_CELLS,
+    farmScale: 1,
     screenWidth: Number(cfg.screenWidth ?? 2048),
   };
   for (const old of state.plots ?? []) {
