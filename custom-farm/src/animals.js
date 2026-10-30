@@ -34,17 +34,17 @@ export function builtinAnimals() {
       { key: 'peck', name: '啄食', weight: 20 },
     ],
     walk: { chance: 0.35, speed: 0.012, range: 0.16 },
-    product: { item: 'egg', everyDays: 0.5, count: 1 },
+    product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 2, count: 1 },
     prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
     stages: [
       {
-        key: 'chick', name: '幼崽', days: 1.5, scale: 0.12, prefix: 'animal_chicken_chick',
+        key: 'chick', name: '幼崽', days: 1.5, scale: 0.06, prefix: 'animal_chicken_chick',
         item: 'animal_chicken_chick', product: null,
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_chick', a)])),
       },
       {
-        key: 'hen', name: '成年', days: 0, scale: 0.15, prefix: 'animal_chicken_hen',
-        item: 'animal_chicken_hen', product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 0.5, count: 1 },
+        key: 'hen', name: '成年', days: 0, scale: 0.075, prefix: 'animal_chicken_hen',
+        item: 'animal_chicken_hen', product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 2, count: 1 },
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_hen', a)])),
       },
     ],
@@ -79,7 +79,7 @@ export function normalizeAnimal(src, index = 0) {
     item: String(src.product?.item ?? 'egg').trim().slice(0, 40),
     name: String(src.product?.name ?? '鸡蛋').trim().slice(0, 24),
     icon: cleanSprite(src.product?.icon) ?? 'icon_item_egg',
-    everyDays: clamp(src.product?.everyDays, 0.01, 1000, 0.5),
+    everyDays: clamp(src.product?.everyDays, 0.01, 1000, 2),
     count: int(src.product?.count, 1, 99, 1),
   };
   const stageDefs = (Array.isArray(src.stages) ? src.stages : [])
@@ -247,7 +247,7 @@ export function advanceAnimal(animal, species, now, gameDays, random, dtSec = nu
   animal.x = clamp(animal.x, Math.max(0, animal.anchor - animal.range), Math.min(1, animal.anchor + animal.range), animal.x);
 
   if (stage?.product && stage.product.item) {
-    const every = Number(stage.product.everyDays) || 0.5;
+    const every = Number(stage.product.everyDays) || 2;
     if (!(animal.nextProductAt > 0)) animal.nextProductAt = (Number(animal.ageDays) || 0) + every;
     // 用实例年龄做时钟，避免把离线时间一次性补成一堆产物。
     if (animal.ageDays >= animal.nextProductAt) {
