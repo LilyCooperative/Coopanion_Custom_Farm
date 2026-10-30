@@ -187,6 +187,13 @@ if (!app.requestSingleInstanceLock()) {
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(event, fit);
     setInterval(checkLease, 5000);
     setInterval(fit, 1000);
+    // 扩展升级会覆盖图层脚本；旧进程继续跑会出现新旧 zorder/渲染代码混用，主动退出让 World 拉起新代码。
+    const watched = [__filename, path.join(__dirname, 'zorder.ps1'), path.join(__dirname, 'renderer.js')];
+    const stamp = () => watched.map((f) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } }).join(',');
+    const initial = stamp();
+    setInterval(() => {
+      if (stamp() !== initial) { log('layer files changed; restarting overlay'); quit(); }
+    }, 3000);
   });
 }
 
