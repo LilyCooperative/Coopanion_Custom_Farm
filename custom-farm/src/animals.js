@@ -22,6 +22,14 @@ function frames(prefix, action, count = 6) {
   return Array.from({ length: count }, (_, i) => `${prefix}_${action}_${i}`);
 }
 
+function chickenSprites(prefix) {
+  return {
+    idle: frames(prefix, 'idle', 1),
+    walk: frames(prefix, 'walk', 4),
+    peck: frames(prefix, 'peck', 6),
+  };
+}
+
 export function builtinAnimals() {
   return [{
     key: 'chicken',
@@ -40,12 +48,12 @@ export function builtinAnimals() {
       {
         key: 'chick', name: '幼崽', days: 1.5, scale: 0.24, prefix: 'animal_chicken_chick',
         item: 'animal_chicken_chick', product: null,
-        sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_chick', a)])),
+        sprites: chickenSprites('animal_chicken_chick'),
       },
       {
         key: 'hen', name: '成年', days: 0, scale: 0.30, prefix: 'animal_chicken_hen',
         item: 'animal_chicken_hen', product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 2, count: 1 },
-        sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_hen', a)])),
+        sprites: chickenSprites('animal_chicken_hen'),
       },
     ],
   }];
