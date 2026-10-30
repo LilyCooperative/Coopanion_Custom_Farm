@@ -38,12 +38,12 @@ export function builtinAnimals() {
     prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
     stages: [
       {
-        key: 'chick', name: '幼崽', days: 1.5, scale: 0.06, prefix: 'animal_chicken_chick',
+        key: 'chick', name: '幼崽', days: 1.5, scale: 0.24, prefix: 'animal_chicken_chick',
         item: 'animal_chicken_chick', product: null,
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_chick', a)])),
       },
       {
-        key: 'hen', name: '成年', days: 0, scale: 0.075, prefix: 'animal_chicken_hen',
+        key: 'hen', name: '成年', days: 0, scale: 0.30, prefix: 'animal_chicken_hen',
         item: 'animal_chicken_hen', product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 2, count: 1 },
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_hen', a)])),
       },
