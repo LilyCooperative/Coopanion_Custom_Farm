@@ -2106,7 +2106,7 @@ function bagPanel(ctx) {
       }
       for (const group of items) {
         for (const pos of group.positions) {
-          const node = ui.h('div', 'bp-item ' + (group.kind === 'decor' ? group.layer : 'crop') +
+          const node = ui.h('div', 'bp-item ' + (group.kind === 'animal' ? 'animal' : (group.kind === 'decor' ? group.layer : 'crop')) +
             (selectedKey === group.key ? ' sel' : ''));
           node.style.left = (Number(pos.x) * 100) + '%';
           node.title = group.name + ' · ' + Math.round(Number(pos.x) * 100) + '%';
@@ -2197,16 +2197,30 @@ function bagPanel(ctx) {
         pick,
         ui.h('strong', 'bg-name', group.name),
         ui.h('span', 'bg-count', '×' + group.count),
-        ui.h('span', 'bg-meta', (group.kind === 'crop' ? T.cropKind : T.decorKind) +
+        ui.h('span', 'bg-meta', (group.kind === 'crop' ? T.cropKind : (group.kind === 'animal' ? '动物' : T.decorKind)) +
           ' · ' + Math.round(Number(group.positions[0]?.x ?? 0) * 100) + '%'),
       );
       const acts = ui.h('div', 'bg-actions');
-      acts.append(ui.button(group.kind === 'crop' ? T.removeCrop : T.recycle, {
-        size: 'sm',
-        variant: 'primary',
-        onClick: () => void call(group.kind === 'crop' ? 'removeCrop' : 'recycleDecor',
-          [group.kind === 'crop' ? group.plotId : group.uid]),
-      }));
+      if (group.kind === 'animal') {
+        acts.append(ui.button('回收', {
+          size: 'sm',
+          onClick: () => void call('reclaimAnimal', [group.animalId]),
+        }));
+        if (group.adult) {
+          acts.append(ui.button('成年出售 ¥' + group.sell, {
+            size: 'sm',
+            variant: 'primary',
+            onClick: () => void call('sellAnimal', [group.animalId]),
+          }));
+        }
+      } else {
+        acts.append(ui.button(group.kind === 'crop' ? T.removeCrop : T.recycle, {
+          size: 'sm',
+          variant: 'primary',
+          onClick: () => void call(group.kind === 'crop' ? 'removeCrop' : 'recycleDecor',
+            [group.kind === 'crop' ? group.plotId : group.uid]),
+        }));
+      }
       box.append(acts);
       grid.append(box);
     }
@@ -2987,8 +3001,6 @@ function animalsPanel(ctx) {
   const root = ui.h('div', 'cf-root');
   ctx.root.appendChild(root);
   let snap = null;
-  let anchor = 0.5;
-  let range = 0.16;
 
   async function call(method, args = [], toast) {
     try {
@@ -3033,67 +3045,11 @@ function animalsPanel(ctx) {
     }
   }
 
-  function anchorTrack() {
-    const track = ui.h('div', 'animal-track');
-    track.style.cssText = 'position:relative;height:26px;background:#eee;border:1px solid #bbb;border-radius:6px;overflow:hidden;margin:6px 0 14px;';
-    const line = ui.h('div');
-    line.style.cssText = 'position:absolute;left:50%;top:0;bottom:0;width:1px;background:#aaa;';
-    track.append(line);
-    for (const a of snap.placed ?? []) {
-      const mark = ui.h('span');
-      mark.style.cssText = 'position:absolute;top:2px;transform:translateX(-50%);font-size:10px;white-space:nowrap;';
-      mark.style.left = (Number(a.anchor) * 100) + '%';
-      mark.textContent = a.stageName || '?';
-      track.append(mark);
-    }
-    if (!(snap.placed ?? []).length) track.append(ui.h('span', 'cf-note', T.noAnchors));
-    return track;
-  }
-
   function render() {
     if (!snap) return;
     const scroll = root.scrollTop;
     root.replaceChildren();
     const top = ui.sheet({ title: T.title, desc: T.desc });
-    top.body.append(anchorTrack());
-
-    const anchorRow = ui.h('div', 'cf-row');
-    anchorRow.append(
-      ui.field(T.anchor, num(anchor, (v) => { anchor = Math.min(1, Math.max(0, v)); }, '0.01')),
-      ui.field(T.range, num(range, (v) => { range = Math.min(0.45, Math.max(0.02, v)); }, '0.01')),
-    );
-    top.body.append(anchorRow);
-
-    const stock = ui.h('div', 'cf-list');
-    if (!(snap.stock ?? []).length) stock.append(ui.placeholder(T.emptyStock));
-    for (const item of snap.stock ?? []) {
-      const row = ui.h('div', 'cf-card');
-      const head = ui.h('div', 'cf-head');
-      head.append(ui.h('strong', 'cf-name', item.name + ' ×' + item.count));
-      const btn = ui.button(T.place, {
-        size: 'sm', variant: 'primary',
-        onClick: () => void call('place', [{ item: item.id, x: anchor, range }], T.saved),
-      });
-      head.append(btn);
-      row.append(head);
-      stock.append(row);
-    }
-    top.body.append(ui.h('strong', 'cf-note', T.stock), stock);
-
-    const placed = ui.h('div', 'cf-list');
-    if (!(snap.placed ?? []).length) placed.append(ui.placeholder(T.emptyPlaced));
-    for (const a of snap.placed ?? []) {
-      const card = ui.h('div', 'cf-card');
-      const head = ui.h('div', 'cf-head');
-      head.append(ui.h('strong', 'cf-name', (a.speciesName || a.species) + ' · ' + (a.stageName || '')), ui.pill(a.action, 'plain'));
-      const body = ui.h('div', 'cf-row');
-      body.append(ui.h('span', 'cf-note', (T.anchor + ' ' + Math.round(Number(a.anchor) * 100) + '% · ' + T.range + ' ' + Math.round(Number(a.range) * 100) + '%')));
-      body.append(ui.button(T.reclaim, { size: 'sm', onClick: () => void call('reclaim', [a.id], T.saved) }));
-      if (a.adult) body.append(ui.button((T.sell + ' ' + (a.sell || 0)), { size: 'sm', variant: 'primary', onClick: () => void call('sell', [a.id], T.saved) }));
-      card.append(head, body);
-      placed.append(card);
-    }
-    top.body.append(ui.h('strong', 'cf-note', T.placed), placed);
     root.append(top.el);
 
     for (const sp of snap.animals ?? []) {

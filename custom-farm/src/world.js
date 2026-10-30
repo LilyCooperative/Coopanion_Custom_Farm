@@ -2151,6 +2151,24 @@ export class FarmWorld {
         positions: [{ x: f.x, sprite: f.sprite ?? '' }],
       });
     }
+    for (const a of view.animals ?? []) {
+      const sp = live.animals?.[a.species];
+      const inst = (this.#state?.animals ?? []).find((x) => x.id === a.id);
+      items.push({
+        key: 'animal:' + a.id,
+        kind: 'animal',
+        id: a.species,
+        animalId: a.id,
+        uid: a.id,
+        name: a.speciesName + '（' + a.stageName + '）',
+        icon: a.sprite ?? 'animal_chicken_chick_idle_0',
+        layer: 'animal',
+        count: 1,
+        adult: Boolean(sp && a.stage >= sp.stages.length - 1),
+        sell: Number(sp?.prices?.adultSell) || 0,
+        positions: [{ x: Number(inst?.anchor ?? a.x), sprite: a.sprite ?? '' }],
+      });
+    }
     items.sort((a, b) => {
       if (a.kind !== b.kind) return a.kind === 'crop' ? -1 : 1;
       const byName = a.name.localeCompare(b.name, 'zh');
@@ -2298,6 +2316,14 @@ export class FarmWorld {
       case 'placeAnimal': {
         const r = await this.#animalInvoke('place', args);
         return { ...this.#bagSnapshot(), ...r, text: '动物已放到农场。' };
+      }
+      case 'reclaimAnimal': {
+        const r = await this.#animalInvoke('reclaim', args);
+        return { ...this.#bagSnapshot(), ...r, text: '动物已收回背包。' };
+      }
+      case 'sellAnimal': {
+        const r = await this.#animalInvoke('sell', args);
+        return { ...this.#bagSnapshot(), ...r, text: '成年动物已出售，+' + (r.sold ?? 0) + ' 金币。' };
       }
       case 'removeCrop': {
         const raw = args?.[0];
