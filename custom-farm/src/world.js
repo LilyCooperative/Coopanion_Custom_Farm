@@ -1560,7 +1560,8 @@ export class FarmWorld {
     for (const animal of list) {
       const species = live.animals?.[animal.species];
       if (!species) continue;
-      const made = advanceAnimal(animal, species, now, gameDays, this.random);
+      const dtSec = Math.min(5, Math.max(0, gameDays) * (Number(cfg.realMinutesPerDay) || 60) * 60);
+      const made = advanceAnimal(animal, species, now, gameDays, this.random, dtSec);
       for (const p of made) {
         const id = this.#state.nextDropId++;
         this.#state.drops.push({

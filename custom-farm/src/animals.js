@@ -18,7 +18,7 @@ const int = (n, lo, hi, fallback) => Math.round(clamp(n, lo, hi, fallback));
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 const r4 = (n) => Math.round(Number(n) * 10000) / 10000;
 
-function frames(prefix, action, count = 3) {
+function frames(prefix, action, count = 4) {
   return Array.from({ length: count }, (_, i) => `${prefix}_${action}_${i}`);
 }
 
@@ -195,7 +195,7 @@ export function startAnimalAction(animal, species, now, random, forceWalk = fals
  * 推进一只动物。返回本 tick 产生的掉落物（不直接改写 state.drops，World 负责）。
  * gameDays 是本次 tick 推进的游戏日；now 是真实毫秒。
  */
-export function advanceAnimal(animal, species, now, gameDays, random) {
+export function advanceAnimal(animal, species, now, gameDays, random, dtSec = null) {
   const out = [];
   if (!species) return out;
   const last = Math.max(1, species.stages.length - 1);
@@ -214,7 +214,7 @@ export function advanceAnimal(animal, species, now, gameDays, random) {
   const walkSpeed = Number(species.walk?.speed ?? 0.012);
   if (animal.action === 'walk' && Number.isFinite(animal.targetX)) {
     const dx = animal.targetX - animal.x;
-    const step = walkSpeed * Math.max(0, gameDays * 86400) / 60;
+    const step = walkSpeed * Math.max(0, Math.min(5, Number.isFinite(Number(dtSec)) ? Number(dtSec) : (gameDays * 86400 / 60)));
     if (Math.abs(dx) <= Math.max(0.0005, step)) {
       animal.x = animal.targetX;
       animal.targetX = null;
@@ -273,6 +273,7 @@ export function animalView(species, animal) {
     dir: animal.dir,
     layer: species.layer,
     scale: stage?.scale ?? 0.2,
+    speed: Number(species.walk?.speed ?? 0.012),
     actionMs: 220,
     startedAt: animal.actionStartedAt || 0,
     frames: [...actionFrames],

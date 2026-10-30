@@ -23,6 +23,8 @@ const particles = [];
 const splashes = [];
 const collectFx = [];
 const dropAnims = new Map();
+const animalDrawX = new Map();
+let animalLastAt = 0;
 
 function assetUrl(name) {
   if (!name) return '';
@@ -222,12 +224,26 @@ function draw(now) {
 
   const animals = Array.isArray(state.animals) ? state.animals : [];
   if (LAYER === 'mid' || LAYER === 'all' || LAYER === 'top') {
+    const dt = animalLastAt ? Math.min(0.12, Math.max(0, (now - animalLastAt) / 1000)) : 0;
+    animalLastAt = now;
     for (const a of animals) {
       if (LAYER !== 'all' && a.layer !== LAYER) continue;
+      let drawX = animalDrawX.get(a.id);
+      if (!Number.isFinite(drawX) || Math.abs(drawX - Number(a.x)) > 0.25) drawX = Number(a.x);
+      const target = Number(a.targetX);
+      if (a.action === 'walk' && Number.isFinite(target)) {
+        const step = (Number(a.speed) || 0.012) * dt;
+        const dx = target - drawX;
+        if (Math.abs(dx) <= step) drawX = target;
+        else drawX += Math.sign(dx) * step;
+      } else {
+        drawX += (Number(a.x) - drawX) * Math.min(1, dt * 10);
+      }
+      animalDrawX.set(a.id, drawX);
       const frames = Array.isArray(a.frames) && a.frames.length ? a.frames : [a.sprite];
       const frame = Math.floor((Date.now() - (Number(a.startedAt) || Date.now())) / (Number(a.actionMs) || 220));
       const sprite = frames[((frame % frames.length) + frames.length) % frames.length] || a.sprite;
-      drawSprite(image(sprite), Number(a.x), g, Number(a.scale) || 0.2, Number(a.x) * 11, 'animal');
+      drawSprite(image(sprite), drawX, g, Number(a.scale) || 0.2, drawX * 11, 'animal');
     }
   }
 

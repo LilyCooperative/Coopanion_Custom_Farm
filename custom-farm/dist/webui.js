@@ -2956,7 +2956,7 @@ function animalsPanel(ctx) {
     saved: zh ? '已保存' : 'Saved',
     noAnchors: zh ? '预览里还没有锚点。' : 'No anchors in the preview.',
     walkChance: zh ? '开始走路概率' : 'Walk chance',
-    walkSpeed: zh ? '走路速度' : 'Walk speed',
+    walkSpeed: zh ? '移动速度（屏幕%/秒）' : 'Move speed (% screen/sec)',
     walkRange: zh ? '默认活动范围' : 'Default range',
     product: zh ? '产物道具' : 'Product item',
     everyDays: zh ? '产物间隔（游戏日）' : 'Product interval (game days)',
@@ -3085,7 +3085,7 @@ function animalsPanel(ctx) {
       const walk = ui.h('div', 'cf-row');
       walk.append(
         ui.field(T.walkChance, num(draft.walk.chance, (v) => { draft.walk.chance = v; }, '0.01')),
-        ui.field(T.walkSpeed, num(draft.walk.speed, (v) => { draft.walk.speed = v; }, '0.001')),
+        ui.field(T.walkSpeed, num(draft.walk.speed * 100, (v) => { draft.walk.speed = v / 100; }, '0.1')),
         ui.field(T.walkRange, num(draft.walk.range, (v) => { draft.walk.range = v; }, '0.01')),
       );
       sheet.body.append(walk);
