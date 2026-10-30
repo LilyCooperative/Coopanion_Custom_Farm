@@ -266,51 +266,10 @@ function injectFarmTemplate() {
       } finally { defaultBtn.disabled = false; }
     });
 
-    const backupSelect = document.createElement('select');
-    backupSelect.className = 'input';
-    backupSelect.style.minWidth = '220px';
-    const loadBackup = makeBtn('读取存档', true);
-    const refreshBackupsBtn = makeBtn('刷新');
-    const refreshBackups = async () => {
-      backupSelect.replaceChildren();
-      const empty = document.createElement('option');
-      empty.value = '';
-      empty.textContent = '选择备份…';
-      backupSelect.append(empty);
-      try {
-        const r = await farmManageCall('listBackups');
-        for (const b of r.backups || []) {
-          if (!b.hasState) continue;
-          const o = document.createElement('option');
-          o.value = b.name;
-          o.textContent = b.name.replace(/^backup-/, '') + (b.time ? ' · ' + b.time.slice(0, 16).replace('T', ' ') : '');
-          backupSelect.append(o);
-        }
-      } catch (err) {
-        status.textContent = '读取备份列表失败：' + ((err && err.message) || err);
-      }
-    };
-    loadBackup.addEventListener('click', async () => {
-      const name = backupSelect.value;      if (!name) { status.textContent = '先选择一个备份'; return; }
-      if (!window.confirm('读取存档只恢复 state.json，不改当前设置。若存档含当前设置没有的物品会拒绝读取。继续？')) return;
-      loadBackup.disabled = true;
-      status.textContent = '正在读取存档…';
-      try {
-        const r = await farmManageCall('restoreBackup', [name]);
-        status.textContent = r.text || '已读取存档';
-        setTimeout(() => { try { location.reload(); } catch { } }, 2200);
-      } catch (err) {
-        status.textContent = '读取失败：' + ((err && err.message) || err);
-      } finally { loadBackup.disabled = false; }
-    });
-
     const templateRow = row('模板 / 默认模板', [exportBtn, importBtn, defaultBtn, status]);
-    refreshBackupsBtn.addEventListener('click', () => void refreshBackups());
-    const backupRow = row('存档', [backupSelect, refreshBackupsBtn, loadBackup]);
     section.append(desc);
     section.append(file);
-    view.prepend(section, templateRow, backupRow);
-    void refreshBackups();
+    view.prepend(section, templateRow);
   } catch { /* 不是宿主的配置页就算了 */ }
 }
 
@@ -380,7 +339,51 @@ function injectFarmConfigActions() {
       }
     });
 
-    field.append(backup, reset, status);
+    const backupSelect = document.createElement('select');
+    backupSelect.className = 'input';
+    backupSelect.style.minWidth = '220px';
+    const refreshBackups = button('刷新备份');
+    const loadBackup = button('读取存档', true);
+    const fillBackups = async () => {
+      backupSelect.replaceChildren();
+      const empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = '选择备份…';
+      backupSelect.append(empty);
+      try {
+        const r = await farmManageCall('listBackups');
+        for (const b of r.backups || []) {
+          if (!b.hasState) continue;
+          const o = document.createElement('option');
+          o.value = b.name;
+          o.textContent = b.name.replace(/^backup-/, '') + (b.time ? ' · ' + b.time.slice(0, 16).replace('T', ' ') : '');
+          backupSelect.append(o);
+        }
+      } catch (err) {
+        status.textContent = '读取备份列表失败：' + ((err && err.message) || err);
+      }
+    };
+    refreshBackups.addEventListener('click', () => void fillBackups());
+    loadBackup.addEventListener('click', async () => {
+      const name = backupSelect.value;
+      if (!name) { status.textContent = '先选择一个备份'; return; }
+      if (!window.confirm('读取存档只恢复 state.json，不改当前设置。若存档含当前设置没有的物品会拒绝读取。继续？')) return;
+      loadBackup.disabled = true;
+      status.textContent = '正在读取存档…';
+      try {
+        const r = await farmManageCall('restoreBackup', [name]);
+        status.textContent = r.text || '已读取存档';
+        setTimeout(() => { try { location.reload(); } catch { /* ignore */ } }, 2200);
+      } catch (err) {
+        status.textContent = '读取失败：' + ((err && err.message) || err);
+      } finally { loadBackup.disabled = false; }
+    });
+    backup.addEventListener('click', async () => {
+      setTimeout(() => { void fillBackups(); }, 500);
+    });
+    void fillBackups();
+
+    field.append(backup, refreshBackups, backupSelect, loadBackup, reset, status);
     row.append(label, field);
     view.prepend(section, desc, row);
   } catch { /* 不是宿主的配置页就算了 */ }

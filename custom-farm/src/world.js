@@ -286,29 +286,31 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
 
   return [
     {
-      id: 'world:farm/install',
+      id: 'world:farm/init',
       owner: 'world:farm',
       schema: {
         type: 'object',
-        title: t('安装', 'Installation'),
-        description: t('桌面图层、素材和运行文件放在这里。修改路径会自动停图层、搬过去再重启。', 'Desktop layers, sprites and runtime files live here. Changing the path stops the layers, moves the folder and restarts them.'),
+        title: t('初始化', 'Initialization'),
+        description: t('新开局和农田基础参数；部分参数只影响新游戏或调整农田大小时。', 'Initial values and farm basics; some only affect a fresh game or farm resizing.'),
         properties: {
-          'worlds.farm.installPath': dir(
-            t('安装路径', 'Install path'),
-            t('默认 <Coopanion 数据目录>\\custom-farm；改完自动搬过去。', 'Defaults to <Coopanion data>\\custom-farm; the folder is moved automatically when changed.'),
-          ),
+          'worlds.farm.startCoins': int(t('新开局初始金币', 'Starting coins'), t('默认 120，只影响新开档。', 'Default 120; only affects a new save.'), 0, 100000),
+          'worlds.farm.farmCells': int(t('农田大小（格）', 'Farm size (cells)'), t('12~48；影响草地、作物和可种范围。', '12–48; affects grass, crops and plantable range.'), 12, 48),
+          'worlds.farm.maxPlants': int(t('最多同时种几棵', 'Max planted'), t('默认 12。', 'Default 12.'), 1, 24),
+          'worlds.farm.startWeeds': int(t('开局野草数量', 'Starting weeds'), t('默认 42；只影响新开档。', 'Default 42; only affects a new save.'), 0, 60),
+          'worlds.farm.maxWeeds': int(t('野草上限', 'Max weeds'), t('默认 46。', 'Default 46.'), 0, 60),
+          'worlds.farm.weedPerDay': num(t('每天新增野草', 'Weeds per day'), t('默认 0.55。', 'Default 0.55.'), 0, 2),
+          'worlds.farm.dailyEvent': bool(t('每天推送事件', 'Daily event'), t('默认关；开启后每天推一条总结。', 'Off by default; sends a daily summary when on.')),
         },
       },
     },
     {
-      id: 'world:farm/field',
+      id: 'world:farm/display',
       owner: 'world:farm',
       schema: {
         type: 'object',
-        title: t('田地、野草与经济', 'Field, weeds & economy'),
-        description: t('影响之后的操作；startCoins 主要影响新开局。', 'Affects subsequent actions; startCoins mainly affects a fresh game.'),
+        title: t('显示', 'Display'),
+        description: t('桌面图层放在哪块屏幕、用哪个引擎，以及是否显示。', 'Which screen and engine hosts the overlay, and whether it is shown.'),
         properties: {
-          'worlds.farm.startCoins': int(t('新开局初始金币', 'Starting coins'), t('默认 120，只影响新开档。', 'Default 120; only affects a new save.'), 0, 100000),
           'worlds.farm.screen': {
             type: 'string',
             title: t('显示器', 'Display'),
@@ -336,13 +338,17 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
       },
     },
     {
-      id: 'world:farm/performance',
+      id: 'world:farm/other',
       owner: 'world:farm',
       schema: {
         type: 'object',
-        title: t('性能', 'Performance'),
-        description: t('桌面图层的后台/遮挡节流。默认不节流，收获和动画更跟手；如果 CPU/GPU 占用高，可改成自动或节流。', 'Background/occlusion throttling for the desktop layers. Off by default for responsive harvest animations; switch to Auto or Throttle if CPU/GPU usage is high.'),
+        title: t('其他设置', 'Other settings'),
+        description: t('安装路径和图层性能等不常改的设置。', 'Less frequently changed settings such as install path and layer performance.'),
         properties: {
+          'worlds.farm.installPath': dir(
+            t('安装路径', 'Install path'),
+            t('默认 <Coopanion 数据目录>\\custom-farm；改完自动搬过去。', 'Defaults to <Coopanion data>\\custom-farm; the folder is moved automatically when changed.'),
+          ),
           'worlds.farm.throttle': {
             type: 'string',
             title: t('节流', 'Throttling'),
