@@ -18,7 +18,7 @@ const int = (n, lo, hi, fallback) => Math.round(clamp(n, lo, hi, fallback));
 const r2 = (n) => Math.round(Number(n) * 100) / 100;
 const r4 = (n) => Math.round(Number(n) * 10000) / 10000;
 
-function frames(prefix, action, count = 4) {
+function frames(prefix, action, count = 6) {
   return Array.from({ length: count }, (_, i) => `${prefix}_${action}_${i}`);
 }
 
