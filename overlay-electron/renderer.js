@@ -239,17 +239,20 @@ function draw(now) {
       let drawX = animalDrawX.get(a.id);
       if (!Number.isFinite(drawX) || Math.abs(drawX - Number(a.x)) > 0.25) drawX = Number(a.x);
       const target = Number(a.targetX);
+      let arrived = false;
       if (a.action === 'walk' && Number.isFinite(target)) {
         const step = (Number(a.speed) || 0.012) * dt;
         const dx = target - drawX;
-        if (Math.abs(dx) <= step) drawX = target;
+        if (Math.abs(dx) <= step) { drawX = target; arrived = true; }
         else drawX += Math.sign(dx) * step;
       } else {
         drawX += (Number(a.x) - drawX) * Math.min(1, dt * 10);
       }
       animalDrawX.set(a.id, drawX);
-      const frames = Array.isArray(a.frames) && a.frames.length ? a.frames : [a.sprite];
-      const frame = Math.floor((Date.now() - (Number(a.startedAt) || Date.now())) / (Number(a.actionMs) || 220));
+      // 渲染层先到终点时立刻切回待机帧，不等下一次 World tick 改 action。
+      const settledSprite = arrived ? (a.idleSprite || a.sprite) : null;
+      const frames = settledSprite ? [settledSprite] : (Array.isArray(a.frames) && a.frames.length ? a.frames : [a.sprite]);
+      const frame = settledSprite ? 0 : Math.floor((Date.now() - (Number(a.startedAt) || Date.now())) / (Number(a.actionMs) || 220));
       const sprite = frames[((frame % frames.length) + frames.length) % frames.length] || a.sprite;
       drawSprite(image(sprite), drawX, g, Number(a.scale) || 0.2, drawX * 11, 'animal', a.dir < 0);
     }

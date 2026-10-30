@@ -301,6 +301,8 @@ export function animalView(species, animal) {
     actionMs: 220,
     startedAt: animal.actionStartedAt || 0,
     frames: [...actionFrames],
+    idleSprite: stage?.sprites?.idle?.[0] ?? null,
+    idleFrames: [...(stage?.sprites?.idle ?? [])],
     frame: Math.max(0, Math.floor((Date.now() - (animal.actionStartedAt || 0)) / 220)),
     sprite: animalSprite(species, animal.stage, animal.action, Math.floor((Date.now() - (animal.actionStartedAt || 0)) / 220)),
   };
