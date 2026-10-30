@@ -310,12 +310,23 @@ function injectFarmInitCoins() {
     wrap.style.display = 'inline-flex';
     wrap.style.alignItems = 'center';
     wrap.style.gap = '6px';
+    wrap.style.flex = '0 0 auto';
+    holder.style.flexWrap = 'nowrap';
+    const input = holder.querySelector('input');
+    if (input) {
+      input.style.width = 'auto';
+      input.style.flex = '1 1 auto';
+      input.style.minWidth = '0';
+    }
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn sm primary';
-    btn.textContent = '初始化当前金币';
+    btn.textContent = '重置金币';
+    btn.title = '把当前存档金币重置为新开局初始金币';
     const status = document.createElement('span');
     status.className = 'tdesc';
+    status.style.fontSize = '11px';
+    status.style.whiteSpace = 'nowrap';
     btn.addEventListener('click', async () => {
       if (!window.confirm('把当前存档的金币重置为「新开局初始金币」的数值？')) return;
       btn.disabled = true;
