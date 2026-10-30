@@ -500,6 +500,7 @@ const TEXT = {
     cropLayerTop: '上层（桌宠上方，可遮挡桌宠）',
     cropLayerBottom: '下层（桌宠后方最底层）',
     addWeed: '添加杂草',
+    fillWeeds: '立即补充到空地',
     name: '名字',
     stages: '阶段数',
     stageDays: '每阶段生长天数',
@@ -607,6 +608,7 @@ const TEXT = {
     cropLayerTop: 'Top (above pet)',
     cropLayerBottom: 'Bottom (lowest behind pet)',
     addWeed: 'Add weed',
+    fillWeeds: 'Fill empty spots now',
     name: 'Name',
     stages: 'Stages',
     stageDays: 'Days per stage',
@@ -1229,6 +1231,13 @@ function panel(ctx) {
       size: 'sm',
       variant: 'primary',
       onClick: () => void (async () => { await call('saveWeed', [{}], { toast: T.addOk }); })(),
+    }));
+    bar.append(ui.button(T.fillWeeds, {
+      size: 'sm',
+      onClick: () => void (async () => {
+        const r = await call('fillWeeds');
+        if (r?.text) ui.toast(r.text);
+      })(),
     }));
     sheet.body.append(setRow, saveBar, ui.h('p', 'cf-note', T.weedSettingsHint), ui.h('hr', 'cf-hr2'), list, bar);
     return sheet.el;

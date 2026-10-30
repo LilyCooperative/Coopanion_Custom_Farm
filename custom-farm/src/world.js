@@ -2053,6 +2053,12 @@ export class FarmWorld {
         catalog.saveWeed(input);
         return after();
       }
+      case 'fillWeeds': {
+        const cfg = this.#cfgAll();
+        const added = seedWeeds(this.#state, { ...cfg, startWeeds: cfg.maxWeeds, weedFill: true }, this.random);
+        await this.#saveOverlay();
+        return { ...snap(), added: added.length, text: added.length ? '已补充 ' + added.length + ' 丛野草' : '没有空地可补杂草' };
+      }
       case 'removeWeed': {
         const key = String(args?.[0] ?? '');
         const type = live.weeds?.[key];
