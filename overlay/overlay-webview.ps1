@@ -67,6 +67,7 @@ public static class FarmWebViewWin32 {
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
     public const uint GW_HWNDPREV = 3;
+    public const uint GW_OWNER = 4;
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr lParam);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hWnd, System.Text.StringBuilder s, int n);
@@ -133,7 +134,7 @@ function Update-PetZOrder {
         $pet = [FarmWebViewWin32]::FindPet($false)
         if ($pet -eq [IntPtr]::Zero) { return }
         if ($Layer -eq 'top') {
-            if ($script:owner -ne $pet) {
+            if ($script:owner -ne $pet -or [FarmWebViewWin32]::GetWindow($h, [FarmWebViewWin32]::GW_OWNER) -ne $pet) {
                 [void][FarmWebViewWin32]::SetWindowLongPtr($h, [FarmWebViewWin32]::GWLP_HWNDPARENT, $pet)
                 $script:owner = $pet
             }

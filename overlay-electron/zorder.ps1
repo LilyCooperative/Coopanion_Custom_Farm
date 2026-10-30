@@ -32,6 +32,7 @@ public static class FarmZ {
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
     public const uint GW_HWNDPREV = 3;
+    public const uint GW_OWNER = 4;
     public const int GWLP_HWNDPARENT = -8;
     public const uint SWP_NOSIZE = 0x1;
     public const uint SWP_NOMOVE = 0x2;
@@ -57,7 +58,7 @@ public static class FarmZ {
 while ([FarmZ]::IsWindow($bgPtr) -and [FarmZ]::IsWindow($midPtr) -and [FarmZ]::IsWindow($topPtr)) {
     $pet = [FarmZ]::FindPet($false)
     if ($pet -ne [IntPtr]::Zero) {
-        if ($script:owner -ne $pet) {
+        if ($script:owner -ne $pet -or [FarmZ]::GetWindow($topPtr, [FarmZ]::GW_OWNER) -ne $pet) {
             [void][FarmZ]::SetWindowLongPtr($topPtr, [FarmZ]::GWLP_HWNDPARENT, $pet)
             $script:owner = $pet
         }
@@ -72,7 +73,7 @@ while ([FarmZ]::IsWindow($bgPtr) -and [FarmZ]::IsWindow($midPtr) -and [FarmZ]::I
             $script:bgPet = $pet
         }
     }
-    Start-Sleep -Milliseconds 1000
+    Start-Sleep -Milliseconds 500
 }
 
 
