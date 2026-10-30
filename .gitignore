@@ -22,3 +22,7 @@ custom-farm/assets/
 
 overlay-electron/node_modules/
 overlay-electron/runtime/
+
+# 生成文档 / 本地归档 / 旧打包产物
+docs/
+custom-farm/*.tgz
