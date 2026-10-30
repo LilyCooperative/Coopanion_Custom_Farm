@@ -2,7 +2,7 @@
 
 本项目（Coopanion 自定义农场扩展）的版本变更记录。日期使用本地时间，格式参考 Keep a Changelog。
 
-## [Unreleased]
+## [0.39.0] - 2026-10-30
 
 ### Added
 
