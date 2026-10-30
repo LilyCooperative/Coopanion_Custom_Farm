@@ -466,8 +466,8 @@ const ticks = await tickSeconds(12);
 check('tick 跑了', ticks > 2, 'ticks=' + ticks);
 const grown = await readState();
 check('生长推进了等级', grown.plots.some((p) => p.level > 0), grown.plots.map((p) => p.level).join(','));
-check('成熟事件推送了', events.some((e) => e.type === 'farm.ripe'), events.map((e) => e.type).join(','));
-const ripeEvent = events.find((e) => e.type === 'farm.ripe');
+check('成熟事件推送了', events.some((e) => e.type === 'cfarm.ripe'), events.map((e) => e.type).join(','));
+const ripeEvent = events.find((e) => e.type === 'cfarm.ripe');
 check('成熟事件说清去哪儿收', /熟了/.test(ripeEvent.text) && /cfarm_collect/.test(ripeEvent.text), ripeEvent.text);
 
 // --- 5. 收割 → 掉在地上（不进背包） ---------------------------------------
@@ -582,7 +582,7 @@ const dryBefore = events.length;
 await tickSeconds2(4);
 const dryState = JSON.parse(await readFile(dryWorld.stateFile(), 'utf8'));
 check('缺水会枯萎', dryState.plots.some((p) => p.dead), dryState.plots.map((p) => p.dead + '/' + p.moisture.toFixed(2)).join(' '));
-check('枯萎不单独唤醒模型', !events.slice(dryBefore).some((e) => e.type === 'farm.wilt'));
+check('枯萎不单独唤醒模型', !events.slice(dryBefore).some((e) => e.type === 'cfarm.wilt'));
 const deadPlot = dryState.plots.find((p) => p.dead);
 const dryTool = (n) => dryWorld.tools().find((t) => t.name === n).handler;
 await dryTool('cfarm_stand')({ at: deadPlot.x });
@@ -714,10 +714,10 @@ check('invoke state 有 bagTotal', typeof inv.bagTotal === 'number', 'bag=' + in
   for (const k of Object.keys(afterCart.inventory)) {
     if (k.startsWith('seed_')) await tool('cfarm_sell')({ item: k });
   }
-  const asks0 = events.filter((e) => e.type === 'farm.buy').length;
+  const asks0 = events.filter((e) => e.type === 'cfarm.buy').length;
   await tickSeconds(3);
-  const asks = events.filter((e) => e.type === 'farm.buy').length;
-  check('种子用完不会自动唤醒询问', asks === asks0, events.filter((e) => e.type === 'farm.buy').slice(-1)[0]?.text?.slice(0, 60) ?? 'none');
+  const asks = events.filter((e) => e.type === 'cfarm.buy').length;
+  check('种子用完不会自动唤醒询问', asks === asks0, events.filter((e) => e.type === 'cfarm.buy').slice(-1)[0]?.text?.slice(0, 60) ?? 'none');
 
   const bad = await tool('cfarm_buy')({ id: 'no_such_furniture' });
   check('买不存在的东西会失败', bad.failed === true, bad.text.slice(0, 40));

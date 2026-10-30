@@ -90,7 +90,7 @@ export const farmDefinition = {
     tools: describeTools(FARM_TOOL_DECLS),
     events: [
       {
-        type: 'farm.ripe',
+        type: 'cfarm.ripe',
         description: {
           zh: '有作物成熟了；正文写明哪几棵、在屏幕底部百分之几，并提示走过去收、收完再捡。',
           en: 'Some plants ripened; the text names them and their position, and says to walk over, harvest, then collect.',
@@ -98,7 +98,7 @@ export const farmDefinition = {
         trigger: 'debounce',
       },
       {
-        type: 'farm.dry',
+        type: 'cfarm.dry',
         description: {
           zh: '有作物土太干了；正文列出哪几棵、在屏幕底部百分之几，提示走过去浇水。',
           en: 'Some plants are running dry; the text names them and their position and says to water them.',
@@ -106,7 +106,7 @@ export const farmDefinition = {
         trigger: 'debounce',
       },
       {
-        type: 'farm.day',
+        type: 'cfarm.day',
         description: {
           zh: '翻到新的一天；正文带上天气、可收数量、地上的掉落物、土干的数量和背包件数。',
           en: 'A new day started: weather, ripe count, drops on the ground, dry plants and bag size.',
@@ -114,7 +114,7 @@ export const farmDefinition = {
         trigger: 'debounce',
       },
       {
-        type: 'farm.state',
+        type: 'cfarm.state',
         description: {
           zh: '自定义状态进入「桌宠主动消耗」时触发：正文列出消耗品池里当前可用的道具，让桌宠自己用 cfarm_consume 挑；随机消耗不推这条事件。',
           en: 'A custom state in pet-choice consume mode fires: the text lists available items so the pet can pick one with cfarm_consume; random consume does not emit this event.',
@@ -122,7 +122,7 @@ export const farmDefinition = {
         trigger: 'debounce',
       },
       {
-        type: 'farm.product',
+        type: 'cfarm.product',
         description: {
           zh: '动物产物掉在地上；正文写明产物、数量和屏幕位置，提示走过去 cfarm_stand 再 cfarm_collect。',
           en: 'An animal product dropped on the ground; the text names it, its amount and position, and says to walk over and collect.',
@@ -130,7 +130,7 @@ export const farmDefinition = {
         trigger: 'debounce',
       },
       {
-        type: 'farm.env',
+        type: 'cfarm.env',
         description: {
           zh: '第一次启用时环境自检发现 Electron/WPF 运行时缺失；正文说明缺什么、怎么在「游戏配置 → 环境自检」里修复，让桌宠转告主人。',
           en: 'The first-start environment check found a missing Electron/WPF runtime; the text says what is missing and how to fix it in Game Config → Environment check, so the pet can tell its owner.',

@@ -42,7 +42,7 @@
 
 - **饱食度** 0~100，初始 100，每游戏日 -5；低于 30 → **饥饿**
 - **心情** 0~100，初始 60；`>= 70` 开心，`< 30` 无聊
-- **饥饿/无聊** 默认「随机消耗」：从当前所有可消耗道具里随机消耗一个，自动应用道具效果，不发送 `farm.state`；也可以改成「桌宠主动消耗」，让它按事件自己挑，缺现成食物时可自己 `cfarm_craft` 合成。
+- **饥饿/无聊** 默认「随机消耗」：从当前所有可消耗道具里随机消耗一个，自动应用道具效果，不发送 `cfarm.state`；也可以改成「桌宠主动消耗」，让它按事件自己挑，缺现成食物时可自己 `cfarm_craft` 合成。
 - 状态变化量由「道具自定义」里的道具效果定义，状态页不再写 `effectState/effectDelta`。
 
 每种作物、米饭和意大利面默认同时加饱食度和心情：
@@ -96,7 +96,7 @@ WPF 回退现在是 WebView2 宿主，不再用另一套 WPF 自绘；因此缩�
 
 自检里的「Electron 包」下拉会列出检测到的路径；也可以在「备用 Electron」配置项里手动选 `electron.exe`。
 
-第一次启用时还会自动做一次自检；如果当前引擎缺运行时，会推一次 `farm.env` 事件，让桌宠把“缺少 Electron 运行时 / 怎么修”转告主人。之后不会重复提醒。
+第一次启用时还会自动做一次自检；如果当前引擎缺运行时，会推一次 `cfarm.env` 事件，让桌宠把“缺少 Electron 运行时 / 怎么修”转告主人。之后不会重复提醒。
 
 Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `electron.exe`；所以默认不再下载第二份 Electron。备用 Electron 可以放在安装目录的 `node_modules\electron\dist\electron.exe`，或在「备用 Electron」里手动选择路径。
 
@@ -154,7 +154,7 @@ Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `elec
 | `cfarm_sell` | 卖背包里的道具 |
 | `cfarm_place` | 把装饰放到地上 |
 
-事件：`farm.ripe`、`farm.dry`、`farm.day`、`farm.state`、`farm.env`。`farm.day` 默认关，`dailyEvent=true` 才推；`farm.env` 只在第一次启用自检失败时推一次，让桌宠把环境问题转告主人。
+事件：`cfarm.ripe`、`cfarm.dry`、`cfarm.day`、`cfarm.state`、`cfarm.env`。`cfarm.day` 默认关，`dailyEvent=true` 才推；`cfarm.env` 只在第一次启用自检失败时推一次，让桌宠把环境问题转告主人。
 
 ## 默认参数
 

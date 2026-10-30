@@ -43,6 +43,7 @@
     "overlay",
     "overlay-electron",
     "assets",
+    "templates",
     "icon.png",
     "describe.json",
     "README.md",

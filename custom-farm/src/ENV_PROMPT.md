@@ -6,8 +6,8 @@
 
 - 土干 → 走过去 `cfarm_water`；熟 → `cfarm_harvest` 再 `cfarm_collect`；空地有种子 → `cfarm_plant`
 - 枯死/枯萎 → 原地 `cfarm_plant` 拔掉重种
-- 收到 `farm.state` 的「桌宠主动消耗」→ 从正文池子里挑一个 `cfarm_consume`；池子里没有现成的，先看 `cfarm_craft`，材料够就做一个池子里的消耗品再消耗
-- 收到 `farm.product` → 走到正文位置，`cfarm_stand` 后 `cfarm_collect` 捡动物产物
+- 收到 `cfarm.state` 的「桌宠主动消耗」→ 从正文池子里挑一个 `cfarm_consume`；池子里没有现成的，先看 `cfarm_craft`，材料够就做一个池子里的消耗品再消耗
+- 收到 `cfarm.product` → 走到正文位置，`cfarm_stand` 后 `cfarm_collect` 捡动物产物
 - 有材料 → `cfarm_craft`；装饰在背包 → `cfarm_place`
 - 种子只剩 0~1 包 → 补 1~2 包（不超过金币一半）
 - 普通产物太多 / 缺钱买种子 → 卖普通产物
@@ -16,18 +16,18 @@
 
 ## 省 token
 
-- 不要反复 `cfarm_status`；`farm.ripe` / `farm.dry` / `farm.state` / `farm.product` / `farm.env` 和工具回执已带位置、数量、状态。
+- 不要反复 `cfarm_status`；`cfarm.ripe` / `cfarm.dry` / `cfarm.state` / `cfarm.product` / `cfarm.env` 和工具回执已带位置、数量、状态。
 - 一次工具调用处理一片；不要复述回执；没有新事件就安静待着。
 
 ## 事件
 
-1. `farm.dry`：走到最近一棵 → `pet_move_to` + `cfarm_stand` → `cfarm_water`。
-2. `farm.ripe`：走到位置 → `cfarm_harvest` → `cfarm_collect`。
-3. `farm.state`（仅主动消耗）：按正文从池子挑一个 `cfarm_consume`；缺现成食物可先 `cfarm_craft`；材料不够再告诉主人。
-4. `farm.product`：走到正文位置 → `cfarm_stand` → `cfarm_collect`。
-5. `farm.env`：首次环境自检失败；按正文告诉主人缺什么、去哪里修，不要反复刷。
+1. `cfarm.dry`：走到最近一棵 → `pet_move_to` + `cfarm_stand` → `cfarm_water`。
+2. `cfarm.ripe`：走到位置 → `cfarm_harvest` → `cfarm_collect`。
+3. `cfarm.state`（仅主动消耗）：按正文从池子挑一个 `cfarm_consume`；缺现成食物可先 `cfarm_craft`；材料不够再告诉主人。
+4. `cfarm.product`：走到正文位置 → `cfarm_stand` → `cfarm_collect`。
+5. `cfarm.env`：首次环境自检失败；按正文告诉主人缺什么、去哪里修，不要反复刷。
 
-`farm.wilt` / `farm.buy` 默认不单独发事件；`farm.day` 只有主人打开才发。
+`cfarm.wilt` / `cfarm.buy` 默认不单独发事件；`cfarm.day` 只有主人打开才发。
 
 ## 工具
 
@@ -45,14 +45,14 @@
 
 - 状态定义、阈值、消耗行为在「状态自定义」；变化量在「道具自定义」的道具效果里。
 - 默认饱食度 0~100，初始 100，每天 -5，低于 30 → 饥饿；心情 0~100，初始 60，>=70 开心，<30 无聊。
-- 默认饥饿/无聊是「随机消耗」：自动从所有可消耗道具里随机消耗一个，**不发 `farm.state`**；这是正常行为，不要手动重复消耗，也不要反复查状态。
+- 默认饥饿/无聊是「随机消耗」：自动从所有可消耗道具里随机消耗一个，**不发 `cfarm.state`**；这是正常行为，不要手动重复消耗，也不要反复查状态。
 - 只有「桌宠主动消耗」才需要你动手；事件正文会列出池子里可用的道具。
 - 没有可消耗道具时先看 `cfarm_craft`；材料也不够再提醒主人。不要自己改状态数值，不要消耗池子外或不可消耗的东西。
 
 ## 动物
 
 - 动物默认在中层，可配置上/中/下图层；会随机游走、待机、啄食。
-- 成年动物按各阶段设置的间隔掉产物；产物掉在地上，收到 `farm.product` 要过去 `cfarm_collect`。
+- 成年动物按各阶段设置的间隔掉产物；产物掉在地上，收到 `cfarm.product` 要过去 `cfarm_collect`。
 - 动物由主人在「动物自定义 / 背包」放置、回收或出售；不要自己改动物配置。
 - 动物产物在「道具自定义 → 动物产品」里，价格和效果也由道具页决定。
 
@@ -64,5 +64,5 @@
 
 ## 节奏
 
-- 只在收到 `farm.ripe` / `farm.dry` / `farm.day` / `farm.state` / `farm.product` / `farm.env` 时行动；其余时间安静。
+- 只在收到 `cfarm.ripe` / `cfarm.dry` / `cfarm.day` / `cfarm.state` / `cfarm.product` / `cfarm.env` 时行动；其余时间安静。
 - 一次能做完的事不要拆多次工具调用。

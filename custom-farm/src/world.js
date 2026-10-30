@@ -1691,9 +1691,9 @@ export class FarmWorld {
     if (mine.length === 0) return;
     const list = mine.map((p) => '  ' + p.id + ' 号' + p.crop + '（' + p.xPct + '%）土湿只剩 ' + Math.round(p.moisture * 100) + '%').join('\n');
     await host.pushEvent({
-      type: 'farm.dry',
+      type: 'cfarm.dry',
       source: 'farm',
-      senderKey: 'farm.dry',
+      senderKey: 'cfarm.dry',
       origin: 'world',
       ts: new Date().toISOString(),
       text: '自定义农场：' + mine.length + ' 棵渴了，再不浇就要枯：\n' + list + '\n走到跟前 cfarm_water 就行。',
@@ -1731,9 +1731,9 @@ export class FarmWorld {
       (live.names?.[p.item] ?? p.item) + '×' + p.count + '（' + Math.round(p.x * 100) + '%）'
     ).join('、');
     await host.pushEvent({
-      type: 'farm.product',
+      type: 'cfarm.product',
       source: this.id,
-      senderKey: 'farm.product',
+      senderKey: 'cfarm.product',
       origin: 'internal',
       ts: new Date(this.now()).toISOString(),
       text: '自定义农场：动物产物掉在地上了：' + text + '。走过去 cfarm_stand，再 cfarm_collect 捡进背包。',
@@ -1747,7 +1747,7 @@ export class FarmWorld {
     if (!host?.pushEvent) return;
     for (const id of ids ?? []) this.#ripePending.add(Number(id));
     if (this.#ripeTimer) return;
-    // 相邻作物常在同一两秒内先后成熟；合并成一条 farm.ripe，别让桌宠收到一串。
+    // 相邻作物常在同一两秒内先后成熟；合并成一条 cfarm.ripe，别让桌宠收到一串。
     this.#ripeTimer = this.setTimeoutImpl(() => {
       this.#ripeTimer = null;
       void this.#flushRipe().catch((err) => this.#host?.log?.warn?.('自定义农场：成熟提醒没送出去', { err: msg(err) }));
@@ -1764,9 +1764,9 @@ export class FarmWorld {
     const mine = s.plots.filter((p) => ids.includes(p.id));
     if (!mine.length) return;
     await host.pushEvent({
-      type: 'farm.ripe',
+      type: 'cfarm.ripe',
       source: this.id,
-      senderKey: 'farm.ripe',
+      senderKey: 'cfarm.ripe',
       origin: 'internal',
       ts: new Date(this.now()).toISOString(),
       text: '自定义农场：' + mine.map((p) => p.id + ' 号' + p.crop + '（' + p.xPct + '%）').join('、') +
@@ -1782,9 +1782,9 @@ export class FarmWorld {
     const s = summary(this.#state, this.#cfgAll());
     const dry = s.plots.filter((p) => !p.dead && !p.ready && p.moisture < 40).length;
     await host.pushEvent({
-      type: 'farm.day',
+      type: 'cfarm.day',
       source: this.id,
-      senderKey: 'farm.day',
+      senderKey: 'cfarm.day',
       origin: 'internal',
       ts: new Date(this.now()).toISOString(),
       text: '自定义农场：第 ' + s.day + ' 天，天气' + s.weather + '。' + (s.ripe ? s.ripe + ' 棵能收。' : '') +
@@ -2714,9 +2714,9 @@ export class FarmWorld {
     const host = this.#host;
     if (!host?.pushEvent) return;
     await host.pushEvent({
-      type: 'farm.state',
+      type: 'cfarm.state',
       source: this.id,
-      senderKey: 'farm.state',
+      senderKey: 'cfarm.state',
       origin: 'internal',
       ts: new Date(this.now()).toISOString(),
       text,
@@ -3071,9 +3071,9 @@ export class FarmWorld {
         '\n请把这个问题告诉主人：打开 Coopanion 设置 → 游戏配置 → 环境自检，按提示选择 WPF 图层或指定备用 Electron。';
       try {
         this.#host?.pushEvent?.({
-          type: 'farm.env',
+          type: 'cfarm.env',
           source: this.id,
-          senderKey: 'farm.env',
+          senderKey: 'cfarm.env',
           origin: 'internal',
           ts: new Date(this.now()).toISOString(),
           text,

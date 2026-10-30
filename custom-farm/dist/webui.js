@@ -1579,8 +1579,8 @@ const ST = {
     consumeMode: '消耗方式',
     randomConsume: '随机消耗（自动改数值，不通知桌宠）',
     petConsume: '桌宠主动消耗（发消息让它自己挑）',
-    randomConsumeHint: '自动从池子随机挑一个，应用道具效果；不发 farm.state。',
-    petConsumeHint: '不自动扣背包，发 farm.state 让桌宠自己选；具体说什么由环境提示词决定。',
+    randomConsumeHint: '自动从池子随机挑一个，应用道具效果；不发 cfarm.state。',
+    petConsumeHint: '不自动扣背包，发 cfarm.state 让桌宠自己选；具体说什么由环境提示词决定。',
     consumeItems: '消耗品池（随机/主动都从这里挑）',
     poolHint: '默认是所有可消耗道具（作物、米饭、意面、自定义食物等）；可以只勾选想让这个状态消耗的。',
     count: '一次消耗',
@@ -1653,8 +1653,8 @@ const ST = {
     consumeMode: 'Consume mode',
     randomConsume: 'Random (auto changes values, no pet event)',
     petConsume: 'Pet chooses (sends an event)',
-    randomConsumeHint: 'Auto-picks one item from the pool and applies item effects; no farm.state event.',
-    petConsumeHint: 'Does not auto-consume; sends farm.state so the pet picks; what it says is defined by the environment prompt.',
+    randomConsumeHint: 'Auto-picks one item from the pool and applies item effects; no cfarm.state event.',
+    petConsumeHint: 'Does not auto-consume; sends cfarm.state so the pet picks; what it says is defined by the environment prompt.',
     consumeItems: 'Consumable pool (used by both modes)',
     poolHint: 'Defaults to every consumable item (crops, rice, pasta, custom food, etc.); check only the items this state may consume.',
     count: 'Amount',
@@ -3313,7 +3313,7 @@ function ecologyPanel(ctx) {
       ui.field(zh ? '离线最多补几天（安全上限）' : 'Max offline days (safety cap)', num(d.maxStepDays, (v) => { d.maxStepDays = v; }, '0.1', '0.01')),
       ui.field(zh ? '刷新间隔（毫秒，不影响生长）' : 'Refresh interval (ms, does not affect growth)', num(d.tickIntervalMs, (v) => { d.tickIntervalMs = v; }, '100', '1000')),
     );
-    const daily = ui.checkbox(zh ? '每天推送 farm.day' : 'Emit farm.day', {
+    const daily = ui.checkbox(zh ? '每天推送 cfarm.day' : 'Emit cfarm.day', {
       checked: d.dailyEvent,
       onChange: (v) => { d.dailyEvent = v; },
     }).el;
