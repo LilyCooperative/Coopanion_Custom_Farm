@@ -650,6 +650,21 @@ export class FarmWorld {
     };
   }
 
+  async #openBackups() {
+    const dir = join(this.dataDir, 'farm', 'backups');
+    await mkdir(dir, { recursive: true });
+    if (process.platform !== 'win32') {
+      return { ok: true, path: dir, text: '备份目录：' + dir };
+    }
+    try {
+      const child = spawn('explorer.exe', [dir], { detached: true, stdio: 'ignore', windowsHide: true });
+      child.unref();
+      return { ok: true, path: dir, text: '已打开备份文件夹：' + dir };
+    } catch (err) {
+      throw new Error('打开备份文件夹失败：' + msg(err));
+    }
+  }
+
   async #listBackups() {
     const root = join(this.dataDir, 'farm', 'backups');
     const backups = [];
@@ -1891,6 +1906,7 @@ export class FarmWorld {
     if (method === 'importTemplateData') return this.#importTemplateData(args?.[0]);
     if (method === 'applyDefaultTemplate') return this.#applyDefaultTemplate();
     if (method === 'listBackups') return this.#listBackups();
+    if (method === 'openBackups') return this.#openBackups();
     if (method === 'restoreBackup') return this.#restoreBackup(args?.[0]);
     if (method === 'setElectronPath') {
       const file = String(args?.[0] ?? '').trim();
@@ -1918,7 +1934,7 @@ export class FarmWorld {
 
   /** 「农场自定义」页的数据面。统一返回最新 snapshot，面板不用再读一次。 */
   async #customInvoke(method, args, cfg) {
-    if (['backup', 'reset', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup'].includes(method)) {
+    if (['backup', 'reset', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup', 'openBackups'].includes(method)) {
       return this.#manageAction(method, args);
     }
     if (method === 'sprite') {

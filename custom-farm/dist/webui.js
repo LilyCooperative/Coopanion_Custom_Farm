@@ -343,6 +343,7 @@ function injectFarmConfigActions() {
     backupSelect.className = 'input';
     backupSelect.style.minWidth = '220px';
     const refreshBackups = button('刷新备份');
+    const openFolder = button('打开备份文件夹');
     const loadBackup = button('读取存档', true);
     const fillBackups = async () => {
       backupSelect.replaceChildren();
@@ -364,6 +365,15 @@ function injectFarmConfigActions() {
       }
     };
     refreshBackups.addEventListener('click', () => void fillBackups());
+    openFolder.addEventListener('click', async () => {
+      openFolder.disabled = true;
+      try {
+        const r = await farmManageCall('openBackups');
+        status.textContent = r.text || '已打开备份文件夹';
+      } catch (err) {
+        status.textContent = '打开失败：' + ((err && err.message) || err);
+      } finally { openFolder.disabled = false; }
+    });
     loadBackup.addEventListener('click', async () => {
       const name = backupSelect.value;
       if (!name) { status.textContent = '先选择一个备份'; return; }
@@ -383,7 +393,7 @@ function injectFarmConfigActions() {
     });
     void fillBackups();
 
-    field.append(backup, refreshBackups, backupSelect, loadBackup, reset, status);
+    field.append(backup, refreshBackups, openFolder, backupSelect, loadBackup, reset, status);
     row.append(label, field);
     view.prepend(section, desc, row);
   } catch { /* 不是宿主的配置页就算了 */ }
