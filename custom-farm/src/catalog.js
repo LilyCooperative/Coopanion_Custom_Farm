@@ -545,9 +545,26 @@ export class FarmCatalog {
 
   load() {
     let raw = null;
-    try {
-      if (existsSync(this.storePath)) raw = JSON.parse(readFileSync(this.storePath, 'utf8'));
-    } catch { raw = null; }
+    if (existsSync(this.storePath)) {
+      let text;
+      try {
+        text = readFileSync(this.storePath, 'utf8');
+      } catch (err) {
+        throw new Error('读取 custom.json 失败，原文件没有被覆盖：' + (err?.message ?? err));
+      }
+      // 迁移会改写 custom.json；先把迁移前的原始设置留一份，升级出问题可直接换回。
+      try {
+        const backup = this.storePath + '.bak';
+        let same = false;
+        try { same = existsSync(backup) && readFileSync(backup, 'utf8') === text; } catch { same = false; }
+        if (!same) copyFileSync(this.storePath, backup);
+      } catch { /* 备份失败不阻塞读取 */ }
+      try {
+        raw = JSON.parse(text);
+      } catch {
+        throw new Error('custom.json 不是有效 JSON，原文件没有被覆盖。可恢复 custom.json.bak 或从模板导入。');
+      }
+    }
     this.store = this.normalizeStore(raw);
     this.ensureFreeCrops();
     this.ensureMood();

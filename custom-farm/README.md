@@ -125,6 +125,7 @@ Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `elec
 - **备份存档**：把 `state.json` 和 `custom.json` 复制到 `data\farm\backups\backup-时间\`
 - **读取存档**：只恢复 state.json，不改当前设置；如果备份含当前设置中不存在的物品/动物，会警告并拒绝读取
 - **重置一切**：先自动备份，再清空 `state.json` 和 `custom.json`，World 自动重启并生成默认目录；安装路径和已上传的 PNG 文件不会被删除
+- **更新插件**：设置和存档在 `data\farm\`，不在扩展包内；升级只覆盖 overlay 代码，素材只补缺失文件，不会覆盖 `cust_*.png`。每次载入 custom.json 前会自动留一份 `custom.json.bak`；JSON 损坏时直接报错，不会用默认设置覆盖原文件
 
 ## 桌面图层
 

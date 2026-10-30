@@ -2185,6 +2185,7 @@ export class FarmWorld {
     const sprites = entries.filter((e) => /^sprites\/[^/]+\.png$/i.test(e.name));
     const catalog = this.#catalogOrThrow();
     const backup = existsSync(catalog.storePath) ? await readFile(catalog.storePath) : null;
+    const diskBackup = await this.#backupNow().catch(() => null);
     const spriteBackup = new Map();
     const spriteWritten = [];
     try {
@@ -2235,6 +2236,7 @@ export class FarmWorld {
       }
       throw new Error('导入模板失败（已尽量恢复原设置）：' + msg(err));
     }
+    this.#host?.log?.info?.('自定义农场：模板导入完成', { backup: diskBackup?.path ?? null });
     return catalog.snapshot();
   }
 

@@ -191,6 +191,10 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   check('目录：默认 3 种杂草', live.weedTypes.length === 3, live.weedTypes.map((w) => w.key).join(','));
   const snap0 = cat.snapshot();
   check('目录快照有作物/杂草/地面', snap0.crops.length === 18 && snap0.weeds.length === 3 && snap0.ground.builtin.length === 1);
+  cat.persist();
+  const catReload = new FarmCatalog({ storePath: join(catDir, 'custom.json'), spritesDir, pointsPerDay: 288 });
+  catReload.load();
+  check('目录：重载前自动备份 custom.json.bak', existsSync(join(catDir, 'custom.json.bak')));
 
   cat.saveCrop({ name: '测试菜', stages: 3, days: [0.5, 0.25], value: 42, seedPrice: 10 });
   const key = Object.keys(CROPS).find((k) => CROPS[k].name === '测试菜');
