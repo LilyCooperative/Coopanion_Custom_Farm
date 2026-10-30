@@ -120,29 +120,31 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   const direct = minGapX(CROPS.tomato, CROPS.tomato, { ...cfg, cropGapPct: 2.5 });
   check('作物间距可直接按屏宽百分比', Math.abs(direct - 0.025) < 1e-9, String(direct));
 }
-// 农田整体大小：底边始终满宽；整块内容缩放、位置重映射；缩小补野草且仍可种
+// 农田整体大小：可种范围按中心缩放；缩小时界外作物/装饰回收
 {
   const mk = (id, x) => ({ id, crop: 'tomato', x, level: 0, growth: 0, moisture: 0.6, harvests: 0, drySince: null, dead: false, ripeNotified: false });
   const s = newState(clock, { ...cfg }, random);
   s.plots = [mk(1, 0.05), mk(2, 0.5), mk(3, 0.95), mk(4, 0.3)];
-  s.inventory = { seed_tomato: 0 };
+  s.inventory = { seed_tomato: 0, deco_tree: 0 };
+  s.furniture = [{ id: 'deco_tree', x: 0.05 }, { id: 'deco_tree', x: 0.5 }];
   s.weeds = [];
   s.farmCells = 48;
   s.screenWidth = 2048;
   const shrink = applyFarmSize(s, { ...cfg, farmCells: 24 }, random);
-  check('农田缩小：不删作物、不退种子', shrink.removed.length === 0 && s.plots.length === 4 && s.inventory.seed_tomato === 0, JSON.stringify(shrink.removed));
+  check('农田缩小：界内作物保留、不删不退种子', shrink.removed.length === 0 && s.plots.length === 4 && s.inventory.seed_tomato === 0, JSON.stringify(shrink.removed));
   check('农田缩小：作物整体变小', Math.abs(shrink.cropScale - 0.5) < 1e-9, String(shrink.cropScale));
   const moved = s.plots.find((p) => p.id === 4);
   check('农田缩小：作物位置按中心缩放', moved && Math.abs(moved.x - 0.4) < 0.01, String(moved && moved.x));
+  check('农田缩小：界外装饰回收背包', shrink.furnitureRecycled === 1 && s.inventory.deco_tree === 1 && s.furniture.length === 1, JSON.stringify({ f: shrink.furnitureRecycled, inv: s.inventory.deco_tree }));
   check('农田缩小：新野地不补杂草（范围同步变窄）', shrink.weedsAdded === 0, 'added=' + shrink.weedsAdded);
   check('农田缩小：可种范围变窄', farmBounds({ ...cfg, farmCells: 24 }).max < farmBounds(cfg).max);
   check('农田缩小：原野地不能再种', !checkSpot(s, 0.1, 'tomato', { ...cfg, farmCells: 24 }).ok);
-  // 24 格时在野地种一棵；扩到 48 格会被推出屏幕，删除并退种子
+  // 24 格时在界外种一棵；扩到 48 格会把它移除并退种子
   s.plots.push(mk(5, 0.1));
   const grow = applyFarmSize(s, { ...cfg, farmCells: 48 }, random);
-  check('农田扩大：被推出屏幕的作物删除并退种子', grow.removed.includes(5) && s.inventory.seed_tomato === 1 && !s.plots.some((p) => p.id === 5), JSON.stringify(grow.removed));
+  check('农田扩大：界外作物删除并退种子', grow.removed.includes(5) && s.inventory.seed_tomato === 1 && !s.plots.some((p) => p.id === 5), JSON.stringify(grow.removed));
   check('农田扩大：作物整体变大', Math.abs(grow.cropScale - 1) < 1e-9, String(grow.cropScale));
-  check('农田扩大：屏幕内作物保留', s.plots.length === 4, String(s.plots.length));
+  check('农田扩大：界内作物保留', s.plots.length === 4, String(s.plots.length));
 }
 // 关机/睡眠回来不能把整段时间一次补完（否则 1 天 = 1 小时时，关一晚就跳 12 天、田全枯）
 {

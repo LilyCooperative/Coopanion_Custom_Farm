@@ -325,6 +325,8 @@ export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
     refunded: 0,
     weedsRemoved: 0,
     weedsAdded: 0,
+    furnitureRecycled: 0,
+    animalsRecycled: 0,
   };
   if (!out.changed) return out;
   if (!Array.isArray(state.plots)) state.plots = [];
@@ -381,11 +383,43 @@ export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
     state.standingAt = round2(Math.min(bounds.max, Math.max(bounds.min, nx)));
   }
 
+  // 农田缩小时，界外装饰收回背包；界外动物收回对应幼崽/成年道具。
+  state.inventory = state.inventory ?? {};
+  const furniture = [];
+  for (const f of state.furniture ?? []) {
+    const x = Number(f.x);
+    if (!onFarm(x)) {
+      if (f.id) state.inventory[f.id] = (Number(state.inventory[f.id]) || 0) + 1;
+      out.furnitureRecycled += 1;
+      continue;
+    }
+    furniture.push(f);
+  }
+  state.furniture = furniture;
+
+  const animals = [];
+  for (const a of state.animals ?? []) {
+    const x = Number(a.anchor ?? a.x);
+    if (!onFarm(x)) {
+      const species = live.animals?.[a.species];
+      const stage = species?.stages?.[Number(a.stage) || 0];
+      const item = stage?.item
+        ?? Object.values(live.items ?? {}).find((it) => it.animalSpecies === a.species && Number(it.animalStage) === Number(a.stage))?.id;
+      if (item) state.inventory[item] = (Number(state.inventory[item]) || 0) + 1;
+      out.animalsRecycled += 1;
+      continue;
+    }
+    animals.push(a);
+  }
+  state.animals = animals;
+
   state.farmCells = newCells;
   state.lastMessage = '农田 ' + oldCells + ' → ' + newCells + ' 格（整体缩放）' +
     (out.removed.length ? '，移除了 ' + out.removed.length + ' 棵（退 ' + out.refunded + ' 包种子）' : '') +
     (out.weedsRemoved ? '，清掉 ' + out.weedsRemoved + ' 丛界外野草' : '') +
-    (out.weedsAdded ? '，新野地补了 ' + out.weedsAdded + ' 丛野草' : '') + '。';
+    (out.weedsAdded ? '，新野地补了 ' + out.weedsAdded + ' 丛野草' : '') +
+    (out.furnitureRecycled ? '，回收 ' + out.furnitureRecycled + ' 件界外装饰' : '') +
+    (out.animalsRecycled ? '，回收 ' + out.animalsRecycled + ' 只界外动物' : '') + '。';
   return out;
 }
 
