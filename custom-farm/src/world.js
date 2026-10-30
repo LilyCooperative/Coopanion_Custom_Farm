@@ -294,6 +294,7 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
         description: t('新开局参数。', 'Initial values for a fresh game.'),
         properties: {
           'worlds.farm.startCoins': int(t('新开局初始金币', 'Starting coins'), t('默认 120，只影响新开档。', 'Default 120; only affects a new save.'), 0, 100000),
+          'worlds.farm.resetCoinsNow': bool(t('重置金币', 'Reset coins'), t('打开后立即把当前金币重置为上面的初始金币。', 'Turn on to reset current coins to the starting amount above.')),
         },
       },
     },
@@ -1623,6 +1624,13 @@ export class FarmWorld {
       await this.#runFirstEnvCheck();
     }
     const cfg = this.#cfgAll();
+    if (this.cfg?.resetCoinsNow) {
+      this.#state.coins = Math.max(0, Math.round(Number(cfg.startCoins) || 0));
+      this.#state.lastMessage = '当前金币已初始化';
+      try { this.cfg.resetCoinsNow = false; } catch { /* 只读代理 */ }
+      this.persistConfig?.({ resetCoinsNow: false });
+      this.#host?.log?.info?.('自定义农场：当前金币已初始化（配置开关）', { coins: this.#state.coins });
+    }
     this.#syncLayerVisibility();
     const now = this.now();
     const size = applyFarmSize(this.#state, cfg, this.random);

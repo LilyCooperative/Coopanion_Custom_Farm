@@ -8,8 +8,7 @@
 // 设置页的「配置」是宿主固定文案；农场页加载后显示成「游戏配置」。
 function renameFarmConfigTab() {
   try {
-    const hash = String(location.hash || '');
-    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    if (!isFarmConfigRoute()) return;
     for (const btn of document.querySelectorAll('button')) {
       if ((btn.textContent || '').trim() === '配置') btn.textContent = '游戏配置';
     }
@@ -52,8 +51,7 @@ async function farmManageCall(method, args = []) {
 /** 游戏配置顶部的环境自检 + Electron/WPF 切选单。 */
 function injectFarmEnvCheck() {
   try {
-    const hash = String(location.hash || '');
-    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    if (!isFarmConfigRoute()) return;
     const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-env]')) return;
 
@@ -156,8 +154,7 @@ function injectFarmEnvCheck() {
 /** 往宿主的「游戏配置」页里塞「存档与重置」按钮。 */
 function injectFarmTemplate() {
   try {
-    const hash = String(location.hash || '');
-    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    if (!isFarmConfigRoute()) return;
     const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-template]')) return;
 
@@ -277,8 +274,7 @@ function injectFarmTemplate() {
 
 function injectFarmInitCoins() {
   try {
-    const hash = String(location.hash || '');
-    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    if (!isFarmConfigRoute()) return;
     for (const view of farmConfigViews()) {
       if (view.querySelector('[data-farm-init-coins]')) continue;
       const row = [...view.querySelectorAll('.trow')].find((el) => {
@@ -324,6 +320,9 @@ function injectFarmInitCoins() {
       action.append(label, field);
       if (row) row.after(action);
       else section.after(action);
+      const nativeSwitch = [...view.querySelectorAll('.trow')].find((el) =>
+        !el.dataset.farmInitCoins && /重置金币/.test(el.textContent || ''));
+      if (nativeSwitch) nativeSwitch.style.display = 'none';
     }
   } catch { /* 忽略非配置页 */ }
 }
@@ -331,8 +330,7 @@ function injectFarmInitCoins() {
 
 function injectFarmConfigActions() {
   try {
-    const hash = String(location.hash || '');
-    if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
+    if (!isFarmConfigRoute()) return;
     const view = farmConfigView();
     if (!view || view.querySelector('[data-farm-manage]')) return;
 
@@ -680,6 +678,11 @@ const TEXT = {
 };
 
 const isZh = (lang) => String(lang || '').toLowerCase().startsWith('zh');
+function isFarmConfigRoute() {
+  let hash = String(location.hash || '');
+  try { hash = decodeURIComponent(hash); } catch { /* keep raw */ }
+  return hash.includes('world:farm') || hash.includes('world%3Afarm') || /worlds?\/farm/.test(hash);
+}
 function farmConfigViews() {
   return [...document.querySelectorAll('.configview')];
 }
