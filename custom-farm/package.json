@@ -6,7 +6,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "自定义农场（Custom Farm）—— 给 Coopanion 桌宠的种田扩展：18 种作物只是起点。农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义；种、浇、收、吃、买卖都由你决定。",
+  "description": "自定义农场（Custom Farm）—— 给你的桌宠自定义一个农场，让它开心地生活。田地、作物、动物、天气、状态、道具和贴图都可以自由调整。",
   "keywords": [
     "cortico-world",
     "coopanion",
@@ -59,11 +59,11 @@
     "locales": {
       "zh": {
         "displayName": "自定义农场",
-        "description": "18 种作物只是起点：农作物、杂草、装饰物、天气、状态、道具、合成表和贴图都能在面板里完全自定义，想种什么、长什么样、吃什么补什么，全由你决定。"
+        "description": "给你的桌宠自定义一个农场，让它开心地生活。田地、作物、动物、天气、状态、道具和贴图都可以自由调整。"
       },
       "en": {
         "displayName": "Custom Farm",
-        "description": "18 crops are just the beginning: crops, weeds, decorations, weather, states, items, recipes and sprites are all fully customizable in the panel. Plant, water, harvest, eat and trade the way you like."
+        "description": "Build a custom farm for your desktop pet and let it live happily. Fields, crops, animals, weather, states, items and sprites are all customizable."
       }
     },
     "tags": [

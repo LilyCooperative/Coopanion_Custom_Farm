@@ -759,6 +759,19 @@ export class FarmWorld {
     finally { try { await unlink(tmp); } catch { } }
   }
 
+  async #initCurrentCoins() {
+    this.#ensureStarted();
+    const cfg = this.#cfgAll();
+    const coins = Math.max(0, Math.round(Number(cfg.startCoins) || 0));
+    await this.#mutate((state) => {
+      state.coins = coins;
+      state.lastMessage = '当前金币已初始化';
+      return null;
+    });
+    this.#host?.log?.info?.('自定义农场：当前金币已初始化', { coins });
+    return { ok: true, coins, text: '当前金币已初始化为 ' + coins + '。' };
+  }
+
   /** 重置一切：先备份，再删 state.json / custom.json，最后重启 World 重新生成默认目录。 */
   async #resetAll() {
     const backup = await this.#backupNow().catch(() => null);
@@ -1900,6 +1913,7 @@ export class FarmWorld {
   async #manageAction(method, args = []) {
     if (method === 'backup') return this.#backupNow();
     if (method === 'reset') return this.#resetAll();
+    if (method === 'initCoins') return this.#initCurrentCoins();
     if (method === 'check') return this.#envCheck();
     if (method === 'exportTemplate') return this.#exportTemplate();
     if (method === 'importTemplate') return this.#importTemplate(args?.[0]);
@@ -1934,7 +1948,7 @@ export class FarmWorld {
 
   /** 「农场自定义」页的数据面。统一返回最新 snapshot，面板不用再读一次。 */
   async #customInvoke(method, args, cfg) {
-    if (['backup', 'reset', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup', 'openBackups'].includes(method)) {
+    if (['backup', 'reset', 'initCoins', 'check', 'setEngine', 'setElectronPath', 'exportTemplate', 'importTemplate', 'importTemplateData', 'applyDefaultTemplate', 'listBackups', 'restoreBackup', 'openBackups'].includes(method)) {
       return this.#manageAction(method, args);
     }
     if (method === 'sprite') {
