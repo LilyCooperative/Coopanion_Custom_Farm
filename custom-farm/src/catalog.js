@@ -1311,6 +1311,7 @@ export class FarmCatalog {
     if (!stage?.product) throw new Error('这个阶段还没有配置产物。');
     const r = this.copySprite(srcPath, 'animal_product', key + '_' + stageIndex + '_icon', 0);
     stage.product.icon = r.sprite;
+    this.ensureAnimalProductItem(stage.product, animal, Number(stageIndex));
     this.persist();
     this.apply();
     return { sprite: r.sprite, width: r.width, height: r.height };
@@ -1655,7 +1656,7 @@ export class FarmCatalog {
     const normalized = normalizeAnimal({ ...base, ...input }, idx >= 0 ? idx : list.length);
     if (!normalized) throw new Error('动物配置不完整。');
     if (idx >= 0) list[idx] = normalized; else list.push(normalized);
-    const productIds = [normalized.product?.item, ...(normalized.stages ?? []).map((s) => s.product?.item)].filter(Boolean);
+    const productIds = (normalized.stages ?? []).map((s) => s.product?.item).filter(Boolean);
     for (const id of productIds) {
       const item = this.store.items?.find((it) => it.id === id);
       if (item) item.animalProduct = true;

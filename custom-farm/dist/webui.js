@@ -3507,7 +3507,6 @@ function animalsPanel(ctx) {
           key, name: zh ? '新动物' : 'New animal', layer: 'mid', enabled: true,
           actions: [{ key: 'idle', name: zh ? '待机' : 'Idle', weight: 60 }, { key: 'walk', name: zh ? '走路' : 'Walk', weight: 40 }],
           walk: { chance: 0.35, speed: 0.012, range: 0.16 },
-          product: { item: '', name: zh ? '产物' : 'Product', icon: '', everyDays: 2, count: 1 },
           prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
           stages: [{
             key: 'stage_1', name: zh ? '幼崽' : 'Baby', days: 1.5, scale: 0.12,
@@ -3550,13 +3549,6 @@ function animalsPanel(ctx) {
         ui.field(T.walkRange, num(draft.walk.range, (v) => { draft.walk.range = v; }, '0.01')),
       );
       sheet.body.append(walk);
-      const prod = ui.h('div', 'cf-row');
-      prod.append(
-        ui.field(T.product, txt(draft.product.item, (v) => { draft.product.item = v; })),
-        ui.field(T.everyDays, num(draft.product.everyDays, (v) => { draft.product.everyDays = v; }, '0.05')),
-        ui.field(T.count, num(draft.product.count, (v) => { draft.product.count = v; }, '1')),
-      );
-      sheet.body.append(prod);
       for (const st of draft.stages) {
         const si = draft.stages.indexOf(st);
         const stageRow = ui.h('div', 'cf-row');
@@ -3577,16 +3569,19 @@ function animalsPanel(ctx) {
         }
         sheet.body.append(stageRow);
 
-        const prod = st.product ?? { ...draft.product, item: draft.product?.item ?? 'egg' };
+        const defaults = { item: '', name: zh ? '产物' : 'Product', icon: '', everyDays: 2, count: 1 };
+        const prod = st.product ?? defaults;
         const prodRow = ui.h('div', 'cf-row');
         const prodOn = ui.checkbox(zh ? '该阶段产生产物' : 'Produces items', {
           checked: Boolean(st.product),
           onChange: (v) => {
-            st.product = v ? { ...prod } : null;
+            st.product = v ? { ...defaults } : null;
+            void call('saveAnimal', [draft], T.saved);
           },
         });
         const setProd = (k, v) => {
-          st.product = { ...(st.product ?? { ...prod }), [k]: v };
+          if (!st.product) return;
+          st.product = { ...st.product, [k]: v };
         };
         prodRow.append(
           prodOn.el,
@@ -3601,7 +3596,9 @@ function animalsPanel(ctx) {
           size: 'sm',
           onClick: () => void changeProductIcon(sp.key, si),
         }));
-        sheet.body.append(prodRow, iconRow);
+        iconRow.append(ui.h('span', 'cf-note', zh ? '图标会同步到「道具自定义」' : 'Icon syncs to Item customization'));
+        sheet.body.append(prodRow);
+        if (st.product) sheet.body.append(iconRow);
 
         for (const action of ['idle', 'walk', 'peck']) {
           const frames = st.sprites?.[action];

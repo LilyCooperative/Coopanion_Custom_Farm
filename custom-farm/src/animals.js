@@ -42,7 +42,6 @@ export function builtinAnimals() {
       { key: 'peck', name: '啄食', weight: 20 },
     ],
     walk: { chance: 0.35, speed: 0.012, range: 0.16 },
-    product: { item: 'egg', name: '鸡蛋', icon: 'icon_item_egg', everyDays: 2, count: 1 },
     prices: { babyBuy: 60, babySell: 30, adultSell: 120 },
     stages: [
       {
@@ -124,6 +123,10 @@ export function normalizeAnimal(src, index = 0) {
     .slice(0, 8);
   if (!stageDefs.length) return null;
   const last = stageDefs.length - 1;
+  // 旧版把产物放在物种上；迁移到最后一个阶段，之后只在阶段上定义。
+  if (!stageDefs.some((s) => s.product) && src.product && typeof src.product === 'object') {
+    stageDefs[last].product = { ...productDefaults };
+  }
   for (let i = 0; i < stageDefs.length; i++) if (i === last) stageDefs[i].days = 0;
   const prices = {
     babyBuy: int(src.prices?.babyBuy, 0, 1000000, 0),
@@ -141,7 +144,7 @@ export function normalizeAnimal(src, index = 0) {
       speed: clamp(src.walk?.speed, 0.0001, 1, 0.012),
       range: clamp(src.walk?.range, 0.01, 0.5, 0.16),
     },
-    product: productDefaults,
+    product: null,
     prices,
     stages: stageDefs,
   };

@@ -13,6 +13,7 @@ import { FarmCatalog } from '../src/catalog.js';
 import { live } from '../src/catalog-state.js';
 import { buildZip, readZip } from '../src/zip.js';
 import { CROP_PRICES, FURNITURE, FURNITURE_ENABLED, SEED_BY_CROP, SEED_BY_ID } from '../src/shop.js';
+import { normalizeAnimal, advanceAnimal, normalizeAnimalState } from '../src/animals.js';
 import {
   REACH, checkSpot, cropOf, growthForLevel, isRipe, levelOf, minGapX, newState, pickSpot, water, waterTargets,
   X_MIN, X_MAX, farmBounds, applyFarmSize, overlayView, advance, removeDeadAt, summary, harvestWeed,
@@ -789,6 +790,28 @@ await legacyWorld.stop();
   check('旧存档卡住的玉米启动时升到最高级', cornPlot.level === CROPS.corn.levels - 1, 'level=' + cornPlot.level);
   check('修复后的玉米算熟', isRipe(cornPlot) === true);
   await stuckWorld.stop();
+}
+
+// --- 15. 动物产物只在阶段上定义，旧版物种产物迁移到最后一个阶段 ----------------
+{
+  const legacy = normalizeAnimal({
+    key: 'legacy_test', stages: [{ key: 'baby', days: 1 }, { key: 'adult', days: 0 }],
+    product: { item: 'egg', name: '蛋', icon: 'icon_item_egg', everyDays: 2, count: 1 },
+  });
+  check('旧动物产物迁移到成年阶段', legacy.product === null && legacy.stages[1].product?.item === 'egg' && legacy.stages[0].product === null);
+  const species = normalizeAnimal({
+    key: 'product_test',
+    stages: [{ key: 'adult', days: 0, product: { item: 'egg', everyDays: 0.01, count: 2 } }],
+  });
+  const animal = normalizeAnimalState([{
+    id: 'a_test', species: 'product_test', stage: 0, ageDays: 0,
+    x: 0.5, anchor: 0.5, range: 0.1, nextProductAt: 0, actionUntil: clock + 1000,
+  }])[0];
+  animal.action = 'idle';
+  animal.targetX = null;
+  advanceAnimal(animal, species, clock, 0.001, random, 1);
+  const made = advanceAnimal(animal, species, clock + 1000, 0.02, random, 1);
+  check('阶段产物按时产出', made.length === 1 && made[0].item === 'egg' && made[0].count === 2, JSON.stringify(made));
 }
 
 await rm(dataDir, { recursive: true, force: true });
