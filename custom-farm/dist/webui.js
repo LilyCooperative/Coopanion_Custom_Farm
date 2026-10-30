@@ -2012,7 +2012,10 @@ function bagPanel(ctx) {
             name: item.name,
             icon: item.icon,
             sprite: item.sprite || item.icon,
+            kind: item.kind,
+            animal: Boolean(item.animal),
             x: 0.5,
+            range: 0.16,
           };
           render();
         },
@@ -2143,13 +2146,25 @@ function bagPanel(ctx) {
     }, { signal: ctx.signal });
     row.append(
       ui.field(T.placeCoord, pos),
+    );
+    if (placing.animal) {
+      const range = ui.input({ type: 'number', value: String(Math.round(placing.range * 100)) });
+      range.min = '2';
+      range.max = '45';
+      range.addEventListener('input', () => {
+        const n = Number(range.value);
+        if (Number.isFinite(n)) placing.range = Math.min(0.45, Math.max(0.02, n / 100));
+      }, { signal: ctx.signal });
+      row.append(ui.field('活动范围（±%）', range));
+    }
+    row.append(
       ui.button(T.placeConfirm, {
         variant: 'primary',
         onClick: () => {
           const p = placing;
           placing = null;
           selectedKey = null;
-          void call('placeItem', [p.id, p.x]);
+          void call(p.animal ? 'placeAnimal' : 'placeItem', p.animal ? [p.id, p.x, p.range] : [p.id, p.x]);
         },
       }),
       ui.button(T.placeCancel, {
@@ -2939,8 +2954,9 @@ function ecologyPanel(ctx) {
 function animalsPanel(ctx) {
   const { ui } = ctx;
   const zh = isZh(ctx.language);
+  const { thumb, pickPng } = spriteKit(ctx, ui, { pickTitle: zh ? '选择动物帧 PNG' : 'Pick animal frame PNG' });
   const T = {
-    title: zh ? '动物' : 'Animals',
+    title: zh ? '动物自定义' : 'Animal customization',
     desc: zh ? '鸡等动物默认在 mid 图层：在桌宠后面、草地前面。这里设置动作帧、随机概率、产物和价格。' : 'Animals default to the mid layer: behind the pet, in front of the ground. Set actions, probabilities, products and prices here.',
     stock: zh ? '背包里的动物' : 'Animals in bag',
     placed: zh ? '已放置' : 'Placed',
@@ -2965,6 +2981,8 @@ function animalsPanel(ctx) {
     stages: zh ? '生长阶段' : 'Stages',
     actions: zh ? '动作权重' : 'Action weights',
     item: zh ? '动物道具' : 'Animal item',
+    change: zh ? '换' : 'Change',
+    frame: zh ? '帧' : 'Frame',
   };
   const root = ui.h('div', 'cf-root');
   ctx.root.appendChild(root);
@@ -3001,6 +3019,19 @@ function animalsPanel(ctx) {
     el.addEventListener('change', () => onChange(el.value), { signal: ctx.signal });
     return el;
   };
+
+  async function changeFrame(speciesKey, stageIndex, action, frameIndex) {
+    const path = await pickPng();
+    if (!path) return;
+    try {
+      await ctx.invoke('importAnimalSprite', [speciesKey, stageIndex, action, frameIndex, path]);
+      snap = await ctx.invoke('state');
+      render();
+      ui.toast(T.saved);
+    } catch (err) {
+      ui.toast((err && err.message) || String(err), 'bad');
+    }
+  }
 
   function anchorTrack() {
     const track = ui.h('div', 'animal-track');
@@ -3105,6 +3136,22 @@ function animalsPanel(ctx) {
           ui.field(zh ? '贴图前缀' : 'Sprite prefix', txt(st.prefix, (v) => { st.prefix = v; })),
         );
         sheet.body.append(stageRow);
+        for (const action of ['idle', 'walk', 'peck']) {
+          const frames = st.sprites?.[action];
+          if (!Array.isArray(frames) || !frames.length) continue;
+          const frameRow = ui.h('div', 'cf-row');
+          frameRow.append(ui.h('span', 'cf-note', action));
+          frames.forEach((sprite, index) => {
+            const cell = ui.h('div', 'cf-row');
+            cell.append(thumb(sprite, 42));
+            cell.append(ui.button(T.change, {
+              size: 'sm',
+              onClick: () => void changeFrame(sp.key, draft.stages.indexOf(st), action, index),
+            }));
+            frameRow.append(cell);
+          });
+          sheet.body.append(frameRow);
+        }
       }
       const actRow = ui.h('div', 'cf-row');
       for (const a of draft.actions) {

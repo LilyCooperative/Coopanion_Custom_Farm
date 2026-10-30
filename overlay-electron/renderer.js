@@ -188,7 +188,7 @@ function draw(now) {
   }
 
   const wf = state.weatherFx || { mode: 'both', swayAmp: 3.2, squash: 0, speed: 1 };
-  const drawSprite = (img, x, bottom, scale = 1, phase = 0, kind = 'crop') => {
+  const drawSprite = (img, x, bottom, scale = 1, phase = 0, kind = 'crop', flip = false) => {
     if (!ready(img)) return;
     const w = img.naturalWidth * Z * cs * scale;
     const h = img.naturalHeight * Z * cs * scale;
@@ -205,7 +205,7 @@ function draw(now) {
     ctx.save();
     ctx.translate(x * W, bottom);
     ctx.rotate(angle * Math.PI / 180);
-    ctx.scale(1 - 0.45 * sq, 1 + sq);
+    ctx.scale((flip ? -1 : 1) * (1 - 0.45 * sq), 1 + sq);
     ctx.drawImage(img, -w / 2, -h + 2, w, h);
     ctx.restore();
   };
@@ -243,7 +243,7 @@ function draw(now) {
       const frames = Array.isArray(a.frames) && a.frames.length ? a.frames : [a.sprite];
       const frame = Math.floor((Date.now() - (Number(a.startedAt) || Date.now())) / (Number(a.actionMs) || 220));
       const sprite = frames[((frame % frames.length) + frames.length) % frames.length] || a.sprite;
-      drawSprite(image(sprite), drawX, g, Number(a.scale) || 0.2, drawX * 11, 'animal');
+      drawSprite(image(sprite), drawX, g, Number(a.scale) || 0.2, drawX * 11, 'animal', a.dir < 0);
     }
   }
 

@@ -1249,6 +1249,20 @@ export class FarmCatalog {
     return { sprite: name, width: info.width, height: info.height };
   }
 
+  importAnimalSprite(key, stageIndex, action, frameIndex, srcPath) {
+    const animal = (this.store.animals ?? []).find((a) => a.key === String(key));
+    const stage = animal?.stages?.[Number(stageIndex)];
+    if (!stage) throw new Error('找不到这个动物阶段。');
+    if (!stage.sprites?.[action]) stage.sprites[action] = [];
+    const r = this.copySprite(srcPath, 'animal', key + '_' + stageIndex + '_' + action, frameIndex);
+    const list = stage.sprites[action];
+    while (list.length <= Number(frameIndex)) list.push(list[list.length - 1] ?? stage.sprites.idle?.[0] ?? 'icon_item_soil');
+    list[Number(frameIndex)] = r.sprite;
+    this.persist();
+    this.apply();
+    return { sprite: r.sprite, width: r.width, height: r.height };
+  }
+
   importSprite(kind, key, slot, srcPath) {
     return this.copySprite(srcPath, kind, key, slot);
   }

@@ -1660,11 +1660,6 @@ export class FarmWorld {
         description: '背包、农场预览、摆放道具与手动合成；装饰在这里输入坐标放置。',
         getMethods: ['state'],
       }, {
-        id: 'animals',
-        title: '动物',
-        description: '鸡等动物：幼崽/成年、动作帧、随机游走、产物、价格、放置与回收。',
-        getMethods: ['state'],
-      }, {
         id: 'shop',
         title: '商店',
         description: '只列买价 > 0 的道具；点「买 1」放进背包。',
@@ -1673,6 +1668,11 @@ export class FarmWorld {
         id: 'customize',
         title: '农场自定义',
         description: '农场地面、作物与杂草：增删、阶段天数、价值与贴图。',
+        getMethods: ['state'],
+      }, {
+        id: 'animals',
+        title: '动物自定义',
+        description: '鸡等动物：幼崽/成年、动作帧、随机游走、产物、价格、放置与回收。',
         getMethods: ['state'],
       }, {
         id: 'ecology',
@@ -2072,7 +2072,10 @@ export class FarmWorld {
           count: Number(count),
           kind: def.kind ?? 'item',
           sell: sellPriceOf(id),
-          placeable: def.kind === 'decor' && Boolean(def.sprite),
+          placeable: (def.kind === 'decor' && Boolean(def.sprite)) || def.kind === 'animal',
+          animal: def.kind === 'animal',
+          animalSpecies: def.animalSpecies ?? null,
+          animalStage: def.animalStage ?? null,
           consumable: Boolean(def.consumable),
           sprite: def.sprite ?? '',
         };
@@ -2168,10 +2171,17 @@ export class FarmWorld {
         catalog.removeAnimal(args?.[0]);
         return this.#animalSnapshot();
       }
+      case 'sprite':
+        return { $binary: catalog.spriteBase64(args?.[0]) };
+      case 'importAnimalSprite': {
+        const r = catalog.importAnimalSprite(args?.[0], args?.[1], args?.[2], args?.[3], args?.[4]);
+        return { ...this.#animalSnapshot(), ...r };
+      }
       case 'place': {
-        const itemId = String(args?.[0]?.item ?? '');
-        const x = Number(args?.[0]?.x);
-        const range = Number(args?.[0]?.range ?? 0.16);
+        const input = args?.[0] && typeof args[0] === 'object' ? args[0] : { item: args?.[0], x: args?.[1], range: args?.[2] };
+        const itemId = String(input.item ?? '');
+        const x = Number(input.x);
+        const range = Number(input.range ?? 0.16);
         const item = live.items?.[itemId];
         if (!item || item.kind !== 'animal') throw new Error('这不是动物幼崽/成年道具。');
         const species = live.animals?.[item.animalSpecies];
@@ -2284,6 +2294,10 @@ export class FarmWorld {
       case 'placeItem': {
         const r = await this.#placeItem(args?.[0], args?.[1]);
         return { ...this.#bagSnapshot(), ...r };
+      }
+      case 'placeAnimal': {
+        const r = await this.#animalInvoke('place', args);
+        return { ...this.#bagSnapshot(), ...r, text: '动物已放到农场。' };
       }
       case 'removeCrop': {
         const raw = args?.[0];

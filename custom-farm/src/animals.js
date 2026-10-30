@@ -187,6 +187,7 @@ export function startAnimalAction(animal, species, now, random, forceWalk = fals
   const picked = pickWeighted(weighted.length ? weighted : [{ key: 'idle', p: 1 }], random);
   animal.action = picked.key;
   animal.targetX = null;
+  animal.dir = random() < 0.5 ? -1 : 1;
   animal.actionStartedAt = now;
   animal.actionUntil = now + 1400 + Math.round(random() * 1800);
 }
