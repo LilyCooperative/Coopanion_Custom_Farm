@@ -437,6 +437,11 @@ export class FarmCatalog {
         id: 'deco_cabin', name: '小木屋', kind: 'decor', buy: 350, sell: 120,
         consumable: false, effects: [], icon: 'deco_cabin', sprite: 'deco_cabin', layer: 'bottom',
       },
+      {
+        id: 'deco_fence', name: '木篱笆', kind: 'decor', buy: 100, sell: 35,
+        consumable: false, effects: [], icon: 'icon_deco_fence', sprite: 'deco_fence', layer: 'bottom',
+        scale: 0.7,
+      },
     ];
   }
 
