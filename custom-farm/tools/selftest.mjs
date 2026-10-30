@@ -134,8 +134,9 @@ check('番茄可多次收获（lifespan 4）', CROPS.tomato.lifespan === 4 && CR
   check('农田缩小：作物整体变小', Math.abs(shrink.cropScale - 0.5) < 1e-9, String(shrink.cropScale));
   const moved = s.plots.find((p) => p.id === 4);
   check('农田缩小：作物位置按中心缩放', moved && Math.abs(moved.x - 0.4) < 0.01, String(moved && moved.x));
-  check('农田缩小：新野地补杂草', shrink.weedsAdded > 0, 'added=' + shrink.weedsAdded);
-  check('农田缩小：野地也能种', checkSpot(s, 0.1, 'tomato', { ...cfg, farmCells: 24 }).ok);
+  check('农田缩小：新野地不补杂草（范围同步变窄）', shrink.weedsAdded === 0, 'added=' + shrink.weedsAdded);
+  check('农田缩小：可种范围变窄', farmBounds({ ...cfg, farmCells: 24 }).max < farmBounds(cfg).max);
+  check('农田缩小：原野地不能再种', !checkSpot(s, 0.1, 'tomato', { ...cfg, farmCells: 24 }).ok);
   // 24 格时在野地种一棵；扩到 48 格会被推出屏幕，删除并退种子
   s.plots.push(mk(5, 0.1));
   const grow = applyFarmSize(s, { ...cfg, farmCells: 48 }, random);
@@ -492,7 +493,7 @@ check('游戏表里番茄产量 2~4', CROPS.tomato.minCount === 2 && CROPS.tomat
 check('土豆固定 2~4、南瓜固定 1', CROPS.potato.minCount === 2 && CROPS.potato.maxCount === 4 && CROPS.pumpkin.minCount === 1);
 
 // --- 6. 捡起来才进背包 -----------------------------------------------------
-const away = await tool('farm_stand')({ at: 0.02 });
+const away = await tool('farm_stand')({ at: 0.3 });
 check('走远去站', !away.failed, away.text.split('\n')[0]);
 const badCollect = await tool('farm_collect')({});
 check('离得远捡不到', badCollect.failed === true, badCollect.text.split('\n')[0]);

@@ -23,26 +23,26 @@ export const FARM_BASE_CELLS = 48;
 export const FARM_MIN_CELLS = 12;
 
 /**
- * 可种植范围固定铺满可用底边（X_MIN..X_MAX）；farmCells 只控制整体视觉缩放。
- * 草地本身由图层循环铺满整条底边，不随格数变窄。
+ * 农田可种范围：以屏幕中心为中线，宽度随 farmCells 缩放。
+ * 48 格 = 满宽，12 格 = 1/4 宽；作物/杂草的贴图也按同一比例缩放。
  */
 export function farmBounds(cfg = DEFAULTS) {
   const cells = Math.min(FARM_BASE_CELLS, Math.max(FARM_MIN_CELLS, Math.round(Number(cfg.farmCells ?? FARM_BASE_CELLS))));
+  const cropScale = cells / FARM_BASE_CELLS;
+  const width = (X_MAX - X_MIN) * cropScale;
   return {
-    min: X_MIN,
-    max: X_MAX,
-    width: X_MAX - X_MIN,
+    min: 0.5 - width / 2,
+    max: 0.5 + width / 2,
+    width,
     center: 0.5,
     cells,
-    cropScale: cells / FARM_BASE_CELLS,
+    cropScale,
   };
 }
 
-/** 视觉上“成块农田”的范围：居中，宽度 = 可种宽度 × cropScale；外面是野地，也可种。 */
+/** 视觉上的农田范围与可种范围一致。 */
 export function farmPatch(cfg = DEFAULTS) {
-  const b = farmBounds(cfg);
-  const width = b.width * b.cropScale;
-  return { min: 0.5 - width / 2, max: 0.5 + width / 2, width, cropScale: b.cropScale };
+  return farmBounds(cfg);
 }
 /** 拾取/收割的"够得着"半径（x 比例）。 */
 export const REACH = 0.05;
@@ -331,7 +331,8 @@ export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
   if (!Array.isArray(state.weeds)) state.weeds = [];
   if (!Number.isFinite(state.nextWeedId)) state.nextWeedId = 1;
   const map = (x) => 0.5 + (Number(x) - 0.5) * ratio;
-  const onFarm = (x) => x >= X_MIN - 1e-9 && x <= X_MAX + 1e-9;
+  const bounds = farmBounds(cfg);
+  const onFarm = (x) => x >= bounds.min - 1e-9 && x <= bounds.max + 1e-9;
 
   const kept = [];
   for (const p of state.plots) {
@@ -364,40 +365,6 @@ export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
   state.weeds = weeds;
   out.weedsRemoved = beforeWeeds - state.weeds.length;
 
-  // 缩小时，新露出的两侧野地补草（这些地方也能种）
-  if (ratio < 1 - 1e-9) {
-    const contentW = (X_MAX - X_MIN) * newScale;
-    const leftEnd = 0.5 - contentW / 2;
-    const rightStart = 0.5 + contentW / 2;
-    const slots = [[X_MIN, leftEnd], [rightStart, X_MAX]].filter(([a, b]) => b > a + 1e-9);
-    const want = Math.max(0, Math.round(Number(cfg.startWeeds ?? 42) * (X_MAX - X_MIN) * (oldScale - newScale)));
-    const maxWeeds = Number(cfg.maxWeeds ?? 46);
-    let left = Math.min(want, Math.max(0, maxWeeds - state.weeds.length));
-    let guard = left * 12 + 20;
-    while (left > 0 && slots.length > 0 && guard > 0) {
-      guard -= 1;
-      const slot = slots[Math.floor(random() * slots.length)];
-      const x = round2(slot[0] + random() * (slot[1] - slot[0]));
-      if (occupied(state, x, 0.06)) continue;
-      if (state.weeds.some((w) => Math.abs(Number(w.x) - x) < 0.03)) continue;
-      const type = pickWeedType(random);
-      if (!type) break;
-      const lvl = Math.min(type.stages - 1, Math.floor(random() * type.stages));
-      const baseAge = lvl === 0 ? 0 : (type.thresholds[lvl - 1] ?? 0);
-      const span = lvl >= type.stages - 1 ? 0 : (type.days[lvl] ?? 0.45);
-      state.weeds.push({
-        id: state.nextWeedId++,
-        x,
-        kind: 'weed',
-        type: type.key,
-        level: lvl,
-        age: round2(baseAge + random() * span * 0.95),
-      });
-      left -= 1;
-      out.weedsAdded += 1;
-    }
-  }
-
   if (Array.isArray(state.drops)) {
     const drops = [];
     for (const d of state.drops) {
@@ -411,7 +378,7 @@ export function applyFarmSize(state, cfg = DEFAULTS, random = Math.random) {
 
   if (Number.isFinite(Number(state.standingAt))) {
     const nx = map(state.standingAt);
-    state.standingAt = round2(Math.min(X_MAX, Math.max(X_MIN, nx)));
+    state.standingAt = round2(Math.min(bounds.max, Math.max(bounds.min, nx)));
   }
 
   state.farmCells = newCells;
