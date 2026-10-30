@@ -2254,6 +2254,65 @@ function bagPanel(ctx) {
     }
   }
 
+  function inlineEditor(p) {
+    const isMove = p.mode === 'move';
+    const editor = ui.h('div', 'bg-inline-editor');
+    editor.style.display = 'flex';
+    editor.style.flexWrap = 'wrap';
+    editor.style.gap = '8px';
+    editor.style.alignItems = 'flex-end';
+    editor.style.flexDirection = 'column';
+    editor.style.marginTop = '8px';
+    editor.style.paddingTop = '8px';
+    editor.style.borderTop = '1px solid var(--line, rgba(127,127,127,.3))';
+    editor.append(ui.h('div', 'cf-sub', isMove ? T.moveTitle(p.name) : T.placeTitle(p.name)));
+    const row = ui.h('div', 'bg-actions');
+    row.style.flexWrap = 'wrap';
+    const pos = ui.input({ type: 'number', value: String(Math.round(p.x * 100)) });
+    pos.min = '0';
+    pos.max = '100';
+    pos.addEventListener('input', () => {
+      const n = Number(pos.value);
+      if (Number.isFinite(n)) {
+        p.x = Math.min(1, Math.max(0, n / 100));
+        paintPreview();
+      }
+    }, { signal: ctx.signal });
+    row.append(ui.field(T.placeCoord, pos));
+    if (p.animal) {
+      const range = ui.input({ type: 'number', value: String(Math.round(p.range * 100)) });
+      range.min = '2';
+      range.max = '45';
+      range.addEventListener('input', () => {
+        const n = Number(range.value);
+        if (Number.isFinite(n)) p.range = Math.min(0.45, Math.max(0.02, n / 100));
+      }, { signal: ctx.signal });
+      row.append(ui.field('活动范围（±%）', range));
+    }
+    row.append(
+      ui.button(isMove ? T.moveConfirm : T.placeConfirm, {
+        variant: 'primary',
+        onClick: () => {
+          const copy = placing;
+          placing = null;
+          selectedKey = null;
+          if (copy.mode === 'move') {
+            void call(copy.animal ? 'moveAnimal' : 'moveDecor',
+              copy.animal ? [copy.animalId, copy.x, copy.range] : [copy.uid, copy.x]);
+          } else {
+            void call(copy.animal ? 'placeAnimal' : 'placeItem',
+              copy.animal ? [copy.id, copy.x, copy.range] : [copy.id, copy.x]);
+          }
+        },
+      }),
+      ui.button(T.placeCancel, {
+        onClick: () => { placing = null; selectedKey = null; render(); },
+      }),
+    );
+    editor.append(row);
+    return editor;
+  }
+
   function bagCard(item) {
     const box = ui.h('div', 'bg-card');
     box.append(
@@ -2283,12 +2342,14 @@ function bagPanel(ctx) {
             animal: Boolean(item.animal),
             x: 0.5,
             range: 0.16,
+            key: 'bag:' + item.id,
           };
           render();
         },
       }));
     }
     if (acts.children.length) box.append(acts);
+    if (placing?.key === 'bag:' + item.id) box.append(inlineEditor(placing));
     return box;
   }
 
@@ -2458,6 +2519,7 @@ function bagPanel(ctx) {
     const pos = group.positions?.[0] ?? {};
     placing = {
       mode: 'move',
+      key: group.key,
       animal: group.kind === 'animal',
       id: group.id,
       uid: group.uid,
@@ -2498,6 +2560,7 @@ function bagPanel(ctx) {
       if (group.kind === 'decor' || group.kind === 'animal') {
         acts.append(ui.button(group.kind === 'animal' ? T.moveAnimal : T.moveDecor, {
           size: 'sm',
+          variant: 'primary',
           onClick: () => startMove(group),
         }));
       }
@@ -2523,6 +2586,7 @@ function bagPanel(ctx) {
         }));
       }
       box.append(acts);
+      if (placing?.key === group.key) box.append(inlineEditor(placing));
       grid.append(box);
     }
     sheet.body.append(grid);
@@ -2546,7 +2610,6 @@ function bagPanel(ctx) {
     for (const item of snap.items) bagGrid.append(bagCard(item));
     bagSheet.body.append(bagGrid);
 
-    const placingEl = placingSection();
     const previewEl = previewSection();
     const placedEl = placedSection();
     let craftEl;
@@ -2557,7 +2620,6 @@ function bagPanel(ctx) {
       craftEl = ui.h('pre', 'cf-note', String((err && err.stack) || err));
     }
     const parts = [bagSheet.el];
-    if (placingEl) parts.push(ui.h('hr', 'cf-hr'), placingEl);
     parts.push(
       ui.h('hr', 'cf-hr'),
       previewEl,
