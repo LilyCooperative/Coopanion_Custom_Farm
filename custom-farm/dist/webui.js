@@ -31,7 +31,7 @@ if (typeof document !== 'undefined') {
     refreshFarmConfigUi();
     new MutationObserver(refreshFarmConfigUi).observe(document.body, { childList: true, subtree: true, characterData: true });
     window.addEventListener('hashchange', refreshFarmConfigUi);
-    setInterval(refreshFarmConfigUi, 1000);
+    setInterval(refreshFarmConfigUi, 300);
   };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start, { once: true });
@@ -279,67 +279,52 @@ function injectFarmInitCoins() {
   try {
     const hash = String(location.hash || '');
     if (!hash.includes('world%3Afarm') && !hash.includes('world:farm')) return;
-    const view = farmConfigView();
-    if (!view || view.querySelector('[data-farm-init-coins]')) return;
-    const labels = [...view.querySelectorAll('label, .tlabel, .field-label, .cfg-label')];
-    const label = labels.find((el) => {
-      const text = (el.textContent || '').trim();
-      return text.includes('新开局初始金币') || text.includes('Starting coins');
-    });
-    let holder = label ? (label.closest('.tfield') || label.parentElement) : null;
-    let fallbackRow = null;
-    if (!holder) {
-      const section = [...view.querySelectorAll('.tsection')].find((el) => /初始化|Initialization/.test(el.textContent || ''));
-      if (!section) return;
-      fallbackRow = document.createElement('div');
-      fallbackRow.className = 'trow';
-      const l = document.createElement('span');
-      l.className = 'tlabel';
-      l.textContent = '金币';
-      holder = document.createElement('div');
-      holder.className = 'tfield';
-      holder.style.display = 'flex';
-      holder.style.gap = '8px';
-      holder.style.flexWrap = 'wrap';
-      fallbackRow.append(l, holder);
-      section.after(fallbackRow);
+    for (const view of farmConfigViews()) {
+      if (view.querySelector('[data-farm-init-coins]')) continue;
+      const row = [...view.querySelectorAll('.trow')].find((el) => {
+        const text = (el.textContent || '').trim();
+        return text.includes('新开局初始金币') || text.includes('Starting coins');
+      });
+      const section = [...view.querySelectorAll('.tsection')].find((el) =>
+        /初始化|Initialization/.test(el.textContent || ''));
+      if (!row && !section) continue;
+
+      const action = document.createElement('div');
+      action.className = 'trow';
+      action.dataset.farmInitCoins = '1';
+      const label = document.createElement('span');
+      label.className = 'tlabel';
+      label.textContent = '金币操作';
+      const field = document.createElement('div');
+      field.className = 'tfield';
+      field.style.display = 'flex';
+      field.style.flexWrap = 'wrap';
+      field.style.alignItems = 'center';
+      field.style.gap = '8px';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn sm primary';
+      btn.textContent = '重置金币';
+      btn.title = '把当前存档金币重置为新开局初始金币';
+      const status = document.createElement('span');
+      status.className = 'tdesc';
+      status.style.fontSize = '11px';
+      btn.addEventListener('click', async () => {
+        if (!window.confirm('把当前存档的金币重置为「新开局初始金币」的数值？')) return;
+        btn.disabled = true;
+        status.textContent = '正在初始化…';
+        try {
+          const r = await farmManageCall('initCoins');
+          status.textContent = r.text || '已初始化';
+        } catch (err) {
+          status.textContent = '初始化失败：' + ((err && err.message) || err);
+        } finally { btn.disabled = false; }
+      });
+      field.append(btn, status);
+      action.append(label, field);
+      if (row) row.after(action);
+      else section.after(action);
     }
-    if (!holder) return;
-    const wrap = document.createElement('span');
-    wrap.dataset.farmInitCoins = '1';
-    wrap.style.display = 'inline-flex';
-    wrap.style.alignItems = 'center';
-    wrap.style.gap = '6px';
-    wrap.style.flex = '0 0 auto';
-    holder.style.flexWrap = 'nowrap';
-    const input = holder.querySelector('input');
-    if (input) {
-      input.style.width = 'auto';
-      input.style.flex = '1 1 auto';
-      input.style.minWidth = '0';
-    }
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn sm primary';
-    btn.textContent = '重置金币';
-    btn.title = '把当前存档金币重置为新开局初始金币';
-    const status = document.createElement('span');
-    status.className = 'tdesc';
-    status.style.fontSize = '11px';
-    status.style.whiteSpace = 'nowrap';
-    btn.addEventListener('click', async () => {
-      if (!window.confirm('把当前存档的金币重置为「新开局初始金币」的数值？')) return;
-      btn.disabled = true;
-      status.textContent = '正在初始化…';
-      try {
-        const r = await farmManageCall('initCoins');
-        status.textContent = r.text || '已初始化';
-      } catch (err) {
-        status.textContent = '初始化失败：' + ((err && err.message) || err);
-      } finally { btn.disabled = false; }
-    });
-    wrap.append(btn, status);
-    holder.append(wrap);
   } catch { /* 忽略非配置页 */ }
 }
 
@@ -695,12 +680,11 @@ const TEXT = {
 };
 
 const isZh = (lang) => String(lang || '').toLowerCase().startsWith('zh');
+function farmConfigViews() {
+  return [...document.querySelectorAll('.configview')];
+}
 function farmConfigView() {
-  const views = [...document.querySelectorAll('.configview')];
-  return views.find((v) => {
-    const r = v.getBoundingClientRect();
-    return r.width > 0 && r.height > 0 && v.offsetParent !== null;
-  }) || views[0] || null;
+  return farmConfigViews()[0] || null;
 }
 const LAYER_LABELS = {
   zh: {
