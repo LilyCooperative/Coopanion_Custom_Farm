@@ -2150,10 +2150,15 @@ const BAG = {
     recycle: '回收',
     highlightHint: '点击图标高亮位置',
     placeTitle: (name) => '放置 ' + name,
+    moveTitle: (name) => '调整 ' + name + ' 的位置',
     placeCoord: '落点（0~100%）',
     placeConfirm: '确定放置',
+    moveConfirm: '保存位置',
+    moveDecor: '改放置位置',
+    moveAnimal: '改位置/范围',
     placeCancel: '取消',
     placeHint: '填 0~100 的横坐标；预览里的虚线和半透明贴图就是落点。',
+    moveHint: '填新的 0~100 横坐标；动物还可以同时改活动范围。',
     coins: '金币',
     bagCount: '背包件数',
     emptyBag: '背包是空的。',
@@ -2195,10 +2200,15 @@ const BAG = {
     recycle: 'Recycle',
     highlightHint: 'Click icon to highlight',
     placeTitle: (name) => 'Place ' + name,
+    moveTitle: (name) => 'Move ' + name,
     placeCoord: 'Position (0–100%)',
     placeConfirm: 'Place here',
+    moveConfirm: 'Save position',
+    moveDecor: 'Change position',
+    moveAnimal: 'Change position / range',
     placeCancel: 'Cancel',
     placeHint: 'Enter an x position 0–100; the dashed line and ghost sprite show the spot.',
+    moveHint: 'Enter a new x position 0–100; animals can also change their range.',
     coins: 'Coins',
     bagCount: 'Items',
     emptyBag: 'The bag is empty.',
@@ -2389,7 +2399,11 @@ function bagPanel(ctx) {
 
   function placingSection() {
     if (!placing) return null;
-    const sheet = ui.sheet({ title: T.placeTitle(placing.name), desc: T.placeHint });
+    const isMove = placing.mode === 'move';
+    const sheet = ui.sheet({
+      title: isMove ? T.moveTitle(placing.name) : T.placeTitle(placing.name),
+      desc: isMove ? T.moveHint : T.placeHint,
+    });
     const row = ui.rowbar();
     const pos = ui.input({ type: 'number', value: String(Math.round(placing.x * 100)) });
     pos.min = '0';
@@ -2415,13 +2429,18 @@ function bagPanel(ctx) {
       row.append(ui.field('活动范围（±%）', range));
     }
     row.append(
-      ui.button(T.placeConfirm, {
+      ui.button(isMove ? T.moveConfirm : T.placeConfirm, {
         variant: 'primary',
         onClick: () => {
           const p = placing;
           placing = null;
           selectedKey = null;
-          void call(p.animal ? 'placeAnimal' : 'placeItem', p.animal ? [p.id, p.x, p.range] : [p.id, p.x]);
+          if (p.mode === 'move') {
+            void call(p.animal ? 'moveAnimal' : 'moveDecor',
+              p.animal ? [p.animalId, p.x, p.range] : [p.uid, p.x]);
+          } else {
+            void call(p.animal ? 'placeAnimal' : 'placeItem', p.animal ? [p.id, p.x, p.range] : [p.id, p.x]);
+          }
         },
       }),
       ui.button(T.placeCancel, {
@@ -2433,6 +2452,24 @@ function bagPanel(ctx) {
     );
     sheet.body.append(row);
     return sheet.el;
+  }
+
+  function startMove(group) {
+    const pos = group.positions?.[0] ?? {};
+    placing = {
+      mode: 'move',
+      animal: group.kind === 'animal',
+      id: group.id,
+      uid: group.uid,
+      animalId: group.animalId,
+      name: group.name,
+      x: Math.min(1, Math.max(0, Number(pos.x) || 0.5)),
+      range: Math.min(0.45, Math.max(0.02, Number(pos.range) || 0.16)),
+      icon: group.icon,
+      sprite: pos.sprite || group.icon,
+    };
+    selectedKey = group.key;
+    render();
   }
 
   function placedSection() {
@@ -2458,6 +2495,12 @@ function bagPanel(ctx) {
           ' · ' + Math.round(Number(group.positions[0]?.x ?? 0) * 100) + '%'),
       );
       const acts = ui.h('div', 'bg-actions');
+      if (group.kind === 'decor' || group.kind === 'animal') {
+        acts.append(ui.button(group.kind === 'animal' ? T.moveAnimal : T.moveDecor, {
+          size: 'sm',
+          onClick: () => startMove(group),
+        }));
+      }
       if (group.kind === 'animal') {
         acts.append(ui.button(T.recycle, {
           size: 'sm',

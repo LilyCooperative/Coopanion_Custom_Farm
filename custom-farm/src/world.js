@@ -2390,7 +2390,7 @@ export class FarmWorld {
         count: 1,
         adult: Boolean(sp && a.stage >= sp.stages.length - 1),
         sell: Number(sp?.prices?.adultSell) || 0,
-        positions: [{ x: Number(inst?.anchor ?? a.x), sprite: a.sprite ?? '' }],
+        positions: [{ x: Number(inst?.anchor ?? a.x), range: Number(inst?.range ?? 0.16), sprite: a.sprite ?? '' }],
       });
     }
     items.sort((a, b) => {
@@ -2542,6 +2542,40 @@ export class FarmWorld {
       case 'placeAnimal': {
         const r = await this.#animalInvoke('place', args);
         return { ...this.#bagSnapshot(), ...r, text: '动物已放到农场。' };
+      }
+      case 'moveDecor': {
+        const uid = args?.[0];
+        const x = Math.min(1, Math.max(0, Number(args?.[1])));
+        if (!Number.isFinite(x)) throw new Error('位置不对。');
+        const owned = (this.#state?.furniture ?? []).find((f) => String(f.uid) === String(uid));
+        if (!owned) throw new Error('农场里没有这个装饰。');
+        await this.#mutate((state) => {
+          const f = (state.furniture ?? []).find((row) => String(row.uid) === String(uid));
+          if (f) f.x = x;
+          return null;
+        });
+        return { ...this.#bagSnapshot(), text: '已把装饰移动到 ' + Math.round(x * 100) + '%。' };
+      }
+      case 'moveAnimal': {
+        const id = String(args?.[0] ?? '');
+        const x = Math.min(1, Math.max(0, Number(args?.[1])));
+        const rad = Math.min(0.45, Math.max(0.02, Number(args?.[2])));
+        if (!Number.isFinite(x)) throw new Error('位置不对。');
+        const animal = (this.#state?.animals ?? []).find((a) => a.id === id);
+        if (!animal) throw new Error('农场里没有这只动物。');
+        await this.#mutate((state) => {
+          const a = (state.animals ?? []).find((row) => row.id === id);
+          if (!a) return null;
+          a.anchor = x;
+          a.x = x;
+          a.range = Number.isFinite(rad) ? rad : a.range;
+          a.targetX = null;
+          a.action = 'idle';
+          a.actionStartedAt = this.now();
+          a.actionUntil = this.now() + 1600;
+          return null;
+        });
+        return { ...this.#bagSnapshot(), text: '已把动物移动到 ' + Math.round(x * 100) + '%，范围 ' + Math.round((Number.isFinite(rad) ? rad : 0.16) * 100) + '%。' };
       }
       case 'reclaimAnimal': {
         const r = await this.#animalInvoke('reclaim', args);
