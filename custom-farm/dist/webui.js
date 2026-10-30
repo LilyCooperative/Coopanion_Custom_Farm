@@ -1313,7 +1313,7 @@ function panel(ctx) {
         burst: [...s.fx.burst],
         pourMs: Number(s.fx.pourMs),
         burstMs: Number(s.fx.burstMs),
-        scale: Number(s.fx.scale ?? 0.75),
+        scale: Number(s.fx.scale ?? 0.6),
       },
       wither: s.wither ?? null,
       witherScale: Number(s.witherScale ?? 1),
@@ -1437,11 +1437,15 @@ function panel(ctx) {
       });
       const witherReset = ui.button(T.resetWither, { size: 'sm', onClick: () => { d.wither = null; paintStatus(); } });
       const witherRow = ui.h('div', 'cf-row');
-      witherRow.append(ui.field(T.wither, witherCell), witherPick, witherReset);
-      const scaleRow = ui.h('div', 'cf-row');
-      scaleRow.append(
-        ui.field(T.waterScale, numberInput(d.fx.scale, (v) => { d.fx.scale = v; }, '0.05', '0.1', '3')),
+      witherRow.append(
+        ui.field(T.wither, witherCell),
+        witherPick,
+        witherReset,
         ui.field(T.witherScale, numberInput(d.witherScale, (v) => { d.witherScale = v; }, '0.05', '0.1', '3')),
+      );
+      const waterScaleRow = ui.h('div', 'cf-row');
+      waterScaleRow.append(
+        ui.field(T.waterScale, numberInput(d.fx.scale, (v) => { d.fx.scale = v; }, '0.05', '0.1', '3')),
       );
 
       const actions = ui.actions();
@@ -1453,9 +1457,9 @@ function panel(ctx) {
       host.append(
         frameStrip('pour', T.pourFrames, d),
         frameStrip('burst', T.burstFrames, d),
+        waterScaleRow,
         ui.h('hr', 'cf-hr2'),
         witherRow,
-        scaleRow,
         actions,
       );
     };

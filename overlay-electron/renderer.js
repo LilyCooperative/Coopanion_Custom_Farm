@@ -109,7 +109,7 @@ function startWater(x, plotId) {
   const burst = (wf.burst || ['water_burst_1', 'water_burst_2', 'water_burst_3', 'water_burst_4', 'water_burst_5', 'water_burst_6']).filter(Boolean);
   const p = (st.plots || []).find((row) => Number(row.id) === Number(plotId));
   const ci = p ? cropInfo(p) : { w: 0, h: 0 };
-  const ws = Math.max(0.1, Math.min(3, Number(wf.scale) || 0.75));
+  const ws = Math.max(0.1, Math.min(3, Number(wf.scale) || 0.6));
   const gx = x * window.innerWidth;
   const g = groundY();
   if (pour.length) {
@@ -276,8 +276,8 @@ function draw(now) {
     const frame = String(Math.floor(now / 80) % 21).padStart(2, '0');
     const drip = image('water_drip' + stage + '_' + frame);
     if (!ready(drip)) continue;
-    const dw = drip.naturalWidth * Z * (Number(state?.waterFx?.scale) || 0.75);
-    const dh = drip.naturalHeight * Z * (Number(state?.waterFx?.scale) || 0.75);
+    const dw = drip.naturalWidth * Z * (Number(state?.waterFx?.scale) || 0.6);
+    const dh = drip.naturalHeight * Z * (Number(state?.waterFx?.scale) || 0.6);
     const off = ((Number(p.id) % 3) - 1) * ci.w * 0.18;
     ctx.globalAlpha = 0.9;
     ctx.drawImage(drip, Number(p.x) * W + off - dw / 2, g - ci.h + 2, dw, dh);
