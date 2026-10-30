@@ -16,7 +16,7 @@
  * 「新的一天」要 dailyEvent=true 才推，绝不因刷新本身唤醒模型。
  */
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { mkdir, copyFile, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -510,6 +510,20 @@ export class FarmWorld {
       } catch (err) {
         this.#host?.log?.warn?.('自定义农场：复制安装文件失败', { from: src, to: dst, err: msg(err) });
       }
+    }
+    // 内置动物帧是版本资源，升级时必须覆盖旧图；用户上传的 cust_* 仍保留。
+    try {
+      const srcSprites = join(source, 'assets', 'sprites');
+      const dstSprites = join(target, 'assets', 'sprites');
+      if (existsSync(srcSprites)) {
+        mkdirSync(dstSprites, { recursive: true });
+        for (const name of readdirSync(srcSprites)) {
+          if (!/^animal_chicken_.*\.png$/i.test(name)) continue;
+          copyFileSync(join(srcSprites, name), join(dstSprites, name));
+        }
+      }
+    } catch (err) {
+      this.#host?.log?.warn?.('自定义农场：同步内置动物贴图失败', { err: msg(err) });
     }
     // Electron 的 node_modules 很大，不复制；用 junction 指回扩展包里的那一份。
     const modules = join(source, 'overlay-electron', 'node_modules');
@@ -2209,8 +2223,6 @@ export class FarmWorld {
         if (!Number.isFinite(Number(x))) throw new Error('锚点位置不对。');
         const anchor = clamp01(x);
         const rad = Math.min(0.45, Math.max(0.02, Number.isFinite(range) ? range : 0.16));
-        const tooClose = (this.#state.animals ?? []).some((a) => Math.abs(Number(a.anchor) - anchor) < 0.05);
-        if (tooClose) throw new Error('这个锚点和已有动物太近，换一个位置。');
         this.#state.inventory[itemId] -= 1;
         if (this.#state.inventory[itemId] <= 0) delete this.#state.inventory[itemId];
         this.#state.nextAnimalId = Math.max(1, Number(this.#state.nextAnimalId) || 1);

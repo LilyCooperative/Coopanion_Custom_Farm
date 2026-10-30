@@ -1599,8 +1599,11 @@ export class FarmCatalog {
     const normalized = normalizeAnimal({ ...base, ...input }, idx >= 0 ? idx : list.length);
     if (!normalized) throw new Error('动物配置不完整。');
     if (idx >= 0) list[idx] = normalized; else list.push(normalized);
-    const product = this.store.items?.find((it) => it.id === normalized.product?.item);
-    if (product) product.animalProduct = true;
+    const productIds = [normalized.product?.item, ...(normalized.stages ?? []).map((s) => s.product?.item)].filter(Boolean);
+    for (const id of productIds) {
+      const item = this.store.items?.find((it) => it.id === id);
+      if (item) item.animalProduct = true;
+    }
     this.persist();
     this.apply();
     return normalized;

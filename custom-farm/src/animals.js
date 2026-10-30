@@ -39,12 +39,12 @@ export function builtinAnimals() {
     stages: [
       {
         key: 'chick', name: '幼崽', days: 1.5, scale: 0.16, prefix: 'animal_chicken_chick',
-        item: 'animal_chicken_chick', product: false,
+        item: 'animal_chicken_chick', product: null,
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_chick', a)])),
       },
       {
         key: 'hen', name: '成年', days: 0, scale: 0.2, prefix: 'animal_chicken_hen',
-        item: 'animal_chicken_hen', product: true,
+        item: 'animal_chicken_hen', product: { item: 'egg', everyDays: 0.5, count: 1 },
         sprites: Object.fromEntries(ANIMAL_ACTIONS.map((a) => [a, frames('animal_chicken_hen', a)])),
       },
     ],
@@ -74,6 +74,11 @@ export function normalizeAnimal(src, index = 0) {
     { key: 'walk', name: '走路', weight: 40 },
   ];
   if (!actions.some((a) => a.key === 'walk')) actions.push({ key: 'walk', name: '走路', weight: 10 });
+  const productDefaults = {
+    item: String(src.product?.item ?? 'egg').trim().slice(0, 40),
+    everyDays: clamp(src.product?.everyDays, 0.01, 1000, 0.5),
+    count: int(src.product?.count, 1, 99, 1),
+  };
   const stageDefs = (Array.isArray(src.stages) ? src.stages : [])
     .map((s, i) => {
       const prefix = String(s?.prefix ?? key + '_' + (s?.key ?? i)).replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 48);
@@ -83,6 +88,15 @@ export function normalizeAnimal(src, index = 0) {
         const cleaned = list.map(cleanSprite).filter(Boolean).slice(0, 8);
         sprites[a.key] = cleaned.length ? cleaned : frames(prefix, a.key);
       }
+      let product = null;
+      if (s?.product === true) product = { ...productDefaults };
+      else if (s?.product && typeof s.product === 'object') {
+        product = {
+          item: String(s.product.item ?? productDefaults.item).trim().slice(0, 40),
+          everyDays: clamp(s.product.everyDays, 0.01, 1000, productDefaults.everyDays),
+          count: int(s.product.count, 1, 99, productDefaults.count),
+        };
+      }
       return {
         key: String(s?.key ?? 'stage_' + i).replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 24) || ('stage_' + i),
         name: String(s?.name ?? ('阶段 ' + (i + 1))).trim().slice(0, 16),
@@ -90,7 +104,7 @@ export function normalizeAnimal(src, index = 0) {
         scale: clamp(s?.scale, 0.01, 4, 0.2),
         prefix,
         item: String(s?.item ?? '').trim().slice(0, 40),
-        product: Boolean(s?.product),
+        product,
         sprites,
       };
     })
@@ -114,11 +128,7 @@ export function normalizeAnimal(src, index = 0) {
       speed: clamp(src.walk?.speed, 0.0001, 1, 0.012),
       range: clamp(src.walk?.range, 0.01, 0.5, 0.16),
     },
-    product: {
-      item: String(src.product?.item ?? 'egg').trim().slice(0, 40),
-      everyDays: clamp(src.product?.everyDays, 0.01, 1000, 0.5),
-      count: int(src.product?.count, 1, 99, 1),
-    },
+    product: productDefaults,
     prices,
     stages: stageDefs,
   };
@@ -231,15 +241,15 @@ export function advanceAnimal(animal, species, now, gameDays, random, dtSec = nu
   }
   animal.x = clamp(animal.x, Math.max(0, animal.anchor - animal.range), Math.min(1, animal.anchor + animal.range), animal.x);
 
-  if (stage?.product && species.product?.item) {
-    const every = Number(species.product.everyDays) || 0.5;
+  if (stage?.product && stage.product.item) {
+    const every = Number(stage.product.everyDays) || 0.5;
     if (!(animal.nextProductAt > 0)) animal.nextProductAt = (Number(animal.ageDays) || 0) + every;
     // 用实例年龄做时钟，避免把离线时间一次性补成一堆产物。
     if (animal.ageDays >= animal.nextProductAt) {
       animal.nextProductAt = animal.ageDays + every;
       out.push({
-        item: species.product.item,
-        count: Math.max(1, Number(species.product.count) || 1),
+        item: stage.product.item,
+        count: Math.max(1, Number(stage.product.count) || 1),
         x: animal.x,
         animal: animal.id,
       });

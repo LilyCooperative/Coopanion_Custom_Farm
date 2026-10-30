@@ -1998,8 +1998,8 @@ function bagPanel(ctx) {
     const acts = ui.h('div', 'bg-actions');
     if (item.sell > 0) {
       acts.append(
-        ui.button(T.sell1, { size: 'sm', onClick: () => void call('sell', [item.id, 1]) }),
-        ui.button(T.sellAll, { size: 'sm', onClick: () => void call('sell', [item.id, 0]) }),
+        ui.button(T.sell1, { size: 'sm', variant: 'primary', onClick: () => void call('sell', [item.id, 1]) }),
+        ui.button(T.sellAll, { size: 'sm', variant: 'primary', onClick: () => void call('sell', [item.id, 0]) }),
       );
     }
     if (item.placeable) {
@@ -2202,8 +2202,9 @@ function bagPanel(ctx) {
       );
       const acts = ui.h('div', 'bg-actions');
       if (group.kind === 'animal') {
-        acts.append(ui.button('回收', {
+        acts.append(ui.button(T.recycle, {
           size: 'sm',
+          variant: 'primary',
           onClick: () => void call('reclaimAnimal', [group.animalId]),
         }));
         if (group.adult) {
@@ -3084,6 +3085,7 @@ function animalsPanel(ctx) {
       );
       sheet.body.append(prod);
       for (const st of draft.stages) {
+        const si = draft.stages.indexOf(st);
         const stageRow = ui.h('div', 'cf-row');
         stageRow.append(
           ui.field(zh ? '阶段' : 'Stage', txt(st.name, (v) => { st.name = v; })),
@@ -3091,7 +3093,36 @@ function animalsPanel(ctx) {
           ui.field(zh ? '缩放' : 'Scale', num(st.scale, (v) => { st.scale = v; }, '0.01')),
           ui.field(zh ? '贴图前缀' : 'Sprite prefix', txt(st.prefix, (v) => { st.prefix = v; })),
         );
+        if (draft.stages.length > 1) {
+          stageRow.append(ui.button(zh ? '删阶段' : 'Remove stage', {
+            size: 'sm', variant: 'danger',
+            onClick: () => {
+              draft.stages.splice(si, 1);
+              void call('saveAnimal', [draft], T.saved);
+            },
+          }));
+        }
         sheet.body.append(stageRow);
+
+        const prod = st.product ?? { ...draft.product, item: draft.product?.item ?? 'egg' };
+        const prodRow = ui.h('div', 'cf-row');
+        const prodOn = ui.checkbox(zh ? '该阶段产生产物' : 'Produces items', {
+          checked: Boolean(st.product),
+          onChange: (v) => {
+            st.product = v ? { ...prod } : null;
+          },
+        });
+        const setProd = (k, v) => {
+          st.product = { ...(st.product ?? { ...prod }), [k]: v };
+        };
+        prodRow.append(
+          prodOn.el,
+          ui.field(T.product, txt(prod.item, (v) => setProd('item', v))),
+          ui.field(T.everyDays, num(prod.everyDays, (v) => setProd('everyDays', v), '0.05')),
+          ui.field(T.count, num(prod.count, (v) => setProd('count', v), '1')),
+        );
+        sheet.body.append(prodRow);
+
         for (const action of ['idle', 'walk', 'peck']) {
           const frames = st.sprites?.[action];
           if (!Array.isArray(frames) || !frames.length) continue;
@@ -3109,6 +3140,22 @@ function animalsPanel(ctx) {
           sheet.body.append(frameRow);
         }
       }
+      sheet.body.append(ui.button(zh ? '添加阶段' : 'Add stage', {
+        size: 'sm', variant: 'primary',
+        onClick: () => {
+          const last = draft.stages[draft.stages.length - 1];
+          const n = draft.stages.length;
+          draft.stages.push({
+            key: 'stage_' + (n + 1),
+            name: (zh ? '阶段 ' : 'Stage ') + (n + 1),
+            days: 0.5, scale: last?.scale ?? 0.2,
+            prefix: `${sp.key}_stage_${n + 1}`,
+            item: '', product: null,
+            sprites: { idle: [], walk: [], peck: [] },
+          });
+          void call('saveAnimal', [draft], T.saved);
+        },
+      }));
       const actRow = ui.h('div', 'cf-row');
       for (const a of draft.actions) {
         actRow.append(ui.field(a.name || a.key, num(a.weight, (v) => { a.weight = v; }, '1')));
