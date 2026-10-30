@@ -434,6 +434,7 @@ export class FarmCatalog {
       {
         id: 'deco_scarecrow', name: '稻草人', kind: 'decor', buy: 120, sell: 40,
         consumable: false, effects: [], icon: 'deco_scarecrow', sprite: 'deco_scarecrow', layer: 'top',
+        scale: 0.8,
       },
       {
         id: 'deco_cabin', name: '小木屋', kind: 'decor', buy: 350, sell: 120,
