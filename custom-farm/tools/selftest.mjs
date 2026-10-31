@@ -868,6 +868,29 @@ await legacyWorld.stop();
   check('全自动把动物产物放进背包', Number(aAfter.inventory.egg) > 0, JSON.stringify(aAfter.inventory.egg));
   check('全自动不反复播浇水特效', !(aAfter.fx ?? []).some((f) => f.kind === 'water'), JSON.stringify(aAfter.fx));
   await aWorld.stop();
+  const mDir = join(dataDir, 'merge');
+  await mkdir(join(mDir, 'farm'), { recursive: true });
+  const ms = newState(clock, { ...cfg, farmMode: 'merge' }, random);
+  ms.plots = [1, 2].map((id, i) => ({
+    id, crop: 'potato', x: [0.35, 0.65][i], level: CROPS.potato.levels - 1, growth: CROPS.potato.total,
+    moisture: i === 0 ? 0 : 1, harvests: 0, drySince: i === 0 ? null : null,
+    dryNotified: i === 0 ? false : true, dead: false, ripeNotified: false,
+  }));
+  ms.inventory = { seed_potato: 2 };
+  ms.weeds = [];
+  await writeFile(join(mDir, 'farm', 'state.json'), JSON.stringify(ms), 'utf8');
+  const mWorld = new FarmWorld({ cfg: { ...cfg, farmMode: 'merge' }, dataDir: mDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
+  await mWorld.start(host);
+  const beforeEvents = events.length;
+  clock += 1000;
+  await fireTick();
+  const mergeEvents = events.slice(beforeEvents);
+  check('合并模式只发一条 cfarm.work', mergeEvents.filter((e) => e.type === 'cfarm.work').length === 1 &&
+    !mergeEvents.some((e) => e.type === 'cfarm.ripe' || e.type === 'cfarm.dry'),
+    mergeEvents.map((e) => e.type).join(','));
+  const mr = await mWorld.tools().find((t) => t.name === 'cfarm_quickfarm').handler({ x: 0.35 });
+  check('合并模式一次工具处理附近地块', mr.text.includes('快速种田'), mr.text);
+  await mWorld.stop();
 }
 
 await rm(dataDir, { recursive: true, force: true });
