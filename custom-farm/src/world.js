@@ -3506,6 +3506,9 @@ export class FarmWorld {
       this.#started = true;
       this.#schedule();
       this.#cmdTimer = setInterval(() => { void this.#drainCommands(); }, 1000);
+      if (this.persistConfig && this.cfg?.farmMode === undefined) {
+        try { this.persistConfig({ farmMode: 'merge' }); this.cfg.farmMode = 'merge'; } catch { /* 默认仍是 merge */ }
+      }
       if (this.persistConfig && this.cfg?.throttle === undefined) {
         try { this.persistConfig({ throttle: 'off' }); this.cfg.throttle = 'off'; } catch { /* 默认仍是 off */ }
       }
