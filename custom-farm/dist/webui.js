@@ -3227,7 +3227,8 @@ function ecologyPanel(ctx) {
     return el;
   };
 
-  async function save() {
+  let ecoSaveTimer = null;
+  async function saveEco() {
     const d = getDraft();
     try {
       await ctx.invoke('saveSettings', [{
@@ -3237,9 +3238,19 @@ function ecologyPanel(ctx) {
         dailyEvent: d.dailyEvent,
         water: { ...d.water },
         moodIntervalMin: d.moodIntervalMin,
-        weathers: normalizeWeathers(d.weathers),
       }]);
-      ui.toast(zh ? '已保存' : 'Saved');
+    } catch (e) { ui.toast((e && e.message) || String(e), 'bad'); }
+  }
+  function scheduleEcoSave() {
+    if (ecoSaveTimer) clearTimeout(ecoSaveTimer);
+    ecoSaveTimer = setTimeout(() => { ecoSaveTimer = null; void saveEco(); }, 250);
+  }
+
+  async function saveWeather() {
+    const d = getDraft();
+    try {
+      await ctx.invoke('saveSettings', [{ weathers: normalizeWeathers(d.weathers) }]);
+      ui.toast(zh ? '天气已保存' : 'Weather saved');
       await reload();
     } catch (e) { ui.toast((e && e.message) || String(e), 'bad'); }
   }
@@ -3347,7 +3358,7 @@ function ecologyPanel(ctx) {
     waterOpts.append(
       ui.checkbox(zh ? '需要浇水（关闭后不会缺水）' : 'Watering required (off = never dry)', {
         checked: d.water.enabled !== false,
-        onChange: (v) => { d.water.enabled = v; paint(); },
+        onChange: (v) => { d.water.enabled = v; scheduleEcoSave(); },
       }).el,
       ui.checkbox(zh ? '会枯萎（关闭后干了也不会死）' : 'Crops can wither (off = never die)', {
         checked: d.water.wither !== false,
@@ -3369,17 +3380,20 @@ function ecologyPanel(ctx) {
       },
     });
     const saveBar = ui.rowbar();
-    saveBar.append(ui.button(zh ? '保存生态设置' : 'Save ecology', { variant: 'primary', onClick: () => void save() }));
+    saveBar.append(ui.button(zh ? '保存天气' : 'Save weather', { variant: 'primary', onClick: () => void saveWeather() }));
+    for (const node of [time, daily, water, waterOpts, moodRow]) {
+      node.addEventListener('input', scheduleEcoSave, { signal: ctx.signal });
+      node.addEventListener('change', scheduleEcoSave, { signal: ctx.signal });
+    }
     sheet.body.append(
-      ui.h('strong', 'cf-note', zh ? '生长条件' : 'Growth conditions'),
-      time, daily,
+      ui.h('strong', 'cf-note', zh ? '生态（修改自动保存）' : 'Ecology (auto-saved)'),
+      time, daily, moodRow,
       ui.h('hr', 'cf-hr2'),
-      ui.h('strong', 'cf-note', zh ? '浇水' : 'Water'),
+      ui.h('strong', 'cf-note', zh ? '浇水（修改自动保存）' : 'Water (auto-saved)'),
       water,
       waterOpts,
       ui.h('hr', 'cf-hr2'),
-      ui.h('strong', 'cf-note', zh ? '天气' : 'Weather'),
-      moodRow,
+      ui.h('strong', 'cf-note', zh ? '天气（修改后点保存天气）' : 'Weather (save separately)'),
       ui.h('p', 'cf-note', zh ? '无风固定存在，不可删除；默认包含无风、微风、大风、彩蛋。特效贴图暂不开放，测试中。' : 'Calm is built in and cannot be deleted. Defaults: calm, breeze, gale, egg. Effect sprites are disabled while testing.'),
       weatherBox,
       add,
