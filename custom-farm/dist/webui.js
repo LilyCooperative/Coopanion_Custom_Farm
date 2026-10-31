@@ -1491,6 +1491,9 @@ function panel(ctx) {
       );
 
       const actions = ui.actions();
+      actions.style.display = 'flex';
+      actions.style.justifyContent = 'flex-start';
+      actions.style.gap = '8px';
       actions.append(
         ui.button(T.saveStatus, { variant: 'primary', onClick: () => void saveStatus() }),
         ui.button(T.resetFx, { size: 'sm', onClick: () => void resetFx() }),
