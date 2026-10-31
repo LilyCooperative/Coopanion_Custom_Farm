@@ -1826,7 +1826,15 @@ export class FarmWorld {
       }
     }
     if (animalProducts.length) {
-      try { await this.#pushProducts(animalProducts); } catch (err) { this.#host?.log?.warn?.('自定义农场：动物产物提醒没送出去', { err: msg(err) }); }
+      if (cfg.farmMode === 'auto') {
+        for (const p of animalProducts) {
+          this.#state.inventory[p.item] = (Number(this.#state.inventory[p.item]) || 0) + Math.max(1, Number(p.count) || 1);
+          this.#state.drops = (this.#state.drops ?? []).filter((d) => d.id !== p.dropId);
+        }
+        this.#host?.log?.info?.('自定义农场：动物产物已自动放进背包', { count: animalProducts.length });
+      } else {
+        try { await this.#pushProducts(animalProducts); } catch (err) { this.#host?.log?.warn?.('自定义农场：动物产物提醒没送出去', { err: msg(err) }); }
+      }
     }
     // 枯萎不单独唤醒模型：没有可执行的补救动作，等它下次看 status 就行。
     // 每天的那条提醒默认不发：桌宠每被唤醒一次都要花 token，而"又过了一天"对它没有行动价值。

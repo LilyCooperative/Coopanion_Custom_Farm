@@ -854,6 +854,10 @@ await legacyWorld.stop();
   }];
   as.inventory = { seed_potato: 1 };
   as.weeds = [];
+  as.animals = [{
+    id: 'a_1', species: 'chicken', stage: 1, ageDays: 2.1, x: 0.5, anchor: 0.5, range: 0.1,
+    nextProductAt: 2, action: 'idle', actionUntil: 0,
+  }];
   await writeFile(join(aDir, 'farm', 'state.json'), JSON.stringify(as), 'utf8');
   const aWorld = new FarmWorld({ cfg: { ...cfg, farmMode: 'auto' }, dataDir: aDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
   await aWorld.start(host);
@@ -861,6 +865,7 @@ await legacyWorld.stop();
   const aAfter = JSON.parse(await readFile(aWorld.stateFile(), 'utf8'));
   check('全自动收进背包并补种', Number(aAfter.inventory.potato) > 0 && aAfter.plots.length === 1 && Number(aAfter.plots[0].moisture) > 0.9,
     JSON.stringify({ inv: aAfter.inventory.potato, plots: aAfter.plots.length, water: aAfter.plots[0]?.moisture }));
+  check('全自动把动物产物放进背包', Number(aAfter.inventory.egg) > 0, JSON.stringify(aAfter.inventory.egg));
   await aWorld.stop();
 }
 
