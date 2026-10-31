@@ -76,12 +76,11 @@ export function normalizeAnimal(src, index = 0) {
       weight: clamp(a?.weight, 0, 1000, 10),
     }))
     .filter((a) => a.key)
-    .slice(0, 8);
+    .slice(0, 12);
   const actions = actionDefs.length ? actionDefs : [
     { key: 'idle', name: '待机', weight: 60 },
     { key: 'walk', name: '走路', weight: 40 },
   ];
-  if (!actions.some((a) => a.key === 'walk')) actions.push({ key: 'walk', name: '走路', weight: 10 });
   const productDefaults = {
     item: String(src.product?.item ?? 'egg').trim().slice(0, 40),
     name: String(src.product?.name ?? '鸡蛋').trim().slice(0, 24),
@@ -95,7 +94,7 @@ export function normalizeAnimal(src, index = 0) {
       const sprites = {};
       for (const a of actions) {
         const list = Array.isArray(s?.sprites?.[a.key]) ? s.sprites[a.key] : [];
-        const cleaned = list.map(cleanSprite).filter(Boolean).slice(0, 8);
+        const cleaned = list.map((x) => cleanSprite(x) ?? '').slice(0, 16);
         sprites[a.key] = cleaned;
       }
       let product = null;
@@ -162,7 +161,7 @@ export function normalizeAnimalState(list) {
       anchor: clamp(a.anchor, 0, 1, 0.5),
       range: clamp(a.range, 0.01, 0.5, 0.16),
       dir: Number(a.dir) < 0 ? -1 : 1,
-      action: ANIMAL_ACTIONS.includes(a.action) ? a.action : 'idle',
+      action: String(a.action ?? '').replace(/[^A-Za-z0-9_\-]/g, '_').slice(0, 24) || 'idle',
       actionUntil: Math.max(0, Number(a.actionUntil) || 0),
       actionStartedAt: Math.max(0, Number(a.actionStartedAt) || 0),
       targetX: Number.isFinite(Number(a.targetX)) ? clamp(a.targetX, 0, 1, 0.5) : null,

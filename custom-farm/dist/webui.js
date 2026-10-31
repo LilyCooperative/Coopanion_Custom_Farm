@@ -3606,17 +3606,30 @@ function animalsPanel(ctx) {
         sheet.body.append(prodRow);
         if (st.product) sheet.body.append(iconRow);
 
-        for (const action of ['idle', 'walk', 'peck']) {
-          const frames = st.sprites?.[action];
-          if (!Array.isArray(frames) || !frames.length) continue;
+        for (const action of draft.actions) {
+          const key = action.key;
+          if (!Array.isArray(st.sprites[key])) st.sprites[key] = [];
+          const frames = st.sprites[key];
           const frameRow = ui.h('div', 'cf-row');
-          frameRow.append(ui.h('span', 'cf-note', action));
+          frameRow.append(ui.h('span', 'cf-note', action.name || key));
+          const count = ui.input({ type: 'number', value: String(frames.length) });
+          count.min = '1';
+          count.max = '16';
+          count.step = '1';
+          count.style.width = '72px';
+          count.addEventListener('change', () => {
+            const n = Math.max(1, Math.min(16, Math.round(Number(count.value) || 1)));
+            while (frames.length < n) frames.push('');
+            frames.length = n;
+            void call('saveAnimal', [draft], T.saved);
+          }, { signal: ctx.signal });
+          frameRow.append(ui.field(zh ? '帧数' : 'Frames', count));
           frames.forEach((sprite, index) => {
             const cell = ui.h('div', 'cf-row');
-            cell.append(thumb(sprite, 42));
+            cell.append(sprite ? thumb(sprite, 42) : ui.h('span', 'cf-note', zh ? '空帧' : 'Empty'));
             cell.append(ui.button(T.change, {
               size: 'sm',
-              onClick: () => void changeFrame(sp.key, draft.stages.indexOf(st), action, index),
+              onClick: () => void changeFrame(sp.key, draft.stages.indexOf(st), key, index),
             }));
             frameRow.append(cell);
           });
@@ -3634,16 +3647,41 @@ function animalsPanel(ctx) {
             days: 0.5, scale: last?.scale ?? 0.2,
             prefix: `${sp.key}_stage_${n + 1}`,
             item: '', product: null,
-            sprites: { idle: [], walk: [], peck: [] },
+            sprites: Object.fromEntries(draft.actions.map((a) => [a.key, []])),
           });
           void call('saveAnimal', [draft], T.saved);
         },
       }));
-      const actRow = ui.h('div', 'cf-row');
-      for (const a of draft.actions) {
-        actRow.append(ui.field(a.name || a.key, num(a.weight, (v) => { a.weight = v; }, '1')));
+      const actionBox = ui.h('div', 'cf-row');
+      actionBox.append(ui.h('strong', 'cf-note', zh ? '动作（名称只保留一个）' : 'Actions (one name each)'));
+      for (const [ai, a] of draft.actions.entries()) {
+        const line = ui.h('div', 'cf-row');
+        line.append(
+          ui.field(zh ? '动作名称' : 'Action name', txt(a.name, (v) => { a.name = v; })),
+          ui.field(zh ? '权重' : 'Weight', num(a.weight, (v) => { a.weight = v; }, '1')),
+        );
+        if (draft.actions.length > 1) {
+          line.append(ui.button('×', {
+            size: 'sm', variant: 'danger',
+            onClick: () => {
+              const [gone] = draft.actions.splice(ai, 1);
+              for (const st of draft.stages) delete st.sprites?.[gone.key];
+              void call('saveAnimal', [draft], T.saved);
+            },
+          }));
+        }
+        actionBox.append(line);
       }
-      sheet.body.append(actRow);
+      actionBox.append(ui.button(zh ? '添加动作' : 'Add action', {
+        size: 'sm', variant: 'primary',
+        onClick: () => {
+          const key = 'action_' + Date.now().toString(36).slice(-6);
+          draft.actions.push({ key, name: zh ? '新动作' : 'New action', weight: 10 });
+          for (const st of draft.stages) st.sprites[key] = [];
+          void call('saveAnimal', [draft], T.saved);
+        },
+      }));
+      sheet.body.append(actionBox);
       const bar = ui.actions();
       bar.append(ui.button(T.save, { variant: 'primary', onClick: () => void call('saveAnimal', [draft], T.saved) }));
       bar.append(ui.button(T.remove, { size: 'sm', variant: 'danger', onClick: () => void call('removeAnimal', [sp.key], T.saved) }));

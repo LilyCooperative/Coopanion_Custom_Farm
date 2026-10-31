@@ -1315,7 +1315,7 @@ export class FarmCatalog {
     if (!stage.sprites?.[action]) stage.sprites[action] = [];
     const r = this.copySprite(srcPath, 'animal', key + '_' + stageIndex + '_' + action, frameIndex);
     const list = stage.sprites[action];
-    while (list.length <= Number(frameIndex)) list.push(list[list.length - 1] ?? stage.sprites.idle?.[0] ?? 'icon_item_soil');
+    while (list.length <= Number(frameIndex)) list.push('');
     list[Number(frameIndex)] = r.sprite;
     this.persist();
     this.apply();

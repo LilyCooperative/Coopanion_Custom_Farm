@@ -825,6 +825,15 @@ await legacyWorld.stop();
   advanceAnimal(animal, species, clock, 0.001, random, 1);
   const made = advanceAnimal(animal, species, clock + 1000, 0.02, random, 1);
   check('阶段产物按时产出', made.length === 1 && made[0].item === 'egg' && made[0].count === 2, JSON.stringify(made));
+  const customAction = normalizeAnimal({
+    key: 'action_test',
+    actions: [{ key: 'dance', name: '跳舞', weight: 5 }],
+    stages: [{ key: 'adult', days: 0, sprites: { dance: ['', 'sprite_one', ''] } }],
+  });
+  check('动作名称和帧数可自定义', customAction.actions[0].name === '跳舞' &&
+    customAction.stages[0].sprites.dance.length === 3, JSON.stringify(customAction.actions));
+  const customState = normalizeAnimalState([{ id: 'x', species: 'action_test', stage: 0, action: 'dance' }])[0];
+  check('自定义动作状态不被重置', customState.action === 'dance', customState.action);
 }
 
 // --- 16. cfarm_quickfarm 收完自动补种并捡进背包 --------------------------------
