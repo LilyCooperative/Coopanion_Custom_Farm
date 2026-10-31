@@ -1,4 +1,4 @@
-﻿import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
@@ -16,7 +16,7 @@ catalog.persist();
 const custom = await readFile(catalog.storePath);
 
 const keys = [
-  'farmScale','maxPlants','cropGapScale','cropGapPct','cropScale','dropScale','groundHeight','stripHeight',
+  'farmMode','farmScale','maxPlants','cropGapScale','cropGapPct','cropScale','dropScale','groundHeight','stripHeight',
   'moodIntervalMin','startCoins','pointsPerDay','realMinutesPerDay','maxStepDays','tickIntervalMs','dryPerDay',
   'waterGain','wiltDays','startWeeds','maxWeeds','weedPerDay','weedClearRadius','dailyEvent','sowMoisture','throttle',
 ];
