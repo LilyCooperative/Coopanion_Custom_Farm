@@ -207,4 +207,4 @@ Coopanion 只提供打包后的 `Coopanion.exe`，没有可复用的独立 `elec
 
 ## 许可
 
-代码 MIT。美术素材各有自己的许可，不随代码 MIT 授权；来源和限制见仓库根目录的 `ASSETS.md`、`ASSET_SOURCES.md`、`THIRD_PARTY_LICENSES.md`。
+代码 MIT。美术素材各有自己的许可，不随代码 MIT 授权；来源和限制见仓库根目录的 `ASSETS.md、THIRD_PARTY_LICENSES.md`。

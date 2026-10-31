@@ -108,4 +108,4 @@ Invoke-RestMethod -Method Post http://127.0.0.1:17788/api/worlds/restart
 
 ## 许可
 
-代码 MIT（见 `LICENSE`）。美术素材各有自己的许可，**不随代码 MIT 授权**；来源和限制见 `ASSETS.md`、`ASSET_SOURCES.md`、`THIRD_PARTY_LICENSES.md`。
+代码 MIT（见 `LICENSE`）。美术素材各有自己的许可，**不随代码 MIT 授权**；来源和限制见 `ASSETS.md、THIRD_PARTY_LICENSES.md`。
