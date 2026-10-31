@@ -1887,12 +1887,11 @@ export class FarmWorld {
         }
       }
     }
-    // 全自动模式下不需要桌宠浇水：每 tick 把活作物补满。
+    // 全自动模式：直接补满水分，不走 water()，避免每个 tick 都生成一次浇水特效。
     for (const plot of state.plots) {
       if (plot.dead) continue;
-      if (Number(plot.moisture) < 0.999) {
-        try { water(state, cfg, plot.id); } catch { /* 忽略 */ }
-      }
+      plot.moisture = 1;
+      plot.drySince = null;
     }
   }
 

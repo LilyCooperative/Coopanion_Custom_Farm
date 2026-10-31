@@ -866,6 +866,7 @@ await legacyWorld.stop();
   check('全自动收进背包并补种', Number(aAfter.inventory.potato) > 0 && aAfter.plots.length === 1 && Number(aAfter.plots[0].moisture) > 0.9,
     JSON.stringify({ inv: aAfter.inventory.potato, plots: aAfter.plots.length, water: aAfter.plots[0]?.moisture }));
   check('全自动把动物产物放进背包', Number(aAfter.inventory.egg) > 0, JSON.stringify(aAfter.inventory.egg));
+  check('全自动不反复播浇水特效', !(aAfter.fx ?? []).some((f) => f.kind === 'water'), JSON.stringify(aAfter.fx));
   await aWorld.stop();
 }
 
