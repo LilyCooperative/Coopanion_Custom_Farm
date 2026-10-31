@@ -51,7 +51,7 @@ export const REACH = 0.05;
 
 export const DEFAULTS = {
   /** 种田交互：independent / merge / auto */
-  farmMode: 'independent',
+  farmMode: 'merge',
   /** 安装目录：overlay / overlay-electron / assets 放在这里；空 = <dataDir>/custom-farm */
   installPath: '',
   /** 选中的显示器 id；空 = 自动（主屏）。 */

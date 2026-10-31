@@ -46,6 +46,7 @@ const host = {
 
 // 1 秒 = 60 游戏分钟：几拍就能熟，测试跑得快
 const cfg = {
+  farmMode: 'independent',
   zoom: 2,
   screenWidth: 2048,
   spriteGapPx: 4,

@@ -475,7 +475,7 @@ export class FarmWorld {
     const water = this.#catalog?.status?.water ?? null;
     return {
       ...DEFAULTS,
-      farmMode: ['independent', 'merge', 'auto'].includes(String(this.cfg?.farmMode ?? 'independent')) ? String(this.cfg?.farmMode ?? 'independent') : 'independent',
+      farmMode: ['independent', 'merge', 'auto'].includes(String(this.cfg?.farmMode ?? 'merge')) ? String(this.cfg?.farmMode ?? 'merge') : 'merge',
       screen: String(this.cfg?.screen ?? ''),
       overlayEngine: ['auto', 'electron', 'wpf'].includes(String(this.cfg?.overlayEngine ?? 'auto')) ? String(this.cfg?.overlayEngine ?? 'auto') : 'auto',
       electronPath: String(this.cfg?.electronPath ?? ''),
