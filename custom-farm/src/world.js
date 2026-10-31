@@ -1795,7 +1795,7 @@ export class FarmWorld {
     const weatherMoodChanges = this.#tickMood(cfg, now);
     const animalProducts = this.#tickAnimals(cfg, now, gameDays);
     if (cfg.farmMode === 'auto') {
-      try { this.#autoFarm(cfg); } catch (err) {
+      try { this.#autoFarm(cfg, result.becameRipe); } catch (err) {
         this.#host?.log?.warn?.('自定义农场：自动种田失败', { err: msg(err) });
       }
     }
@@ -1851,10 +1851,12 @@ export class FarmWorld {
   }
 
   /** 全自动：收熟、产物直接进背包、自动买/卖种子、补种、浇水，不发请求。 */
-  #autoFarm(cfg) {
+  #autoFarm(cfg, justRipe = []) {
     const state = this.#state;
     if (!state) return;
-    const ripe = state.plots.filter((p) => !p.dead && isRipe(p));
+    // 刚成熟的这一 tick 先保留成熟画面，下一 tick 再自动收，避免成熟阶段一闪而过。
+    const hold = new Set((justRipe ?? []).map(Number));
+    const ripe = state.plots.filter((p) => !p.dead && isRipe(p) && !hold.has(Number(p.id)));
     for (const plot of ripe) {
       const cropKey = plot.crop;
       const x = Number(plot.x);

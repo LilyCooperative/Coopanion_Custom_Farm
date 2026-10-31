@@ -867,6 +867,27 @@ await legacyWorld.stop();
     JSON.stringify({ inv: aAfter.inventory.potato, plots: aAfter.plots.length, water: aAfter.plots[0]?.moisture }));
   check('全自动把动物产物放进背包', Number(aAfter.inventory.egg) > 0, JSON.stringify(aAfter.inventory.egg));
   check('全自动不反复播浇水特效', !(aAfter.fx ?? []).some((f) => f.kind === 'water'), JSON.stringify(aAfter.fx));
+  const hDir = join(dataDir, 'auto-hold');
+  await mkdir(join(hDir, 'farm'), { recursive: true });
+  const hs = newState(clock, { ...cfg, farmMode: 'auto' }, random);
+  hs.plots = [{
+    id: 1, crop: 'potato', x: 0.5, level: CROPS.potato.levels - 2, growth: CROPS.potato.total - 0.1,
+    moisture: 1, harvests: 0, drySince: null, dead: false, ripeNotified: false,
+  }];
+  hs.inventory = { seed_potato: 1 };
+  hs.weeds = [];
+  await writeFile(join(hDir, 'farm', 'state.json'), JSON.stringify(hs), 'utf8');
+  const hWorld = new FarmWorld({ cfg: { ...cfg, farmMode: 'auto' }, dataDir: hDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
+  await hWorld.start(host);
+  clock += 1000;
+  await fireTick();
+  const hFirst = JSON.parse(await readFile(hWorld.stateFile(), 'utf8'));
+  check('全自动成熟阶段保留一个刷新间隔', hFirst.plots.length === 1 && !Number(hFirst.inventory.potato), JSON.stringify({ plots: hFirst.plots.length, potato: hFirst.inventory.potato }));
+  clock += 1000;
+  await fireTick();
+  const hSecond = JSON.parse(await readFile(hWorld.stateFile(), 'utf8'));
+  check('全自动下一间隔才收成熟作物', Number(hSecond.inventory.potato) > 0, JSON.stringify(hSecond.inventory.potato));
+  await hWorld.stop();
   await aWorld.stop();
   const mDir = join(dataDir, 'merge');
   await mkdir(join(mDir, 'farm'), { recursive: true });
