@@ -6,6 +6,8 @@
 
 - 土干 → 走过去 `cfarm_water`；熟 → `cfarm_harvest` 再 `cfarm_collect`；空地有种子 → `cfarm_plant`
 - 枯死/枯萎 → 原地 `cfarm_plant` 拔掉重种
+- 用户说“拔掉/铲掉/清掉” → `pet_move_to` → `cfarm_stand` → `cfarm_clear`；活的、枯的、杂草都能铲
+- 收到 `cfarm.work` → 一次完成：`pet_move_to` 走过去，然后只调用一次 `cfarm_quickfarm {x}`
 - 收到 `cfarm.state` 的「桌宠主动消耗」→ 从正文池子里挑一个 `cfarm_consume`；池子里没有现成的，先看 `cfarm_craft`，材料够就做一个池子里的消耗品再消耗
 - 收到 `cfarm.product` → 走到正文位置，`cfarm_stand` 后 `cfarm_collect` 捡动物产物
 - 有材料 → `cfarm_craft`；装饰在背包 → `cfarm_place`
@@ -23,9 +25,10 @@
 
 1. `cfarm.dry`：走到最近一棵 → `pet_move_to` + `cfarm_stand` → `cfarm_water`。
 2. `cfarm.ripe`：走到位置 → `cfarm_harvest` → `cfarm_collect`。
-3. `cfarm.state`（仅主动消耗）：按正文从池子挑一个 `cfarm_consume`；缺现成食物可先 `cfarm_craft`；材料不够再告诉主人。
-4. `cfarm.product`：走到正文位置 → `cfarm_stand` → `cfarm_collect`。
-5. `cfarm.env`：首次环境自检失败；按正文告诉主人缺什么、去哪里修，不要反复刷。
+3. `cfarm.work`：附近可收/可浇的地块已合并；只做 `pet_move_to` → `cfarm_quickfarm {x}`，一次收、捡、补种、浇水。
+4. `cfarm.state`（仅主动消耗）：按正文从池子挑一个 `cfarm_consume`；缺现成食物可先 `cfarm_craft`；材料不够再告诉主人。
+5. `cfarm.product`：走到正文位置 → `cfarm_stand` → `cfarm_collect`。
+6. `cfarm.env`：首次环境自检失败；按正文告诉主人缺什么、去哪里修，不要反复刷。
 
 `cfarm.wilt` / `cfarm.buy` 默认不单独发事件；`cfarm.day` 只有主人打开才发。
 
@@ -33,6 +36,8 @@
 
 - `cfarm_status`：田地、背包、状态、最近变化
 - `cfarm_stand {at}`：报位置，`at` 必填
+- `cfarm_quickfarm {x?, plot?, crop?, clear?}`：走到后一次完成收、捡、补种、浇水；优先用它
+- `cfarm_clear {plot?}`：铲掉活/枯作物或杂草
 - `cfarm_water {plot?, x?}`：浇脚下一片
 - `cfarm_harvest` / `cfarm_collect`：收脚下作物 / 捡掉落物
 - `cfarm_plant {crop?, x?}`：种一棵，消耗 1 包种子
@@ -40,6 +45,12 @@
 - `cfarm_craft {recipe?}`：按合成表制作
 - `cfarm_shop` / `cfarm_buy` / `cfarm_sell`：看价、买、卖
 - `cfarm_place {item,x?}`：摆装饰
+
+## 交互模式
+
+- `请求全部独立`：按事件逐项做，一次只做一个农场动作。
+- `请求部分合并`：收到 `cfarm.work` 时用 `pet_move_to` + 一次 `cfarm_quickfarm`，不要拆成 harvest/collect/plant/water 多次调用。
+- `全自动无请求`：世界自动收、买种、补种、浇水，不唤醒桌宠；只有主人主动要求时才手动操作。
 
 ## 状态与消耗
 
@@ -58,11 +69,13 @@
 
 ## 走路
 
-- 播种、收割、捡东西、浇水都要先 `pet_move_to {x}` → `cfarm_stand {at}`。
+- 普通动作：播种、收割、捡东西、浇水都要先 `pet_move_to {x}` → `cfarm_stand {at}`。
+- 部分合并：`cfarm.work` 用 `pet_move_to {x}` → `cfarm_quickfarm {x}`，不需要再 `cfarm_stand`。
 - `x` 是屏幕百分比 / 100，事件里的位置直接用。
 - 浇水一次浇一片，别为每棵单独走。
 
 ## 节奏
 
-- 只在收到 `cfarm.ripe` / `cfarm.dry` / `cfarm.day` / `cfarm.state` / `cfarm.product` / `cfarm.env` 时行动；其余时间安静。
+- 只在收到 `cfarm.ripe` / `cfarm.dry` / `cfarm.work` / `cfarm.day` / `cfarm.state` / `cfarm.product` / `cfarm.env` 时行动；其余时间安静。
 - 一次能做完的事不要拆多次工具调用。
+- 主人关闭浇水相关提醒时，不要主动催浇水。

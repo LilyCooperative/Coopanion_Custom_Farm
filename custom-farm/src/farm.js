@@ -50,6 +50,8 @@ export function farmPatch(cfg = DEFAULTS) {
 export const REACH = 0.05;
 
 export const DEFAULTS = {
+  /** 种田交互：independent / merge / auto */
+  farmMode: 'independent',
   /** 安装目录：overlay / overlay-electron / assets 放在这里；空 = <dataDir>/custom-farm */
   installPath: '',
   /** 选中的显示器 id；空 = 自动（主屏）。 */
@@ -890,6 +892,44 @@ export function pull(state, cfg, plotId) {
   pushFx(state, { kind: 'pull', x: plot.x, plot: id });
   pushFieldLog(state, { kind: 'pull', id, crop: plot.crop, x: plot.x });
   return { id, crop: cropOf(plot.crop).name, x: plot.x };
+}
+
+/**
+ * 铲除：活作物、枯作物或脚下杂草都能清掉，不产生收获物。
+ * plotId 优先；否则按 x 找最近的作物，再找杂草。
+ */
+export function clearAt(state, cfg, plotId = null, x = null) {
+  const here = x === null || x === undefined ? null : Number(x);
+  let target = null;
+  if (plotId !== null && plotId !== undefined) {
+    target = (state.plots ?? []).find((p) => Number(p.id) === Number(plotId));
+    if (!target) throw new Error(plotId + ' 号地没有作物。');
+    if (here !== null && Math.abs(Number(target.x) - here) > REACH) {
+      throw new Error('够不着：' + plotId + ' 号地在 ' + Math.round(Number(target.x) * 100) + '%。');
+    }
+  } else if (here !== null) {
+    target = (state.plots ?? [])
+      .filter((p) => Math.abs(Number(p.x) - here) <= REACH)
+      .sort((a, b) => Math.abs(Number(a.x) - here) - Math.abs(Number(b.x) - here))[0] ?? null;
+  }
+  if (target) {
+    state.plots = state.plots.filter((p) => p !== target);
+    if (state.current === target.id) state.current = null;
+    pushFx(state, { kind: 'pull', x: target.x, plot: target.id });
+    pushFieldLog(state, { kind: 'clear', id: target.id, crop: target.crop, x: target.x });
+    return { kind: 'plot', id: target.id, crop: cropOf(target.crop).name, x: target.x, dead: Boolean(target.dead) };
+  }
+  if (here !== null) {
+    const weed = (state.weeds ?? [])
+      .filter((w) => Math.abs(Number(w.x) - here) <= REACH)
+      .sort((a, b) => Math.abs(Number(a.x) - here) - Math.abs(Number(b.x) - here))[0] ?? null;
+    if (weed) {
+      state.weeds = state.weeds.filter((w) => w !== weed);
+      pushFieldLog(state, { kind: 'clear', id: weed.id, crop: 'weed', x: weed.x });
+      return { kind: 'weed', id: weed.id, crop: '杂草', x: weed.x, dead: false };
+    }
+  }
+  throw new Error('脚下没有可铲的作物或杂草。');
 }
 
 /**

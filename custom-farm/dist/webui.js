@@ -23,7 +23,6 @@ if (typeof document !== 'undefined') {
     renameFarmConfigTab();
     injectFarmEnvCheck();
     injectFarmConfigActions();
-    injectFarmTemplate();
     injectFarmInitCoins();
   };
   const start = () => {
@@ -3653,11 +3652,102 @@ function animalsPanel(ctx) {
 }
 
 
+function templatesPanel(ctx) {
+  try { return templatesPanelBody(ctx); }
+  catch (err) { return ctx.ui.h('div', 'cf-note', '模板页加载失败：' + ((err && err.message) || err)); }
+}
+function templatesPanelBody(ctx) {
+  const { ui } = ctx;
+  const zh = String(ctx.language || '').toLowerCase().startsWith('zh');
+  const root = ui.h('div', 'cf-body');
+  const desc = ui.h('div', 'cf-note',
+    zh ? '模板包含当前全部设置、参数和引用的贴图。导入模板会覆盖当前设置；存档读取只恢复 state.json，不改当前设置。'
+      : 'A template contains the current settings, parameters and referenced sprites. Importing replaces settings; restoring a save only restores state.json.');
+  const status = ui.h('span', 'cf-note', '');
+  const file = document.createElement('input');
+  file.type = 'file';
+  file.accept = '.zip';
+  file.style.display = 'none';
+  const btn = (text, primary = false) => ui.button(text, primary ? { variant: 'primary' } : {});
+  const exportBtn = btn(zh ? '导出模板 ZIP' : 'Export template ZIP', true);
+  const importBtn = btn(zh ? '导入模板 ZIP' : 'Import template ZIP', true);
+  const defaultBtn = btn(zh ? '应用默认模板：田园农场' : 'Apply default: Garden Farm');
+  const builtinBtn = btn(zh ? '导入内置模板：田园农场' : 'Import built-in: Garden Farm');
+  const row = ui.h('div', 'cf-row');
+  row.append(exportBtn, importBtn, defaultBtn, builtinBtn, status);
+  root.append(desc, row, file);
+
+  importBtn.addEventListener('click', () => file.click());
+  file.addEventListener('change', async () => {
+    const f = file.files && file.files[0];
+    file.value = '';
+    if (!f) return;
+    if (!window.confirm(zh ? '导入模板会覆盖当前全部设置和贴图。继续？' : 'Importing replaces all current settings and sprites. Continue?')) return;
+    status.textContent = zh ? '正在读取模板…' : 'Reading…';
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('read failed'));
+      reader.readAsDataURL(f);
+    }).catch((err) => { status.textContent = String(err.message || err); return ''; });
+    if (!dataUrl) return;
+    try {
+      const r = await farmManageCall('importTemplateData', [dataUrl.split(',')[1] || '']);
+      status.textContent = r.text || (zh ? '模板已导入' : 'Template imported');
+      setTimeout(() => { try { location.reload(); } catch { } }, 1800);
+    } catch (err) { status.textContent = (zh ? '导入失败：' : 'Import failed: ') + ((err && err.message) || err); }
+  });
+  exportBtn.addEventListener('click', async () => {
+    exportBtn.disabled = true;
+    status.textContent = zh ? '正在导出…' : 'Exporting…';
+    try {
+      const res = await fetch('/api/webui/providers/' + encodeURIComponent('world:farm') + '/panels/customize/exportTemplate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ args: [] }) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      const name = 'custom-farm-template-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.zip';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      status.textContent = zh ? '模板已开始下载' : 'Download started';
+    } catch (err) { status.textContent = (zh ? '导出失败：' : 'Export failed: ') + ((err && err.message) || err); }
+    finally { exportBtn.disabled = false; }
+  });
+  defaultBtn.addEventListener('click', async () => {
+    if (!window.confirm(zh ? '应用默认模板会替换全部设置和贴图。继续？' : 'Apply the default template? This replaces all settings and sprites.')) return;
+    defaultBtn.disabled = true;
+    status.textContent = zh ? '正在应用…' : 'Applying…';
+    try {
+      const r = await farmManageCall('applyDefaultTemplate');
+      status.textContent = r.text || (zh ? '已应用默认模板' : 'Default applied');
+      setTimeout(() => { try { location.reload(); } catch { } }, 1800);
+    } catch (err) { status.textContent = (zh ? '应用失败：' : 'Apply failed: ') + ((err && err.message) || err); }
+    finally { defaultBtn.disabled = false; }
+  });
+  builtinBtn.addEventListener('click', async () => {
+    if (!window.confirm(zh ? '导入内置模板会替换全部设置和贴图。继续？' : 'Import the built-in template? This replaces all settings and sprites.')) return;
+    builtinBtn.disabled = true;
+    status.textContent = zh ? '正在导入内置模板…' : 'Importing built-in…';
+    try {
+      const r = await farmManageCall('importBuiltinTemplate');
+      status.textContent = r.text || (zh ? '内置模板已导入' : 'Built-in imported');
+      setTimeout(() => { try { location.reload(); } catch { } }, 1800);
+    } catch (err) { status.textContent = (zh ? '导入失败：' : 'Import failed: ') + ((err && err.message) || err); }
+    finally { builtinBtn.disabled = false; }
+  });
+  ctx.root.appendChild(root);
+  return root;
+}
+
 export default {
   panels: {
     bag: { mount: bagPanel },
     animals: { mount: animalsPanel },
     shop: { mount: shopPanel },
+    template: { mount: templatesPanel },
     customize: { mount: panel },
     ecology: { mount: ecologyPanel },
     status: { mount: statusPanel },

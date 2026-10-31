@@ -10,6 +10,14 @@ const TOOL_SUMMARIES = {
     zh: '看田：每棵作物的位置、等级、进度、水分、是否可收/枯萎，外加背包、地上的掉落物、摆放的装饰物位置和最近田里的变化（少了哪棵、为什么）。',
     en: 'Show every plant (position, level, progress, moisture, ripe/wilted) plus the bag, the drops, placed decorations and recent field changes (which plant is gone and why).',
   },
+  cfarm_clear: {
+    zh: '铲掉脚下活/枯作物或杂草，不产生收获物；用户说拔掉/铲掉时用它。',
+    en: 'Clear a live/dead crop or weed at your feet without harvesting; use it for explicit removal.',
+  },
+  cfarm_quickfarm: {
+    zh: '一次完成附近收、捡、补种、浇水；配合 pet_move_to 使用。',
+    en: 'Harvest, collect, replant and water nearby in one call after pet_move_to.',
+  },
   cfarm_stand: {
     zh: '站到某个位置（at 必填），播种/收割/捡东西都要先站过去。',
     en: 'Stand at a position (at is required); planting, harvesting and collecting all need it.',
@@ -76,6 +84,14 @@ export const farmDefinition = {
         { value: 'wpf', label: zh ? 'WPF/WebView2（不需要 Electron）' : 'WPF/WebView2 (no Electron)' },
       ];
     }
+    if (kind === 'farm-modes') {
+      const zh = String(language).toLowerCase().startsWith('zh');
+      return [
+        { value: 'independent', label: zh ? '请求全部独立（每次只做一个动作）' : 'Independent requests (one action per request)' },
+        { value: 'merge', label: zh ? '请求部分合并（走过去后一次收获/补种/浇水）' : 'Partly merged (walk once, then harvest/replant/water)' },
+        { value: 'auto', label: zh ? '全自动无请求（自动收、买种、补种、浇水）' : 'Fully automatic (harvest, buy, replant, water without requests)' },
+      ];
+    }
     if (kind === 'farm-throttle') {
       const zh = String(language).toLowerCase().startsWith('zh');
       return [
@@ -102,6 +118,14 @@ export const farmDefinition = {
         description: {
           zh: '有作物土太干了；正文列出哪几棵、在屏幕底部百分之几，提示走过去浇水。',
           en: 'Some plants are running dry; the text names them and their position and says to water them.',
+        },
+        trigger: 'debounce',
+      },
+      {
+        type: 'cfarm.work',
+        description: {
+          zh: '请求部分合并模式下，成熟/缺水的地块被合并成一条；正文带位置，提示 pet_move_to 后一次 cfarm_quickfarm 完成收、捡、补种、浇水。',
+          en: 'In partly-merged mode, ripe/dry plots are combined into one event; it gives the position and says to use one cfarm_quickfarm after pet_move_to.',
         },
         trigger: 'debounce',
       },

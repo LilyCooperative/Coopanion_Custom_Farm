@@ -45,6 +45,7 @@ import {
   cropOf,
   harvest,
   harvestWeed,
+  clearAt,
   isRipe,
   levelOf,
   migrate,
@@ -145,6 +146,33 @@ export const FARM_TOOL_DECLS = [
       type: 'object',
       properties: {
         plot: { type: 'integer', description: '收哪一棵；省略则收脚下这棵。' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'cfarm_quickfarm',
+    tags: ['write'],
+    description: '一次完成脚下这一片的收、捡、补种、浇水。配合 pet_move_to 使用：先让桌宠走到 x 附近，再调用本工具，不需要再单独 cfarm_stand。默认收成熟作物并捡进背包、自动补同种种子（种子不够会尝试买）、给附近作物浇水；传入 clear:true 会先铲掉附近的枯苗/活作物再补种。返回每个动作的结果。',
+    parameters: {
+      type: 'object',
+      properties: {
+        x: { type: 'number', description: '目标位置 0~1；省略则用当前站立位置。' },
+        plot: { type: 'integer', description: '可选：以这块地为中心。' },
+        crop: { type: 'string', description: '可选：补种指定作物；默认沿用被收作物的种类。' },
+        clear: { type: 'boolean', description: '是否先铲掉附近枯死/挡路的作物。' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'cfarm_clear',
+    tags: ['write'],
+    description: '铲除脚下的作物或杂草：活的、枯的、野草都能铲，不产生收获物。要先用 pet_move_to + cfarm_stand 站到旁边；给 plot 可指定地号。用户说“拔掉/铲掉/清掉”活作物时用这个，不要用只拔枯苗的 cfarm_pull。',
+    parameters: {
+      type: 'object',
+      properties: {
+        plot: { type: 'integer', description: '铲哪一棵；省略则铲脚下最近的作物或杂草。' },
       },
       additionalProperties: false,
     },
@@ -285,6 +313,24 @@ function farmConfigGroups(language = 'zh', defaultHomePath = '') {
   });
 
   return [
+    {
+      id: 'world:farm/interaction',
+      owner: 'world:farm',
+      schema: {
+        type: 'object',
+        title: t('交互设置', 'Interaction'),
+        description: t('控制成熟、浇水和收获时桌宠要发多少次请求。模板设置已移到「游戏模板」页；若本页部分设置没有显示，重新打开本页一次即可加载。', 'Controls how many pet requests ripening, watering and harvesting cause. Template settings moved to Game templates; if some settings are missing, reopen this page once.'),
+        properties: {
+          'worlds.farm.farmMode': {
+            type: 'string',
+            title: t('种田交互模式', 'Farming interaction'),
+            description: t('请求全部独立：每次只做一个动作；请求部分合并：走过去后一次完成收获、补种、浇水；全自动无请求：作物自动收进背包、自动买种子并补种浇水，不唤醒桌宠。', 'Independent requests: one action per request. Partly merged: walk once, then harvest, replant and water in one action. Fully automatic: harvest to bag, buy seeds, replant and water without waking the pet.'),
+            'x-options': 'farm-modes',
+            'x-hot': true,
+          },
+        },
+      },
+    },
     {
       id: 'world:farm/init',
       owner: 'world:farm',
@@ -429,6 +475,7 @@ export class FarmWorld {
     const water = this.#catalog?.status?.water ?? null;
     return {
       ...DEFAULTS,
+      farmMode: ['independent', 'merge', 'auto'].includes(String(this.cfg?.farmMode ?? 'independent')) ? String(this.cfg?.farmMode ?? 'independent') : 'independent',
       screen: String(this.cfg?.screen ?? ''),
       overlayEngine: ['auto', 'electron', 'wpf'].includes(String(this.cfg?.overlayEngine ?? 'auto')) ? String(this.cfg?.overlayEngine ?? 'auto') : 'auto',
       electronPath: String(this.cfg?.electronPath ?? ''),
@@ -871,6 +918,8 @@ export class FarmWorld {
       case 'cfarm_collect': return await this.#collectTool();
     case 'cfarm_consume': return await this.#consumeTool(args);
     case 'cfarm_craft': return await this.#craftTool(args);
+      case 'cfarm_quickfarm': return await this.#quickFarmTool(args);
+      case 'cfarm_clear': return await this.#clearTool(args);
       case 'cfarm_pull': return await this.#pullTool(args);
       case 'cfarm_sell': return await this.#sellTool(args);
       case 'cfarm_shop': return this.#shopTool(args);
@@ -1095,6 +1144,99 @@ export class FarmWorld {
       text += ' ' + result.skipped.map((p) => p.id).join('、') + ' 号本来就浇透了。';
     }
     return { text };
+  }
+
+  async #quickFarmTool(args) {
+    this.#ensureStarted();
+    const cfg = this.#cfgAll();
+    let at = Number(args?.x);
+    if (!Number.isFinite(at)) at = this.#requireHere();
+    if (args?.plot !== undefined && args?.plot !== null) {
+      const p = this.#state.plots.find((row) => Number(row.id) === Number(args.plot));
+      if (!p) throw new Error(args.plot + ' 号地没有作物。');
+      at = Number(p.x);
+    }
+    at = clamp01(at);
+    const wantCrop = args?.crop ? cropFromText(args.crop) : null;
+    const r = await this.#mutate((state) => {
+      state.standingAt = at;
+      const out = { at, harvested: [], collected: [], replanted: [], watered: [], cleared: [], skipped: [] };
+      const nearby = (state.plots ?? [])
+        .filter((p) => Math.abs(Number(p.x) - at) <= REACH)
+        .sort((a, b) => Number(a.x) - Number(b.x));
+      for (const p of nearby) {
+        if (p.dead && args?.clear) {
+          try {
+            const c = clearAt(state, cfg, p.id, at);
+            out.cleared.push(c);
+          } catch { out.skipped.push('枯苗 ' + p.id); }
+        }
+      }
+      const ripe = nearby.filter((p) => !p.dead && isRipe(p));
+      for (const p of ripe) {
+        const cropKey = p.crop;
+        const x = Number(p.x);
+        const h = harvest(state, cfg, p.id, this.random);
+        out.harvested.push(...h.harvested);
+        const got = collect(state, cfg, x);
+        out.collected.push(...(got.collected ?? []));
+        if (h.removed.includes(p.id)) {
+          const seed = SEED_BY_CROP[cropKey];
+          if (seed) {
+            let have = Number(state.inventory?.[seed.id] ?? 0);
+            if (have < 1) {
+              if (Number(state.coins) >= seed.buy) {
+                try { buy(state, seed.id, 1); have = Number(state.inventory?.[seed.id] ?? 0); } catch { /* 买不到就跳过 */ }
+              } else {
+                // 金币不够：卖掉刚收的同类产物，凑一包种子
+                for (const d of h.drops) {
+                  const price = Number(live.items?.[d.item]?.sell) || 0;
+                  if (price > 0 && Number(state.coins) < seed.buy && Number(state.inventory?.[d.item]) > 0) {
+                    try { sell(state, cfg, d.item, 1); } catch { /* 忽略 */ }
+                  }
+                }
+                if (Number(state.coins) >= seed.buy) {
+                  try { buy(state, seed.id, 1); have = Number(state.inventory?.[seed.id] ?? 0); } catch { /* 忽略 */ }
+                }
+              }
+            }
+            if (have > 0) {
+              try {
+                const planted = plant(state, { x, crop: wantCrop ?? cropKey, cfg, random: this.random });
+                out.replanted.push({ id: planted.id, crop: planted.crop, x: planted.x });
+              } catch { out.skipped.push('补种 ' + cropKey); }
+            } else out.skipped.push('缺种子 ' + cropKey);
+          }
+        }
+      }
+      const ids = waterTargets(state.plots, at, null, REACH);
+      for (const id of ids) {
+        try {
+          const w = water(state, cfg, id);
+          out.watered.push(...w.plots);
+        } catch { /* 忽略单棵失败 */ }
+      }
+      const got = collect(state, cfg, at);
+      out.collected = got.collected ?? [];
+      return out;
+    });
+    const lines = [];
+    if (r.harvested.length) lines.push('收了：' + r.harvested.map((h) => h.crop + '×' + h.count).join('、'));
+    if (r.collected.length) lines.push('捡起：' + r.collected.map((d) => (d.name ?? d.item) + '×' + d.count).join('、'));
+    if (r.replanted.length) lines.push('补种：' + r.replanted.map((p) => p.crop + '（' + pct(p.x) + '%）').join('、'));
+    if (r.watered.length) lines.push('浇水：' + r.watered.length + ' 棵');
+    if (r.cleared.length) lines.push('铲除：' + r.cleared.length + ' 处');
+    if (r.skipped.length) lines.push('跳过：' + r.skipped.join('、'));
+    if (!lines.length) lines.push('这一片暂时没有可收、可种或可浇的。');
+    return { text: '快速种田完成（' + pct(at) + '% 附近）。\n' + lines.join('\n') };
+  }
+
+  async #clearTool(args) {
+    this.#ensureStarted();
+    const cfg = this.#cfgAll();
+    const at = this.#requireHere();
+    const r = await this.#mutate((state) => clearAt(state, cfg, args?.plot, at));
+    return { text: '铲掉了 ' + pct(r.x) + '% 的' + r.crop + (r.dead ? '（枯苗）' : '') + '，位置空出来了。想种就 cfarm_plant。' };
   }
 
   async #pullTool(args) {
@@ -1652,6 +1794,11 @@ export class FarmWorld {
     this.#applyWeather(cfg, now);
     const weatherMoodChanges = this.#tickMood(cfg, now);
     const animalProducts = this.#tickAnimals(cfg, now, gameDays);
+    if (cfg.farmMode === 'auto') {
+      try { this.#autoFarm(cfg); } catch (err) {
+        this.#host?.log?.warn?.('自定义农场：自动种田失败', { err: msg(err) });
+      }
+    }
     if (result.cappedDays > 0) {
       // 关机/睡眠回来：只补算 maxStepDays 天，剩下的不补。否则一次 tick 就能跳几十天、整片田干死。
       this.#host?.log?.info?.('自定义农场：离线/睡眠的时间已截断', {
@@ -1666,11 +1813,17 @@ export class FarmWorld {
     try { await this.#pushMoodChanges([...(result.stateChanges ?? []), ...weatherMoodChanges]); } catch (err) {
       this.#host?.log?.warn?.('自定义农场：心情提醒没送出去', { err: msg(err) });
     }
-    if (result.becameRipe.length) {
-      try { await this.#pushRipe(result.becameRipe); } catch (err) { this.#host?.log?.warn?.('自定义农场：成熟提醒没送出去', { err: msg(err) }); }
-    }
-    if (result.becameDry.length) {
-      try { await this.#pushDry(result.becameDry); } catch (err) { this.#host?.log?.warn?.('自定义农场：缺水提醒没送出去', { err: msg(err) }); }
+    if (cfg.farmMode === 'merge') {
+      if (result.becameRipe.length || result.becameDry.length) {
+        try { await this.#pushWork(result.becameRipe, result.becameDry); } catch (err) { this.#host?.log?.warn?.('自定义农场：合并提醒没送出去', { err: msg(err) }); }
+      }
+    } else if (cfg.farmMode !== 'auto') {
+      if (result.becameRipe.length) {
+        try { await this.#pushRipe(result.becameRipe); } catch (err) { this.#host?.log?.warn?.('自定义农场：成熟提醒没送出去', { err: msg(err) }); }
+      }
+      if (result.becameDry.length) {
+        try { await this.#pushDry(result.becameDry); } catch (err) { this.#host?.log?.warn?.('自定义农场：缺水提醒没送出去', { err: msg(err) }); }
+      }
     }
     if (animalProducts.length) {
       try { await this.#pushProducts(animalProducts); } catch (err) { this.#host?.log?.warn?.('自定义农场：动物产物提醒没送出去', { err: msg(err) }); }
@@ -1687,6 +1840,72 @@ export class FarmWorld {
     if (!this.#hidden) {
       try { this.#ensureLayers('巡检'); } catch { /* 忽略 */ }
     }
+  }
+
+  /** 全自动：收熟、产物直接进背包、自动买/卖种子、补种、浇水，不发请求。 */
+  #autoFarm(cfg) {
+    const state = this.#state;
+    if (!state) return;
+    const ripe = state.plots.filter((p) => !p.dead && isRipe(p));
+    for (const plot of ripe) {
+      const cropKey = plot.crop;
+      const x = Number(plot.x);
+      const h = harvest(state, cfg, plot.id, this.random);
+      for (const drop of h.drops) {
+        state.inventory[drop.item] = (Number(state.inventory[drop.item]) || 0) + drop.count;
+        state.drops = state.drops.filter((d) => d.id !== drop.id);
+      }
+      const seed = SEED_BY_CROP[cropKey];
+      if (h.removed.includes(plot.id) && seed) {
+        let have = Number(state.inventory[seed.id] ?? 0);
+        if (have < 1 && Number(state.coins) >= seed.buy) {
+          try { buy(state, seed.id, 1); have = Number(state.inventory[seed.id] ?? 0); } catch { /* 买不到 */ }
+        }
+        if (have < 1) {
+          // 金币不够：卖掉刚收的产物凑种子钱
+          for (const drop of h.drops) {
+            let guard = 0;
+            while (Number(state.coins) < seed.buy && Number(state.inventory[drop.item] ?? 0) > 0 && guard++ < 99) {
+              try { sell(state, cfg, drop.item, 1); } catch { break; }
+            }
+            if (Number(state.coins) >= seed.buy) break;
+          }
+          if (Number(state.coins) >= seed.buy) {
+            try { buy(state, seed.id, 1); have = Number(state.inventory[seed.id] ?? 0); } catch { /* 买不到 */ }
+          }
+        }
+        if (have > 0) {
+          try { plant(state, { x, crop: cropKey, cfg, random: this.random }); } catch { /* 位置被占就留空 */ }
+        }
+      }
+    }
+    // 全自动模式下不需要桌宠浇水：每 tick 把活作物补满。
+    for (const plot of state.plots) {
+      if (plot.dead) continue;
+      if (Number(plot.moisture) < 0.999) {
+        try { water(state, cfg, plot.id); } catch { /* 忽略 */ }
+      }
+    }
+  }
+
+  async #pushWork(ripeIds, dryIds) {
+    const host = this.#host;
+    if (!host?.pushEvent) return;
+    const s = summary(this.#state, this.#cfgAll());
+    const mine = s.plots.filter((p) => ripeIds.includes(p.id) || dryIds.includes(p.id));
+    if (!mine.length) return;
+    const lines = mine.map((p) => '  ' + p.id + ' 号' + p.crop + '（' + p.xPct + '%）' +
+      (ripeIds.includes(p.id) ? '熟了' : '土干了')).join('\n');
+    const first = mine.slice().sort((a, b) => Math.abs(a.x - (this.#state.standingAt ?? 0.5)) - Math.abs(b.x - (this.#state.standingAt ?? 0.5)))[0];
+    await host.pushEvent({
+      type: 'cfarm.work',
+      source: this.id,
+      senderKey: 'cfarm.work',
+      origin: 'internal',
+      ts: new Date().toISOString(),
+      text: '自定义农场：这一片可以一起处理了：\n' + lines + '\n用 pet_move_to 走到 ' + first.xPct + '% 附近，然后只调用一次 cfarm_quickfarm {x:' + first.x + '}，一次完成收、捡、补种、浇水。',
+      meta: { plots: mine.map((p) => p.id), x: first.x, xPct: first.xPct },
+    }, { deliver: true, trigger: 'debounce' });
   }
 
   async #pushDry(ids) {
@@ -1835,6 +2054,10 @@ export class FarmWorld {
         title: '商店',
         description: '只列买价 > 0 的道具；点「买 1」放进背包。',
         getMethods: ['state'],
+      }, {
+        id: 'template',
+        title: '游戏模板',
+        description: '导出/导入设置模板、应用默认模板；模板页单独加载，不依赖游戏配置页。',
       }, {
         id: 'customize',
         title: '农场自定义',

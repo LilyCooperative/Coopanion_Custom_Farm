@@ -16,7 +16,7 @@ import { CROP_PRICES, FURNITURE, FURNITURE_ENABLED, SEED_BY_CROP, SEED_BY_ID } f
 import { normalizeAnimal, advanceAnimal, normalizeAnimalState } from '../src/animals.js';
 import {
   REACH, checkSpot, cropOf, growthForLevel, isRipe, levelOf, minGapX, newState, pickSpot, water, waterTargets,
-  X_MIN, X_MAX, farmBounds, applyFarmSize, overlayView, advance, removeDeadAt, summary, harvestWeed,
+  X_MIN, X_MAX, farmBounds, applyFarmSize, overlayView, advance, removeDeadAt, clearAt, summary, harvestWeed,
   placeDecoration,
   tickStates, compareValue, consumeActions,
 } from '../src/farm.js';
@@ -91,8 +91,8 @@ const readState = async () => JSON.parse(await readFile(world.stateFile(), 'utf8
 // --- 1. 定义 ---------------------------------------------------------------
 check('definition.id = farm', definition.id === 'farm');
 check('18 种作物', Object.keys(CROPS).length === 18, Object.keys(CROPS).join(','));
-check('describe 有 13 个工具', definition.describe.tools.length === 13, definition.describe.tools.map((t) => t.name).join(','));
-check('describe 有 6 个事件', definition.describe.events.length === 6, definition.describe.events.map((e) => e.type).join(','));
+check('describe 有 15 个工具', definition.describe.tools.length === 15, definition.describe.tools.map((t) => t.name).join(','));
+check('describe 有 7 个事件', definition.describe.events.length === 7, definition.describe.events.map((e) => e.type).join(','));
 
 // --- 模板 ZIP 读写 ---------------------------------------------------------
 {
@@ -545,6 +545,15 @@ check('收满拔掉会记进田地大事记', multi.fieldLog.some((e) => e.kind 
   const n = removeDeadAt(st, 0.41);
   check('重种会清掉脚下枯株', n === 1 && st.plots.length === 0);
   check('重种清枯株也记账', st.fieldLog.some((e) => e.kind === 'replant' && e.id === 7));
+  const clearState = newState(clock, cfg, random);
+  clearState.plots = [{ id: 8, crop: 'potato', x: 0.5, level: 2, growth: 40, moisture: 0.5, harvests: 0, drySince: null, dead: false, ripeNotified: false }];
+  const cleared = clearAt(clearState, cfg, 8, 0.5);
+  check('cfarm_clear 能铲活作物', cleared.kind === 'plot' && clearState.plots.length === 0 && cleared.dead === false);
+  const weedState = newState(clock, cfg, random);
+  weedState.plots = [];
+  weedState.weeds = [{ id: 3, type: 'weed', x: 0.5, level: 2, growth: 1 }];
+  const weedCleared = clearAt(weedState, cfg, null, 0.5);
+  check('cfarm_clear 能铲杂草', weedCleared.kind === 'weed' && weedState.weeds.length === 0);
   const sm = summary(st, cfg);
   check('summary 带田地大事记', Array.isArray(sm.fieldLog) && sm.fieldLog.length === 1, JSON.stringify(sm.fieldLog));
   const live = summary(multi, cfg);
