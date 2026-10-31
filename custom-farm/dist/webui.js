@@ -22,7 +22,6 @@ if (typeof document !== 'undefined') {
   const refreshFarmConfigUi = () => {
     renameFarmConfigTab();
     injectFarmEnvCheck();
-    injectFarmConfigActions();
     injectFarmInitCoins();
   };
   const start = () => {
@@ -145,7 +144,12 @@ function injectFarmEnvCheck() {
 
     field.append(select, electronSelect, checkBtn);
     row.append(label, field);
-    view.prepend(section, desc, row, status);
+    const divider = document.createElement('hr');
+    divider.className = 'cf-hr';
+    divider.style.border = '0';
+    divider.style.borderTop = '1px solid var(--line, #39393e)';
+    divider.style.margin = '12px 0';
+    view.prepend(section, desc, row, status, divider);
     void check();
   } catch { /* 不是宿主的配置页就算了 */ }
 }
@@ -341,10 +345,10 @@ function injectFarmInitCoins() {
 }
 
 
-function injectFarmConfigActions() {
+function injectFarmConfigActions(targetView = null) {
   try {
-    if (!isFarmConfigRoute()) return;
-    const view = farmConfigView();
+    if (!targetView && !isFarmConfigRoute()) return;
+    const view = targetView || farmConfigView();
     if (!view || view.querySelector('[data-farm-manage]')) return;
 
     const section = document.createElement('div');
@@ -3738,6 +3742,10 @@ function templatesPanelBody(ctx) {
     } catch (err) { status.textContent = (zh ? '导入失败：' : 'Import failed: ') + ((err && err.message) || err); }
     finally { builtinBtn.disabled = false; }
   });
+  const manageView = document.createElement('div');
+  manageView.className = 'configview';
+  root.append(manageView);
+  injectFarmConfigActions(manageView);
   ctx.root.appendChild(root);
   return root;
 }
