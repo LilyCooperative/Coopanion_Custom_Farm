@@ -827,6 +827,43 @@ await legacyWorld.stop();
   check('阶段产物按时产出', made.length === 1 && made[0].item === 'egg' && made[0].count === 2, JSON.stringify(made));
 }
 
+// --- 16. cfarm_quickfarm 收完自动补种并捡进背包 --------------------------------
+{
+  const qDir = join(dataDir, 'quick');
+  await mkdir(join(qDir, 'farm'), { recursive: true });
+  const qs = newState(clock, { ...cfg, farmMode: 'merge' }, random);
+  qs.plots = [{
+    id: 1, crop: 'potato', x: 0.5, level: CROPS.potato.levels - 1, growth: CROPS.potato.total,
+    moisture: 0.5, harvests: 0, drySince: null, dead: false, ripeNotified: false,
+  }];
+  qs.inventory = { seed_potato: 1 };
+  qs.weeds = [];
+  await writeFile(join(qDir, 'farm', 'state.json'), JSON.stringify(qs), 'utf8');
+  const qWorld = new FarmWorld({ cfg: { ...cfg, farmMode: 'merge' }, dataDir: qDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
+  await qWorld.start(host);
+  const qr = await qWorld.tools().find((t) => t.name === 'cfarm_quickfarm').handler({ x: 0.5 });
+  const qAfter = JSON.parse(await readFile(qWorld.stateFile(), 'utf8'));
+  check('快速种田一次收完并补种', qr.text.includes('快速种田') && qAfter.plots.length === 1 && Number(qAfter.inventory.potato) > 0, qr.text);
+  await qWorld.stop();
+  const aDir = join(dataDir, 'auto');
+  await mkdir(join(aDir, 'farm'), { recursive: true });
+  const as = newState(clock, { ...cfg, farmMode: 'auto' }, random);
+  as.plots = [{
+    id: 1, crop: 'potato', x: 0.5, level: CROPS.potato.levels - 1, growth: CROPS.potato.total,
+    moisture: 0.5, harvests: 0, drySince: null, dead: false, ripeNotified: false,
+  }];
+  as.inventory = { seed_potato: 1 };
+  as.weeds = [];
+  await writeFile(join(aDir, 'farm', 'state.json'), JSON.stringify(as), 'utf8');
+  const aWorld = new FarmWorld({ cfg: { ...cfg, farmMode: 'auto' }, dataDir: aDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
+  await aWorld.start(host);
+  await fireTick();
+  const aAfter = JSON.parse(await readFile(aWorld.stateFile(), 'utf8'));
+  check('全自动收进背包并补种', Number(aAfter.inventory.potato) > 0 && aAfter.plots.length === 1 && Number(aAfter.plots[0].moisture) > 0.9,
+    JSON.stringify({ inv: aAfter.inventory.potato, plots: aAfter.plots.length, water: aAfter.plots[0]?.moisture }));
+  await aWorld.stop();
+}
+
 await rm(dataDir, { recursive: true, force: true });
 const failed = results.filter((r) => !r.ok);
 console.log('\n' + (results.length - failed.length) + '/' + results.length + ' 通过，' + events.length + ' 个事件，' + logs.length + ' 条日志');

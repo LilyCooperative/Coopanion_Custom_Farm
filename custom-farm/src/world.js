@@ -1178,7 +1178,7 @@ export class FarmWorld {
         const x = Number(p.x);
         const h = harvest(state, cfg, p.id, this.random);
         out.harvested.push(...h.harvested);
-        const got = collect(state, cfg, x);
+        const got = (() => { try { return collect(state, cfg, x); } catch { return { collected: [] }; } })();
         out.collected.push(...(got.collected ?? []));
         if (h.removed.includes(p.id)) {
           const seed = SEED_BY_CROP[cropKey];
@@ -1216,8 +1216,8 @@ export class FarmWorld {
           out.watered.push(...w.plots);
         } catch { /* 忽略单棵失败 */ }
       }
-      const got = collect(state, cfg, at);
-      out.collected = got.collected ?? [];
+      const got = (() => { try { return collect(state, cfg, at); } catch { return { collected: [] }; } })();
+      out.collected.push(...(got.collected ?? []));
       return out;
     });
     const lines = [];
