@@ -172,6 +172,31 @@ public static class FarmWin32 {
 
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr h, uint flags);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern bool GetMonitorInfo(IntPtr h, ref MONITORINFO info);
+    [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+    [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int n);
+    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] public struct MONITORINFO {
+        public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags;
+    }
+    public const int GWL_STYLE_FULLSCREEN = -16;
+    public const int WS_CAPTION_FULLSCREEN = 0x00C00000;
+    public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public static bool ForegroundFullscreen(IntPtr overlay) {
+        IntPtr fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero || fg == overlay) return false;
+        IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
+        if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;
+        MONITORINFO mi = new MONITORINFO();
+        mi.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+        if (!GetMonitorInfo(mon, ref mi)) return false;
+        RECT r;
+        if (!GetWindowRect(fg, out r)) return false;
+        if (r.Left > mi.rcMonitor.Left + 2 || r.Top > mi.rcMonitor.Top + 2 ||
+            r.Right < mi.rcMonitor.Right - 2 || r.Bottom < mi.rcMonitor.Bottom - 2) return false;
+        if (IsZoomed(fg) && (GetWindowLong(fg, GWL_STYLE_FULLSCREEN) & WS_CAPTION_FULLSCREEN) == WS_CAPTION_FULLSCREEN) return false;
+        return true;
+    }
 
     /// <summary>桌宠窗口中心在屏幕上的 x 比例（0~1）；失败返回 -1。</summary>
     public static double PetXFromWindow(double screenWidth) {
@@ -1305,6 +1330,7 @@ $script:anchorState = 'pending'
 $script:anchoredOnce = $false
 # 跟着桌宠的显示状态走：桌宠被隐藏 / 退出，图层也隐藏 / 停掉
 $script:policyHidden = $false
+$script:fullscreen = $false
 $script:shellHidden = $false   # 任务栏溢出/开始菜单等系统 UI 在前台时临时隐藏，别盖住它们
 $script:sawPet = $false
 $script:petGoneAt = $null
@@ -1333,6 +1359,7 @@ function Update-PetVisibility {
 }
 
 function Show-Overlay([string]$why) {
+    if ($script:fullscreen) { Log ($why + ' -> stay hidden for fullscreen'); return }
     try {
         $win.ShowActivated = $false
         $win.Show()
@@ -1381,6 +1408,16 @@ function Test-ShellForeground {
 
 function Update-ShellVisibility {
     if ($script:hwnd -eq [IntPtr]::Zero) { return }
+    $full = [FarmWin32]::ForegroundFullscreen($script:hwnd)
+    if ($full -ne $script:fullscreen) {
+        $script:fullscreen = $full
+        if ($full) {
+            if (-not $script:policyHidden) { Hide-Overlay 'fullscreen app' }
+        } elseif (-not $script:policyHidden -and -not $script:shellHidden) {
+            Show-Overlay 'fullscreen app gone'
+        }
+    }
+    if ($full) { return }
     $shell = Test-ShellForeground
     if ($shell -eq $script:shellHidden) { return }
     $script:shellHidden = $shell

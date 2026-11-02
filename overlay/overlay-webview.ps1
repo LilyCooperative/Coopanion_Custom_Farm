@@ -73,6 +73,34 @@ public static class FarmWebViewWin32 {
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hWnd, System.Text.StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern bool GetMonitorInfo(IntPtr hWnd, ref MONITORINFO info);
+    [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmd);
+    [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] public struct MONITORINFO {
+        public int cbSize; public RECT rcMonitor; public RECT rcWork; public uint dwFlags;
+    }
+    public const int GWL_STYLE = -16;
+    public const int WS_CAPTION = 0x00C00000;
+    public const int SW_HIDE = 0;
+    public const int SW_SHOWNOACTIVATE = 4;
+    public const uint MONITOR_DEFAULTTONEAREST = 2;
+    public static bool HasFullscreen(IntPtr overlay) {
+        IntPtr fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero || fg == overlay) return false;
+        IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
+        if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;
+        MONITORINFO mi = new MONITORINFO();
+        mi.cbSize = Marshal.SizeOf(typeof(MONITORINFO));
+        if (!GetMonitorInfo(mon, ref mi)) return false;
+        RECT r;
+        if (!GetWindowRect(fg, out r)) return false;
+        if (r.Left > mi.rcMonitor.Left + 2 || r.Top > mi.rcMonitor.Top + 2 ||
+            r.Right < mi.rcMonitor.Right - 2 || r.Bottom < mi.rcMonitor.Bottom - 2) return false;
+        if (IsZoomed(fg) && (GetWindowLong(fg, GWL_STYLE) & WS_CAPTION) == WS_CAPTION) return false;
+        return true;
+    }
     [DllImport("user32.dll", EntryPoint="SetWindowLongPtrW", SetLastError=true)] public static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr value);
     public const int GWLP_HWNDPARENT = -8;
     public static IntPtr FindPet(bool visibleOnly) {
@@ -207,6 +235,7 @@ $script:lastMtime = 0
 $script:lastHeight = $h
 $script:lastLease = Get-Date
 $script:lastStateMtime = (Get-Item -LiteralPath $StatePath).LastWriteTimeUtc
+$script:fullscreen = $false
 $script:bootApply = 30
 $script:zTick = 0
 
@@ -246,6 +275,27 @@ $timer.add_Tick({
         }
 
         $script:zTick++
+        if (($script:zTick % 5) -eq 0) {
+            $hwndFull = (New-Object System.Windows.Interop.WindowInteropHelper($win)).Handle
+            $full = [FarmWebViewWin32]::HasFullscreen($hwndFull)
+            if ($full -ne $script:fullscreen) {
+                $script:fullscreen = $full
+                if ($full) {
+                    $win.Hide()
+                    Write-Log 'hidden for fullscreen app'
+                } else {
+                    $win.ShowActivated = $false
+                    $win.Show()
+                    [void][FarmWebViewWin32]::TopMost($hwndFull)
+                    Update-PetZOrder
+                    Write-Log 'shown after fullscreen app'
+                }
+            }
+        }
+        if ($script:fullscreen) {
+            Start-Sleep -Milliseconds 80
+            return
+        }
         if (($script:zTick % 5) -eq 0) { Update-PetZOrder }
         $mtime = (Get-Item -LiteralPath $StatePath).LastWriteTimeUtc
         $force = $script:bootApply -gt 0
