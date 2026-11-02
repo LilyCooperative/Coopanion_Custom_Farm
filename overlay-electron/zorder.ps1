@@ -26,6 +26,7 @@ public static class FarmZ {
     public delegate bool EnumProc(IntPtr h, IntPtr l);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassNameW(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
@@ -48,10 +49,20 @@ public static class FarmZ {
     public const int SW_HIDE = 0;
     public const int SW_SHOWNOACTIVATE = 4;
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    static bool IsShellWindow(IntPtr h) {
+        StringBuilder sb = new StringBuilder(256);
+        GetClassNameW(h, sb, 256);
+        string cls = sb.ToString();
+        return cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" ||
+               cls == "Shell_SecondaryTrayWnd" || cls == "NotifyIconOverflowWindow" ||
+               cls == "TopLevelWindowForOverflowXamlIsland" || cls == "MultitaskingViewFrame" ||
+               cls == "TaskListThumbnailWnd" || cls == "XamlExplorerHostIslandWindow_WASDK";
+    }
     /** 返回目标窗口所在显示器上是否有前台全屏窗口（排除本图层自己的句柄）。 */
     public static bool HasFullscreen(IntPtr overlay, IntPtr bg, IntPtr mid, IntPtr top) {
         IntPtr fg = GetForegroundWindow();
         if (fg == IntPtr.Zero || fg == overlay || fg == bg || fg == mid || fg == top) return false;
+        if (IsShellWindow(fg)) return false;
         IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
         if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;
         MONITORINFO mi = new MONITORINFO();

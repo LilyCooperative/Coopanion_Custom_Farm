@@ -182,9 +182,19 @@ public static class FarmWin32 {
     public const int GWL_STYLE_FULLSCREEN = -16;
     public const int WS_CAPTION_FULLSCREEN = 0x00C00000;
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    static bool IsShellWindow(IntPtr h) {
+        StringBuilder sb = new StringBuilder(256);
+        GetClassNameW(h, sb, 256);
+        string cls = sb.ToString();
+        return cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" ||
+               cls == "Shell_SecondaryTrayWnd" || cls == "NotifyIconOverflowWindow" ||
+               cls == "TopLevelWindowForOverflowXamlIsland" || cls == "MultitaskingViewFrame" ||
+               cls == "TaskListThumbnailWnd" || cls == "XamlExplorerHostIslandWindow_WASDK";
+    }
     public static bool ForegroundFullscreen(IntPtr overlay) {
         IntPtr fg = GetForegroundWindow();
         if (fg == IntPtr.Zero || fg == overlay) return false;
+        if (IsShellWindow(fg)) return false;
         IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
         if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;
         MONITORINFO mi = new MONITORINFO();

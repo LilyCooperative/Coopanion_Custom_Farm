@@ -71,6 +71,7 @@ public static class FarmWebViewWin32 {
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr lParam);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowTextW(IntPtr hWnd, System.Text.StringBuilder s, int n);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassNameW(IntPtr hWnd, System.Text.StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
@@ -86,9 +87,19 @@ public static class FarmWebViewWin32 {
     public const int SW_HIDE = 0;
     public const int SW_SHOWNOACTIVATE = 4;
     public const uint MONITOR_DEFAULTTONEAREST = 2;
+    static bool IsShellWindow(IntPtr h) {
+        var sb = new System.Text.StringBuilder(256);
+        GetClassNameW(h, sb, 256);
+        string cls = sb.ToString();
+        return cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" ||
+               cls == "Shell_SecondaryTrayWnd" || cls == "NotifyIconOverflowWindow" ||
+               cls == "TopLevelWindowForOverflowXamlIsland" || cls == "MultitaskingViewFrame" ||
+               cls == "TaskListThumbnailWnd" || cls == "XamlExplorerHostIslandWindow_WASDK";
+    }
     public static bool HasFullscreen(IntPtr overlay) {
         IntPtr fg = GetForegroundWindow();
         if (fg == IntPtr.Zero || fg == overlay) return false;
+        if (IsShellWindow(fg)) return false;
         IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
         if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;
         MONITORINFO mi = new MONITORINFO();
