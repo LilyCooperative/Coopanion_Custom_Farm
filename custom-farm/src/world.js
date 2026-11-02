@@ -423,6 +423,8 @@ export class FarmWorld {
   #lastStatusDay = 0;
   #ripePending = new Set();
   #ripeTimer = null;
+  /** 重启后的第一拍：合并模式要把已经成熟/缺水的地块重新汇总推送一次。 */
+  #firstTick = true;
   /** 农场自定义（地面 / 作物 / 杂草），启动时从 data\farm\custom.json 载入。 */
   #catalog = null;
 
@@ -1813,9 +1815,12 @@ export class FarmWorld {
     try { await this.#pushMoodChanges([...(result.stateChanges ?? []), ...weatherMoodChanges]); } catch (err) {
       this.#host?.log?.warn?.('自定义农场：心情提醒没送出去', { err: msg(err) });
     }
+    const firstTick = this.#firstTick;
     if (cfg.farmMode === 'merge') {
-      if (result.becameRipe.length || result.becameDry.length) {
-        try { await this.#pushWork(result.becameRipe, result.becameDry); } catch (err) { this.#host?.log?.warn?.('自定义农场：合并提醒没送出去', { err: msg(err) }); }
+      const ripeIds = (this.#state.plots ?? []).filter((p) => !p.dead && isRipe(p)).map((p) => p.id);
+      const dryIds = (this.#state.plots ?? []).filter((p) => !p.dead && Number(p.moisture) < 0.15).map((p) => p.id);
+      if (firstTick || result.becameRipe.length || result.becameDry.length) {
+        try { await this.#pushWork(ripeIds, dryIds); } catch (err) { this.#host?.log?.warn?.('自定义农场：合并提醒没送出去', { err: msg(err) }); }
       }
     } else if (cfg.farmMode !== 'auto') {
       if (result.becameRipe.length) {
@@ -1825,6 +1830,7 @@ export class FarmWorld {
         try { await this.#pushDry(result.becameDry); } catch (err) { this.#host?.log?.warn?.('自定义农场：缺水提醒没送出去', { err: msg(err) }); }
       }
     }
+    this.#firstTick = false;
     if (animalProducts.length) {
       if (cfg.farmMode === 'auto') {
         for (const p of animalProducts) {
@@ -3504,6 +3510,7 @@ export class FarmWorld {
         host?.log?.error?.('自定义农场：启动初始化失败（已忽略，继续用空田跑）', { err: msg(err) });
       }
       this.#started = true;
+      this.#firstTick = true;
       this.#schedule();
       this.#cmdTimer = setInterval(() => { void this.#drainCommands(); }, 1000);
       if (this.persistConfig && this.cfg?.farmMode === undefined) {

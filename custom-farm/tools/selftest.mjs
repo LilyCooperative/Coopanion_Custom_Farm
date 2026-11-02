@@ -905,7 +905,7 @@ await legacyWorld.stop();
   ms.plots = [1, 2].map((id, i) => ({
     id, crop: 'potato', x: [0.35, 0.65][i], level: CROPS.potato.levels - 1, growth: CROPS.potato.total,
     moisture: i === 0 ? 0 : 1, harvests: 0, drySince: i === 0 ? null : null,
-    dryNotified: i === 0 ? false : true, dead: false, ripeNotified: false,
+    dryNotified: i === 0 ? false : true, dead: false, ripeNotified: i === 1,
   }));
   ms.inventory = { seed_potato: 2 };
   ms.weeds = [];
