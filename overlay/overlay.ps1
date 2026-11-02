@@ -194,6 +194,7 @@ public static class FarmWin32 {
     public static bool ForegroundFullscreen(IntPtr overlay) {
         IntPtr fg = GetForegroundWindow();
         if (fg == IntPtr.Zero || fg == overlay) return false;
+        if (fg == FindPetWindow()) return false;
         if (IsShellWindow(fg)) return false;
         IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
         if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;

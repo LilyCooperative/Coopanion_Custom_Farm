@@ -62,6 +62,7 @@ public static class FarmZ {
     public static bool HasFullscreen(IntPtr overlay, IntPtr bg, IntPtr mid, IntPtr top) {
         IntPtr fg = GetForegroundWindow();
         if (fg == IntPtr.Zero || fg == overlay || fg == bg || fg == mid || fg == top) return false;
+        if (fg == FindPet(false)) return false;
         if (IsShellWindow(fg)) return false;
         IntPtr mon = MonitorFromWindow(overlay, MONITOR_DEFAULTTONEAREST);
         if (MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST) != mon) return false;
