@@ -881,6 +881,26 @@ await legacyWorld.stop();
     JSON.stringify({ inv: aAfter.inventory.potato, plots: aAfter.plots.length, water: aAfter.plots[0]?.moisture }));
   check('全自动把动物产物放进背包', Number(aAfter.inventory.egg) > 0, JSON.stringify(aAfter.inventory.egg));
   check('全自动不反复播浇水特效', !(aAfter.fx ?? []).some((f) => f.kind === 'water'), JSON.stringify(aAfter.fx));
+  const pDir = join(dataDir, 'animal-product');
+  await mkdir(join(pDir, 'farm'), { recursive: true });
+  const ps = newState(clock, { ...cfg, farmMode: 'merge' }, random);
+  ps.plots = [];
+  ps.weeds = [];
+  ps.animals = [{
+    id: 'a_p', species: 'chicken', stage: 1, ageDays: 2.1, x: 0.5, anchor: 0.5, range: 0.1,
+    nextProductAt: 2, action: 'idle', actionUntil: 0,
+  }];
+  await writeFile(join(pDir, 'farm', 'state.json'), JSON.stringify(ps), 'utf8');
+  const pWorld = new FarmWorld({ cfg: { ...cfg, farmMode: 'merge' }, dataDir: pDir, botDir: dataDir, packageDir, now, random, timers, manageLayers: false });
+  await pWorld.start(host);
+  await fireTick();
+  const pAfter = JSON.parse(await readFile(pWorld.stateFile(), 'utf8'));
+  check('非全自动动物产物掉在地上', pAfter.drops.some((d) => d.item === 'egg'), JSON.stringify(pAfter.drops));
+  check('动物产物触发拾取提醒', events.some((e) => e.type === 'cfarm.product'), JSON.stringify(events.map((e) => e.type).slice(-4)));
+  await pWorld.tools().find((t) => t.name === 'cfarm_stand').handler({ at: 0.5 });
+  const pc = await pWorld.tools().find((t) => t.name === 'cfarm_collect').handler({});
+  check('动物产物可以捡进背包', !pc.failed && Number((JSON.parse(await readFile(pWorld.stateFile(), 'utf8')).inventory || {}).egg) > 0, pc.text);
+  await pWorld.stop();
   const hDir = join(dataDir, 'auto-hold');
   await mkdir(join(hDir, 'farm'), { recursive: true });
   const hs = newState(clock, { ...cfg, farmMode: 'auto' }, random);

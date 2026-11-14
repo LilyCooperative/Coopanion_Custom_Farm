@@ -1084,7 +1084,7 @@ export function collect(state, cfg = DEFAULTS, at = null) {
     else stay.push(drop);
   }
   if (taken.length === 0) {
-    const list = state.drops.map((d) => Math.round(Number(d.x) * 100) + '%（' + cropOf(d.crop).name + '）').join('、');
+    const list = state.drops.map((d) => Math.round(Number(d.x) * 100) + '%（' + (live.names?.[d.item] ?? d.item) + '）').join('、');
     throw new Error('你站的地方（' + Math.round(here * 100) + '%）附近没有掉落物。' +
       (list ? '地上还有：' + list + '。' : '地上什么都没有。'));
   }

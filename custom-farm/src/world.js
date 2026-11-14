@@ -1495,7 +1495,7 @@ export class FarmWorld {
     const at = this.#requireHere();
     const result = await this.#mutate((state) => collect(state, cfg, at));
     const s = summary(this.#state, cfg);
-    const got = result.collected.map((d) => (d.name ?? live.names[d.item] ?? cropOf(d.crop).items[0]) + '×' + d.count).join('、');
+    const got = result.collected.map((d) => (d.name ?? live.names[d.item] ?? d.item) + '×' + d.count).join('、');
     const lines = ['捡起来了：' + got + '（' + pct(result.at) + '% 附近）。', '背包现在 ' + s.bagTotal + ' 件。'];
     if (s.dropList.length) lines.push('地上还剩：' + s.dropList.map((d) => d.item + '（' + d.xPct + '%）').join('、') + '。');
     return { text: lines.join('\n') };
