@@ -1714,7 +1714,6 @@ export class FarmCatalog {
 
   removeAnimal(key) {
     const safe = String(key ?? '');
-    if (safe === 'chicken') throw new Error('内置鸡不能删除；可以改它的动作和价格，或新增其他动物。');
     const species = (this.store.animals ?? []).find((a) => a.key === safe);
     if (!species) throw new Error('没有这种动物：' + safe);
     const stageIds = (species.stages ?? []).map((stage) => String(stage.item ?? '')).filter(Boolean);

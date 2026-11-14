@@ -3710,7 +3710,7 @@ function animalsPanel(ctx) {
       sheet.body.append(actionBox);
       const bar = ui.actions();
       bar.append(ui.button(T.save, { variant: 'primary', onClick: () => void call('saveAnimal', [draft], T.saved) }));
-      if (sp.key !== 'chicken') bar.append(ui.button(T.remove, {
+      bar.append(ui.button(T.remove, {
         size: 'sm',
         variant: 'danger',
         onClick: () => void (async () => {
