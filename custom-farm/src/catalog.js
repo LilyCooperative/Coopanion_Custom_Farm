@@ -293,10 +293,23 @@ export class FarmCatalog {
   }
 
   ensureAnimalItems(species) {
-    const items = this.store.items ?? (this.store.items = []);
-    for (let i = 0; i < (species.stages ?? []).length; i++) {
-      const stage = species.stages[i];
+    let items = this.store.items ?? (this.store.items = []);
+    const stages = species.stages ?? [];
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
       if (!stage.item) stage.item = 'animal_' + species.key + '_' + (stage.key || i);
+    }
+    // 删阶段/换阶段 key 后，旧阶段道具不能继续挂在商店里。
+    const keep = new Set(stages.map((stage) => stage.item));
+    const stale = items.filter((it) => it.kind === 'animal' && it.animalSpecies === species.key && !keep.has(it.id));
+    if (stale.length) {
+      const staleIds = stale.map((it) => it.id);
+      this.removeRecipesUsing(staleIds);
+      for (const id of staleIds) this.removeCustomSprites('item', id);
+      items = this.store.items = items.filter((it) => !staleIds.includes(it.id));
+    }
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i];
       let item = items.find((it) => it.id === stage.item);
       const isAdult = i === species.stages.length - 1;
       const itemName = species.name + (isAdult ? '（成年）' : '（幼崽）');
@@ -1700,10 +1713,21 @@ export class FarmCatalog {
   }
 
   removeAnimal(key) {
-    this.store.animals = (this.store.animals ?? []).filter((a) => a.key !== String(key));
+    const safe = String(key ?? '');
+    if (safe === 'chicken') throw new Error('内置鸡不能删除；可以改它的动作和价格，或新增其他动物。');
+    const species = (this.store.animals ?? []).find((a) => a.key === safe);
+    if (!species) throw new Error('没有这种动物：' + safe);
+    const stageIds = (species.stages ?? []).map((stage) => String(stage.item ?? '')).filter(Boolean);
+    // 产物道具可能和别的物种/内置食物共用（例如鸡蛋），删物种时不删产物，避免误删共享道具。
+    const removeIds = [...new Set(stageIds)];
+    this.store.items = (this.store.items ?? []).filter((it) => !removeIds.includes(it.id));
+    this.removeRecipesUsing(removeIds);
+    for (const id of removeIds) this.removeCustomSprites('item', id);
+    this.removeCustomSprites('animal', safe);
+    this.store.animals = (this.store.animals ?? []).filter((a) => a.key !== safe);
     this.persist();
     this.apply();
-    return this.store.animals;
+    return { animals: this.store.animals, removedItems: removeIds };
   }
 
   saveConsume(input) {

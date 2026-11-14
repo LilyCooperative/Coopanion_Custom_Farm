@@ -949,6 +949,15 @@ await legacyWorld.stop();
   mk(123);
   const second = cat.store.items.find((i) => i.animalSpecies === 'shop_test' && i.animalStage === 0);
   check('自定义动物改价后商店幼崽同步', firstBuy === 88 && second?.buy === 123, JSON.stringify({ first: firstBuy, second: second?.buy }));
+  cat.saveAnimal({
+    key: 'shop_test', name: '测试兽', layer: 'mid',
+    actions: [{ key: 'idle', name: '待机', weight: 1 }],
+    prices: { babyBuy: 123, babySell: 40, adultSell: 160 },
+    stages: [{ key: 'baby', name: '幼崽', days: 1.5, scale: 0.2, prefix: 'shop_baby', sprites: { idle: [] } }],
+  });
+  check('删阶段后旧阶段道具删除', !cat.store.items.some((i) => i.animalSpecies === 'shop_test' && i.animalStage === 1));
+  cat.removeAnimal('shop_test');
+  check('删物种后商店动物道具清空', !cat.store.items.some((i) => i.animalSpecies === 'shop_test'));
 }
 
 await rm(dataDir, { recursive: true, force: true });

@@ -2656,12 +2656,37 @@ export class FarmWorld {
     switch (method) {
       case 'state': return this.#animalSnapshot();
       case 'saveAnimal': {
-        catalog.saveAnimal(args?.[0] ?? {});
+        const input = args?.[0] ?? {};
+        const key = String(input.key ?? '');
+        const old = live.animals?.[key];
+        const nextStages = Array.isArray(input.stages) ? input.stages : old?.stages;
+        if (old && Array.isArray(nextStages) && nextStages.length < (old.stages?.length ?? 0)) {
+          const n = (this.#state?.animals ?? []).filter((a) => a.species === key).length;
+          if (n > 0) throw new Error('农场里还有 ' + n + ' 只' + old.name + '，先收回或卖掉再删阶段（否则阶段编号会错）。');
+        }
+        const oldItems = (old?.stages ?? []).map((s) => String(s.item ?? '')).filter(Boolean);
+        const saved = catalog.saveAnimal(input);
+        const newItems = new Set((saved.stages ?? []).map((s) => String(s.item ?? '')).filter(Boolean));
+        const gone = oldItems.filter((id) => !newItems.has(id));
+        if (gone.length) await this.#purgeItemState(gone);
         return this.#animalSnapshot();
       }
       case 'removeAnimal': {
-        catalog.removeAnimal(args?.[0]);
-        return this.#animalSnapshot();
+        const key = String(args?.[0] ?? '');
+        const species = live.animals?.[key];
+        if (!species) throw new Error('没有这种动物：' + key);
+        const stageIds = (species.stages ?? []).map((s) => String(s.item ?? '')).filter(Boolean);
+        const placed = new Set((this.#state?.animals ?? []).filter((a) => a.species === key).map((a) => a.id));
+        const removed = catalog.removeAnimal(key);
+        const removeIds = new Set([...stageIds, ...(removed.removedItems ?? [])]);
+        await this.#mutate((state) => {
+          state.animals = (state.animals ?? []).filter((a) => a.species !== key);
+          state.drops = (state.drops ?? []).filter((d) => !placed.has(d.animal) && !removeIds.has(String(d.item)));
+          state.inventory = state.inventory ?? {};
+          for (const id of removeIds) delete state.inventory[id];
+          return null;
+        });
+        return { ...this.#animalSnapshot(), text: '已删除物种「' + species.name + '」，同时清理了已放置、背包和商店里的对应道具。' };
       }
       case 'sprite':
         return { $binary: catalog.spriteBase64(args?.[0]) };

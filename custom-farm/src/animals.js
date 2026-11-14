@@ -122,7 +122,9 @@ export function normalizeAnimal(src, index = 0) {
     .slice(0, 8);
   if (!stageDefs.length) return null;
   // 旧版“添加动物”只生成一个幼崽阶段，导致它被当成唯一年龄阶段，商店没有幼崽可卖；补一个成年阶段。
-  if (stageDefs.length === 1 && /幼|崽|baby|chick/i.test(stageDefs[0].name)) {
+  // 迁移过一次后打标记，之后用户主动删掉成年阶段不会再被自动加回来。
+  let singleStageMigrated = src.singleStageMigrated === true || stageDefs.length > 1;
+  if (stageDefs.length === 1 && !singleStageMigrated && /幼|崽|baby|chick/i.test(stageDefs[0].name)) {
     const baby = stageDefs[0];
     baby.days = Math.max(0.01, Number(baby.days) || 1.5);
     stageDefs.push({
@@ -134,6 +136,7 @@ export function normalizeAnimal(src, index = 0) {
       product: null,
       sprites: Object.fromEntries(Object.entries(baby.sprites ?? {}).map(([k, v]) => [k, [...v]])),
     });
+    singleStageMigrated = true;
   }
   const last = stageDefs.length - 1;
   // 旧版把产物放在物种上；迁移到最后一个阶段，之后只在阶段上定义。
@@ -159,6 +162,7 @@ export function normalizeAnimal(src, index = 0) {
     },
     product: null,
     prices,
+    singleStageMigrated,
     stages: stageDefs,
   };
 }

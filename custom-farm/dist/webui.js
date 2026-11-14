@@ -3441,6 +3441,7 @@ function animalsPanel(ctx) {
     sell: zh ? '成年出售' : 'Sell adult',
     save: zh ? '保存动物设置' : 'Save animal',
     remove: zh ? '删除物种' : 'Remove species',
+    removeNote: zh ? '会同时删除已放置的该动物、背包里的幼崽/成年道具、商店道具和该物种的自定义贴图。确定删除？' : 'This also removes placed animals, bag items, shop items and custom sprites for this species. Continue?',
     saved: zh ? '已保存' : 'Saved',
     noAnchors: zh ? '预览里还没有锚点。' : 'No anchors in the preview.',
     walkChance: zh ? '开始走路概率' : 'Walk chance',
@@ -3709,7 +3710,14 @@ function animalsPanel(ctx) {
       sheet.body.append(actionBox);
       const bar = ui.actions();
       bar.append(ui.button(T.save, { variant: 'primary', onClick: () => void call('saveAnimal', [draft], T.saved) }));
-      bar.append(ui.button(T.remove, { size: 'sm', variant: 'danger', onClick: () => void call('removeAnimal', [sp.key], T.saved) }));
+      if (sp.key !== 'chicken') bar.append(ui.button(T.remove, {
+        size: 'sm',
+        variant: 'danger',
+        onClick: () => void (async () => {
+          if (!(await ui.confirm({ title: T.remove + '：' + sp.name, body: T.removeNote, danger: true }))) return;
+          await call('removeAnimal', [sp.key], T.saved);
+        })(),
+      }));
       sheet.body.append(bar);
       root.append(card);
     }
