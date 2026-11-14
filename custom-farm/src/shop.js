@@ -90,10 +90,10 @@ export function sellPriceOf(itemId) {
   return Number(SEED_BY_ID[itemId]?.sell ?? CROP_PRICES[itemId]?.sell ?? 0);
 }
 
-/** 背包里某个 item id 的买价（道具自定义里 buy>0 才卖；0 = 商店不卖）。 */
+/** 商店里某个 item id 的买价（道具自定义里 shop=true 才上架；0 = 免费）。 */
 export function buyPriceOf(itemId) {
   const item = live.items?.[itemId];
-  if (item) return item.buy > 0 ? item.buy : 0;
+  if (item) return item.shop === true ? item.buy : 0;
   return Number(SEED_BY_ID[itemId]?.buy ?? SEED_BY_CROP[itemId]?.buy ?? FURNITURE_BY_ID[itemId]?.buy ?? 0);
 }
 

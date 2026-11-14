@@ -1381,7 +1381,7 @@ export function buy(state, id, count = 1) {
     if (spec && !FURNITURE_ENABLED) throw new Error('家具暂时下架了（先不卖，摆放方案还没定）。');
     throw new Error('商店里没有 ' + (id ?? '这件东西') + '。');
   }
-  if (!(def.buy > 0)) throw new Error(def.name + ' 没有设置购买价值，商店不卖。');
+  if (!(def.shop === true || (def.shop === undefined && def.buy > 0))) throw new Error(def.name + ' 没有上架商店。');
   const n = Math.max(1, Math.min(99, Math.floor(Number(count) || 1)));
   const price = def.buy * n;
   const coins = Number(state.coins ?? 0);
@@ -1408,7 +1408,7 @@ export function buyMany(state, items = []) {
       if (spec && !FURNITURE_ENABLED) throw new Error('家具暂时下架了（先不卖）。');
       throw new Error('商店里没有 ' + (id || '这件东西') + '。');
     }
-    if (!(def.buy > 0)) throw new Error(def.name + ' 没有设置购买价值，商店不卖。');
+    if (!(def.shop === true || (def.shop === undefined && def.buy > 0))) throw new Error(def.name + ' 没有上架商店。');
     const n = Math.max(1, Math.min(99, Math.floor(Number(raw?.count) || 1)));
     planned.push({ def, count: n, price: def.buy * n });
   }

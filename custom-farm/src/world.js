@@ -1339,7 +1339,7 @@ export class FarmWorld {
       return { text: '家具下架了；现在用「道具自定义 → 装饰道具」加装饰，再用 cfarm_place 摆到地上。' };
     }
     const kind = ['seed', 'consumable', 'decor', 'animal', 'all'].includes(args?.kind) ? args.kind : 'all';
-    const shop = Object.values(live.items ?? {}).filter((it) => it.buy > 0);
+    const shop = Object.values(live.items ?? {}).filter((it) => it.shop === true);
     const groups = [
       ['seed', '种子（种一棵消耗 1 包）'],
       ['consumable', '消耗品'],
@@ -2556,7 +2556,7 @@ export class FarmWorld {
       })
       .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'zh'));
     const shop = Object.values(live.items ?? {})
-      .filter((it) => it.buy > 0)
+      .filter((it) => it.shop === true)
       .map((it) => ({
         id: it.id,
         name: it.name,

@@ -2036,8 +2036,9 @@ const IT = {
     decorationsDesc: '可买/可合成；设置缩略图、摆放贴图和图层（上/中/下）后，去「背包」页点放置。上层会清掉落点杂草；中层和下层不清草。',
     addConsumable: '添加消耗品',
     addDecor: '添加装饰',
-    buy: '买价（0=不卖）',
+    buy: '买价（0=免费）',
     sell: '卖价（0=不能卖）',
+    shopList: '上架商店（买价可为 0）',
     name: '名字',
     icon: '缩略图',
     sprite: '摆放贴图',
@@ -2082,8 +2083,9 @@ const IT = {
     decorationsDesc: 'Buy or craft; set icon, placement sprite and layer (top/mid/bottom), then place from the Bag page. Top clears weeds at the spot; middle and bottom leave weeds alone.',
     addConsumable: 'Add consumable',
     addDecor: 'Add decoration',
-    buy: 'Buy (0 = not sold)',
+    buy: 'Buy (0 = free)',
     sell: 'Sell (0 = cannot sell)',
+    shopList: 'List in shop (price may be 0)',
     name: 'Name',
     icon: 'Icon',
     sprite: 'Placement sprite',
@@ -2886,6 +2888,7 @@ function itemsPanel(ctx) {
       name: item.name,
       buy: item.buy,
       sell: item.sell,
+      shop: Boolean(item.shop),
       consumable: item.consumable,
       effects: item.effects.map((e) => ({ state: e.state, delta: e.delta })),
       icon: item.icon,
@@ -2916,6 +2919,10 @@ function itemsPanel(ctx) {
       ui.field(T.sell, num(draft.sell, (v) => { draft.sell = v; })),
     );
     body.append(row);
+    body.append(ui.checkbox(T.shopList, {
+      checked: Boolean(draft.shop),
+      onChange: (v) => { draft.shop = v; },
+    }).el);
 
     if (kind === 'crop') {
       const cb = ui.checkbox(T.edible, { checked: Boolean(draft.consumable), onChange: (v) => { draft.consumable = v; } });

@@ -310,6 +310,7 @@ export class FarmCatalog {
           kind: 'animal',
           buy: itemBuy,
           sell: itemSell,
+          shop: !isAdult,
           icon: itemIcon,
           consumable: false,
           animalSpecies: species.key,
@@ -321,6 +322,7 @@ export class FarmCatalog {
         item.name = itemName;
         item.buy = itemBuy;
         item.sell = itemSell;
+        item.shop = !isAdult;
         item.icon = itemIcon;
         item.animalSpecies = species.key;
         item.animalStage = i;
@@ -922,6 +924,7 @@ export class FarmCatalog {
       sprite: kind === 'decor' ? (cleanSprite(src.sprite) ?? null) : null,
       buy: int(src.buy, 0, 1000000, 0),
       sell: int(src.sell, 0, 1000000, 0),
+      shop: src.shop === true || (src.shop === undefined && Number(src.buy) > 0),
       consumable: kind === 'consumable' ? true : (kind === 'crop' ? src.consumable !== false : false),
       animalSpecies: kind === 'animal' ? String(src.animalSpecies ?? '').slice(0, 40) : null,
       animalStage: kind === 'animal' ? int(src.animalStage, 0, 7, 0) : null,
