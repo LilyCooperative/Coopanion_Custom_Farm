@@ -3532,6 +3532,10 @@ function animalsPanel(ctx) {
             key: 'stage_1', name: zh ? '幼崽' : 'Baby', days: 1.5, scale: 0.12,
             prefix: key + '_stage_1', item: '', product: null,
             sprites: { idle: [], walk: [], peck: [] },
+          }, {
+            key: 'stage_2', name: zh ? '成年' : 'Adult', days: 0, scale: 0.18,
+            prefix: key + '_stage_2', item: '', product: null,
+            sprites: { idle: [], walk: [], peck: [] },
           }],
         };
         void call('saveAnimal', [fresh], T.saved);

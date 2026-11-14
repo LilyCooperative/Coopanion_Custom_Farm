@@ -298,20 +298,32 @@ export class FarmCatalog {
       const stage = species.stages[i];
       if (!stage.item) stage.item = 'animal_' + species.key + '_' + (stage.key || i);
       let item = items.find((it) => it.id === stage.item);
+      const isAdult = i === species.stages.length - 1;
+      const itemName = species.name + (isAdult ? '（成年）' : '（幼崽）');
+      const itemBuy = isAdult ? 0 : Number(species.prices?.babyBuy) || 0;
+      const itemSell = Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0;
+      const itemIcon = stage.sprites?.idle?.[0] ?? item?.icon ?? null;
       if (!item) {
-        const isAdult = i === species.stages.length - 1;
         item = this.normalizeItem({
           id: stage.item,
-          name: species.name + (isAdult ? '（成年）' : '（幼崽）'),
+          name: itemName,
           kind: 'animal',
-          buy: isAdult ? 0 : Number(species.prices?.babyBuy) || 0,
-          sell: Number(isAdult ? species.prices?.adultSell : species.prices?.babySell) || 0,
-          icon: stage.sprites?.idle?.[0] ?? null,
+          buy: itemBuy,
+          sell: itemSell,
+          icon: itemIcon,
           consumable: false,
           animalSpecies: species.key,
           animalStage: i,
         }, items.length, this.store.states);
         if (item) items.push(item);
+      } else {
+        // 自定义动物改价格/贴图后，商店道具必须同步，而不是只在第一次创建时写死。
+        item.name = itemName;
+        item.buy = itemBuy;
+        item.sell = itemSell;
+        item.icon = itemIcon;
+        item.animalSpecies = species.key;
+        item.animalStage = i;
       }
       if (stage.product) this.ensureAnimalProductItem(stage.product, species, i);
     }

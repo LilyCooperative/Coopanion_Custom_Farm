@@ -835,6 +835,10 @@ await legacyWorld.stop();
     customAction.stages[0].sprites.dance.length === 3, JSON.stringify(customAction.actions));
   const customState = normalizeAnimalState([{ id: 'x', species: 'action_test', stage: 0, action: 'dance' }])[0];
   check('自定义动作状态不被重置', customState.action === 'dance', customState.action);
+  const singleStage = normalizeAnimal({
+    key: 'single_stage', stages: [{ key: 'baby', name: '幼崽', days: 1.5, sprites: { idle: ['a'] } }],
+  });
+  check('单阶段幼崽自动补成年阶段', singleStage.stages.length === 2 && singleStage.stages[1].name === '成年');
 }
 
 // --- 16. cfarm_quickfarm 收完自动补种并捡进背包 --------------------------------
@@ -922,6 +926,29 @@ await legacyWorld.stop();
   const mr = await mWorld.tools().find((t) => t.name === 'cfarm_quickfarm').handler({ x: 0.35 });
   check('合并模式一次工具处理附近地块', mr.text.includes('快速种田'), mr.text);
   await mWorld.stop();
+}
+
+// --- 17. 自定义动物价格同步到商店道具 ------------------------------------------------
+{
+  const shopDir = join(dataDir, 'animal-shop');
+  await mkdir(shopDir, { recursive: true });
+  const cat = new FarmCatalog({ storePath: join(shopDir, 'custom.json'), spritesDir: join(packageDir, '..', 'assets', 'sprites'), pointsPerDay: 288 });
+  cat.load();
+  const mk = (price) => cat.saveAnimal({
+    key: 'shop_test', name: '测试兽', layer: 'mid',
+    actions: [{ key: 'idle', name: '待机', weight: 1 }],
+    prices: { babyBuy: price, babySell: 40, adultSell: 160 },
+    stages: [
+      { key: 'baby', name: '幼崽', days: 1.5, scale: 0.2, prefix: 'shop_baby', sprites: { idle: [] } },
+      { key: 'adult', name: '成年', days: 0, scale: 0.3, prefix: 'shop_adult', sprites: { idle: [] } },
+    ],
+  });
+  mk(88);
+  const first = cat.store.items.find((i) => i.animalSpecies === 'shop_test' && i.animalStage === 0);
+  const firstBuy = first?.buy;
+  mk(123);
+  const second = cat.store.items.find((i) => i.animalSpecies === 'shop_test' && i.animalStage === 0);
+  check('自定义动物改价后商店幼崽同步', firstBuy === 88 && second?.buy === 123, JSON.stringify({ first: firstBuy, second: second?.buy }));
 }
 
 await rm(dataDir, { recursive: true, force: true });
