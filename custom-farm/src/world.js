@@ -1351,10 +1351,10 @@ export class FarmWorld {
       if (kind !== 'all' && kind !== g) continue;
       const rows = shop.filter((it) => it.kind === g);
       lines.push(title + '（买 / 卖）：');
-      if (!rows.length) lines.push('  （这一类还没有设购买价的道具）');
+      if (!rows.length) lines.push('  （这一类还没有上架的道具）');
       for (const it of rows) lines.push('  ' + it.id + ' · ' + it.name + ' · 买 ' + it.buy + ' / 卖 ' + (it.sell > 0 ? it.sell : '不卖'));
     }
-    lines.push('买：cfarm_buy {items:[{id:"seed_tomato",count:1}]}（多种写一个 items 里，省 token；没设购买价的不在商店）。');
+    lines.push('买：cfarm_buy {items:[{id:"seed_tomato",count:1}]}（多种写一个 items 里，省 token；没上架的不在商店）。');
     lines.push('卖：cfarm_sell {item}（没设出售价的不能卖）。');
     return { text: lines.join('\n') };
   }
